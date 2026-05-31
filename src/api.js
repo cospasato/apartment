@@ -50,76 +50,76 @@ export const api = {
   getStoreBySlug: (slug) => get(`/stores?action=by_slug&slug=${slug}`),
 
   // Super admin — stores
-  getStores:      ()     => get('/stores'),
-  getStore:       id     => get(`/stores?id=${id}`),
-  updateStore:    (id,d) => put(`/stores?id=${id}`, d),
-  platformStats:  ()     => get('/stores?action=platform_stats'),
+  getStores:     ()     => get('/stores'),
+  getStore:      id     => get(`/stores?id=${id}`),
+  updateStore:   (id,d) => put(`/stores?id=${id}`, d),
+  platformStats: ()     => get('/stores?action=platform_stats'),
+
+  // Super admin — platform settings (now in stores.js)
+  getPlatformSettings:  ()  => get('/stores?action=settings'),
+  savePlatformSettings: d   => put('/stores?action=settings', d),
+  changeAdminPassword:  d   => post('/stores?action=change_password', d),
 
   // Super admin — subscriptions
-  getPlans:          ()      => get('/subscriptions?action=plans'),
-  createPlan:        d       => post('/subscriptions?action=plans', d),
-  updatePlan:        (id,d)  => put(`/subscriptions?action=plans&id=${id}`, d),
-  recordPayment:     d       => post('/subscriptions?action=payment', d),
-  getSubPayments:    sid     => get(`/subscriptions?store_id=${sid}`),
-
-  // Platform settings
-  getPlatformSettings: ()  => get('/platform'),
-  savePlatformSettings: d  => put('/platform', d),
-  changeAdminPassword:  d  => post('/platform', d),
+  getPlans:       ()      => get('/subscriptions?action=plans'),
+  createPlan:     d       => post('/subscriptions?action=plans', d),
+  updatePlan:     (id, d) => put(`/subscriptions?action=plans&id=${id}`, d),
+  recordPayment:  d       => post('/subscriptions?action=payment', d),
+  getSubPayments: sid     => get(`/subscriptions?store_id=${sid}`),
 
   // Locations
   getLocations:   storeId      => get(`/locations?store_id=${storeId}`),
   createLocation: d            => post('/locations', d),
-  updateLocation: (id,d)       => put(`/locations?id=${id}`, d),
+  updateLocation: (id, d)      => put(`/locations?id=${id}`, d),
   deleteLocation: id           => del(`/locations?id=${id}`),
 
   // Rooms
-  getRooms:       (storeId, locId) => get('/rooms' + (locId ? `?location_id=${locId}` : storeId ? `?store_id=${storeId}` : '')),
-  createRoom:     d                => post('/rooms', d),
-  updateRoom:     (id,d)           => put(`/rooms?id=${id}`, d),
-  deleteRoom:     id               => del(`/rooms?id=${id}`),
-  checkAvailability: (roomId,ci,co) => get(`/bookings?check_room=${roomId}&ci=${ci}&co=${co}`),
-  getBookedDates: locId            => get(`/bookings?get_booked_dates=${locId}`),
+  getRooms:          (storeId, locId) => get('/rooms' + (locId ? `?location_id=${locId}` : storeId ? `?store_id=${storeId}` : '')),
+  createRoom:        d                => post('/rooms', d),
+  updateRoom:        (id, d)          => put(`/rooms?id=${id}`, d),
+  deleteRoom:        id               => del(`/rooms?id=${id}`),
+  checkAvailability: (roomId, ci, co) => get(`/bookings?check_room=${roomId}&ci=${ci}&co=${co}`),
+  getBookedDates:    locId            => get(`/bookings?get_booked_dates=${locId}`),
 
   // Bookings
   getBookings:    (storeId, locId) => get('/bookings' + (storeId && locId ? `?store_id=${storeId}&location_id=${locId}` : storeId ? `?store_id=${storeId}` : locId ? `?location_id=${locId}` : '')),
   createBooking:  d                => post('/bookings', d),
-  updateBooking:  (id,d)           => put(`/bookings?id=${id}`, d),
-  addPayment:     (id,amount,pm)   => put(`/bookings?id=${id}`, { add_payment: amount, payment_method: pm }),
-  extendBooking:  (id,d)           => put(`/bookings?id=${id}&action=extend`, d),
+  updateBooking:  (id, d)          => put(`/bookings?id=${id}`, d),
+  addPayment:     (id, amount, pm) => put(`/bookings?id=${id}`, { add_payment: amount, payment_method: pm }),
+  extendBooking:  (id, d)          => put(`/bookings?id=${id}&action=extend`, d),
   deleteBooking:  id               => del(`/bookings?id=${id}`),
-  customerCancel: (id,cid)         => put(`/bookings?id=${id}&customer_cancel=1`, { customer_id: cid }),
+  customerCancel: (id, cid)        => put(`/bookings?id=${id}&customer_cancel=1`, { customer_id: cid }),
 
-  // Expenses
-  getExpenses:    (storeId, locId) => get('/expenses' + (storeId && locId ? `?store_id=${storeId}&location_id=${locId}` : storeId ? `?store_id=${storeId}` : '')),
-  createExpense:  d                => post('/expenses', d),
+  // Reviews (merged into bookings.js via ?resource=reviews)
+  getReviews:   storeId => get(`/bookings?resource=reviews&store_id=${storeId}`),
+  createReview: d       => post('/bookings?resource=reviews', d),
 
-  // Staff
-  getStaff:         storeId     => get(`/staff?store_id=${storeId}`),
-  createStaff:      d           => post('/staff', d),
-  updateStaff:      (id,d)      => put(`/staff?id=${id}`, d),
-  deleteStaff:      id          => del(`/staff?id=${id}`),
-  updateProfile:    d           => put('/staff?me=1', d),
-  getPayMethods:    storeId     => get(`/staff?resource=payment_methods&store_id=${storeId}`),
-  createPayMethod:  (name,sid)  => post('/staff?resource=payment_methods', { name, store_id: sid }),
-  updatePayMethod:  (pmId,d)    => put('/staff?resource=payment_methods', { ...d, pmId }),
-  deletePayMethod:  pmId        => req('DELETE', '/staff?resource=payment_methods', { pmId }),
+  // Expenses (merged into reports.js via ?resource=expenses)
+  getExpenses:    (storeId, locId) => get('/reports?resource=expenses' + (storeId ? `&store_id=${storeId}` : '') + (locId ? `&location_id=${locId}` : '')),
+  createExpense:  d                => post('/reports?resource=expenses', d),
+
+  // Staff + payment methods
+  getStaff:        storeId     => get(`/staff?store_id=${storeId}`),
+  createStaff:     d           => post('/staff', d),
+  updateStaff:     (id, d)     => put(`/staff?id=${id}`, d),
+  deleteStaff:     id          => del(`/staff?id=${id}`),
+  updateProfile:   d           => put('/staff?me=1', d),
+  getPayMethods:   storeId     => get(`/staff?resource=payment_methods&store_id=${storeId}`),
+  createPayMethod: (name, sid) => post('/staff?resource=payment_methods', { name, store_id: sid }),
+  updatePayMethod: (pmId, d)   => put('/staff?resource=payment_methods', { ...d, pmId }),
+  deletePayMethod: pmId        => req('DELETE', '/staff?resource=payment_methods', { pmId }),
 
   // Reports
   getReports: (storeId, locId, df, dt) => get('/reports?' + [
     `store_id=${storeId}`,
     locId ? `location_id=${locId}` : '',
-    df ? `date_from=${df}` : '',
-    dt ? `date_to=${dt}` : ''
+    df    ? `date_from=${df}` : '',
+    dt    ? `date_to=${dt}`   : ''
   ].filter(Boolean).join('&')),
 
   // Customers
-  customerRegister: d          => post('/customers?action=register', d),
-  customerLogin:    d          => post('/customers?action=login', d),
-  customerBookings: id         => get(`/customers?customer_id=${id}`),
-  customerUpdate:   (id,d)     => put(`/customers?customer_id=${id}`, d),
-
-  // Reviews
-  getReviews:   storeId        => get(`/reviews?store_id=${storeId}`),
-  createReview: d              => post('/reviews', d),
+  customerRegister: d        => post('/customers?action=register', d),
+  customerLogin:    d        => post('/customers?action=login', d),
+  customerBookings: id       => get(`/customers?customer_id=${id}`),
+  customerUpdate:   (id, d)  => put(`/customers?customer_id=${id}`, d),
 };

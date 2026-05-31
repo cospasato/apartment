@@ -1,3 +1,5 @@
+// api/bookings.js — bookings + reviews
+// Routes: /api/bookings  AND  /api/bookings?resource=reviews
 const { getDb, setCors, dbError } = require('./_db.js');
 
 module.exports = async function handler(req, res) {
@@ -6,9 +8,35 @@ module.exports = async function handler(req, res) {
   let sql;
   try { sql = getDb(); } catch (err) { return res.status(500).json({ error: err.message }); }
 
-  const { id, store_id, location_id, customer_cancel } = req.query;
+  const { id, store_id, location_id, customer_cancel, resource } = req.query;
 
   try {
+    // ── REVIEWS (resource=reviews) ──────────────────────────
+    if (resource === 'reviews') {
+      const { room_id } = req.query;
+      if (req.method === 'GET') {
+        let rows;
+        if (room_id)
+          rows = await sql`SELECT r.*, c.name AS customer_name FROM reviews r JOIN customers c ON c.id=r.customer_id WHERE r.room_id=${room_id} ORDER BY r.created_at DESC`;
+        else if (store_id)
+          rows = await sql`SELECT r.*, c.name AS customer_name, rm.name AS room_name FROM reviews r JOIN customers c ON c.id=r.customer_id LEFT JOIN rooms rm ON rm.id=r.room_id WHERE r.store_id=${store_id} ORDER BY r.created_at DESC`;
+        else rows = [];
+        return res.status(200).json(rows);
+      }
+      if (req.method === 'POST') {
+        const { store_id: sid, room_id: rid, booking_id, customer_id, rating, comment } = req.body || {};
+        if (!sid || !customer_id || !rating) return res.status(400).json({ error: 'store_id, customer_id, rating required' });
+        const rows = await sql`
+          INSERT INTO reviews (store_id, room_id, booking_id, customer_id, rating, comment)
+          VALUES (${sid}, ${rid||null}, ${booking_id||null}, ${customer_id}, ${rating}, ${comment||null})
+          RETURNING *
+        `;
+        return res.status(201).json(rows[0]);
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // ── BOOKINGS ────────────────────────────────────────────
     if (req.method === 'GET' && req.query.check_room) {
       const { check_room, ci, co } = req.query;
       const conflicts = await sql`
@@ -62,13 +90,13 @@ module.exports = async function handler(req, res) {
           discount, discount_type, total_amount, paid_amount,
           status, payment_method, notes, staff_id, customer_id
         ) VALUES (
-          ${sid || null}, ${room_id || null}, ${loc || null},
-          ${guest_name}, ${guest_phone}, ${guest_email || null},
-          ${guest_nationality || null}, ${check_in}, ${check_out},
-          ${nights || 1}, ${base_amount || 0}, ${discount || 0},
-          ${discount_type || 'pct'}, ${total_amount || 0}, ${paid_amount || 0},
-          'pending', ${payment_method || 'Cash'}, ${notes || null},
-          ${staff_id || null}, ${customer_id || null}
+          ${sid||null}, ${room_id||null}, ${loc||null},
+          ${guest_name}, ${guest_phone}, ${guest_email||null},
+          ${guest_nationality||null}, ${check_in}, ${check_out},
+          ${nights||1}, ${base_amount||0}, ${discount||0},
+          ${discount_type||'pct'}, ${total_amount||0}, ${paid_amount||0},
+          'pending', ${payment_method||'Cash'}, ${notes||null},
+          ${staff_id||null}, ${customer_id||null}
         ) RETURNING *
       `;
       return res.status(201).json(rows[0]);
