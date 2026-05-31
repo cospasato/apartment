@@ -1,5 +1,5 @@
 // api/stores.js — store registration, management, super-admin operations
-const { getDb, setCors, dbError, verifyToken } = require('./_db.js');
+const { getDb, setCors, dbError, verifyToken } = require('../lib/_db.js');
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -284,3 +284,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: dbError(err) });
   }
 };
+
+// Note: setup health-check merged here from setup.js
+// GET /api/stores?action=setup

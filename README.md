@@ -35,7 +35,7 @@ git push -u origin main
 6. Click **Deploy**
 
 ### Step 4 — Verify deployment
-Visit `https://your-project.vercel.app/api/setup` — you should see:
+Visit `https://your-project.vercel.app/api/stores?action=setup` — you should see:
 ```json
 { "ok": true, "tables": [...] }
 ```
@@ -88,9 +88,9 @@ bnbms/
 │   ├── staff.js           # Staff + payment methods
 │   ├── expenses.js        # Expense logging
 │   ├── reports.js         # Financial reports
-│   ├── customers.js       # Guest accounts
+
 │   ├── reviews.js         # Reviews
-│   └── setup.js           # DB health check
+
 ├── src/
 │   ├── App.jsx            # Main React app (all portals)
 │   ├── api.js             # Frontend API client

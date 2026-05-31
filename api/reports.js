@@ -1,6 +1,6 @@
 // api/reports.js — financial reports + expenses
 // Routes: /api/reports  AND  /api/reports?resource=expenses
-const { getDb, setCors, dbError } = require('./_db.js');
+const { getDb, setCors, dbError } = require('../lib/_db.js');
 
 module.exports = async function handler(req, res) {
   setCors(res);
