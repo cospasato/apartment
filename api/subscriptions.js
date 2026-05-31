@@ -1,5 +1,5 @@
 // api/subscriptions.js — subscription plans + billing management
-const { getDb, setCors, dbError, verifyToken } = require('../lib/_db.js');
+const { getDb, setCors, dbError, verifyToken } = require('./_db.js');
 
 module.exports = async function handler(req, res) {
   setCors(res);

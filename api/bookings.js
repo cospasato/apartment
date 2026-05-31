@@ -1,6 +1,6 @@
 // api/bookings.js — bookings + reviews
 // Routes: /api/bookings  AND  /api/bookings?resource=reviews
-const { getDb, setCors, dbError } = require('../lib/_db.js');
+const { getDb, setCors, dbError } = require('./_db.js');
 
 module.exports = async function handler(req, res) {
   setCors(res);

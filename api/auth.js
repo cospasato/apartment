@@ -6,7 +6,7 @@
 // POST /api/auth?type=guest&action=login     — guest login
 // GET  /api/auth?type=guest&customer_id=X   — guest bookings
 // PUT  /api/auth?type=guest&customer_id=X   — guest profile update
-const { getDb, setCors, dbError, makeToken } = require('../lib/_db.js');
+const { getDb, setCors, dbError, makeToken } = require('./_db.js');
 
 module.exports = async function handler(req, res) {
   setCors(res);

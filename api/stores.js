@@ -1,5 +1,5 @@
 // api/stores.js — store registration, management, super-admin operations
-const { getDb, setCors, dbError, verifyToken } = require('../lib/_db.js');
+const { getDb, setCors, dbError, verifyToken } = require('./_db.js');
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
