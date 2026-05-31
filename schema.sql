@@ -1,14 +1,106 @@
 -- ============================================================
--- BNC APARTMENT — DATABASE SCHEMA
+-- BNBMS — BNB MANAGEMENT SYSTEM — SUPER APP DATABASE SCHEMA
 -- Run this entire file in: Neon Console → SQL Editor → Run
 -- ============================================================
 
--- Make sure we're in the public schema
 SET search_path TO public;
 
--- LOCATIONS
+-- ============================================================
+-- PLATFORM TABLES (new)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  id            TEXT        PRIMARY KEY DEFAULT 'PLN' || upper(substr(md5(random()::text), 1, 5)),
+  name          TEXT        NOT NULL UNIQUE,
+  price_monthly BIGINT      NOT NULL DEFAULT 0,
+  price_yearly  BIGINT      NOT NULL DEFAULT 0,
+  max_locations INTEGER     NOT NULL DEFAULT 1,
+  max_rooms     INTEGER     NOT NULL DEFAULT 10,
+  max_staff     INTEGER     NOT NULL DEFAULT 2,
+  features      TEXT[]      NOT NULL DEFAULT '{}',
+  is_active     BOOLEAN     NOT NULL DEFAULT true,
+  sort_order    INTEGER     NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS store_owners (
+  id            TEXT        PRIMARY KEY DEFAULT 'OWN' || upper(substr(md5(random()::text), 1, 5)),
+  name          TEXT        NOT NULL,
+  email         TEXT        UNIQUE NOT NULL,
+  phone         TEXT,
+  country       TEXT        NOT NULL DEFAULT 'TZ',
+  password_hash TEXT        NOT NULL,
+  active        BOOLEAN     NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS stores (
+  id          TEXT        PRIMARY KEY DEFAULT 'STR' || upper(substr(md5(random()::text), 1, 5)),
+  name        TEXT        NOT NULL,
+  slug        TEXT        UNIQUE NOT NULL,
+  owner_id    TEXT        NOT NULL REFERENCES store_owners(id),
+  plan_id     TEXT        REFERENCES subscription_plans(id),
+  status      TEXT        NOT NULL DEFAULT 'trial'
+                          CHECK (status IN ('trial','active','suspended','terminated','pending')),
+  logo_url    TEXT,
+  description TEXT        NOT NULL DEFAULT '',
+  country     TEXT        NOT NULL DEFAULT 'TZ',
+  city        TEXT        NOT NULL DEFAULT '',
+  phone       TEXT,
+  email       TEXT,
+  website     TEXT,
+  trial_ends  DATE        NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '14 days'),
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id                   TEXT        PRIMARY KEY DEFAULT 'SUB' || upper(substr(md5(random()::text), 1, 5)),
+  store_id             TEXT        NOT NULL REFERENCES stores(id),
+  plan_id              TEXT        NOT NULL REFERENCES subscription_plans(id),
+  billing_cycle        TEXT        NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly')),
+  amount               BIGINT      NOT NULL,
+  status               TEXT        NOT NULL DEFAULT 'active'
+                                   CHECK (status IN ('active','past_due','cancelled','trialing')),
+  current_period_start DATE        NOT NULL DEFAULT CURRENT_DATE,
+  current_period_end   DATE        NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscription_payments (
+  id              TEXT        PRIMARY KEY DEFAULT 'SPAY' || upper(substr(md5(random()::text), 1, 5)),
+  store_id        TEXT        NOT NULL REFERENCES stores(id),
+  subscription_id TEXT        REFERENCES subscriptions(id),
+  amount          BIGINT      NOT NULL,
+  method          TEXT        NOT NULL DEFAULT 'Manual',
+  reference       TEXT,
+  notes           TEXT,
+  paid_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  recorded_by     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key        TEXT        PRIMARY KEY,
+  value      TEXT        NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS super_admins (
+  id            TEXT        PRIMARY KEY DEFAULT 'SAD' || upper(substr(md5(random()::text), 1, 5)),
+  name          TEXT        NOT NULL,
+  email         TEXT        UNIQUE NOT NULL,
+  password_hash TEXT        NOT NULL,
+  active        BOOLEAN     NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- STORE-SCOPED TABLES
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS locations (
   id          TEXT        PRIMARY KEY DEFAULT 'L' || upper(substr(md5(random()::text), 1, 6)),
+  store_id    TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   name        TEXT        NOT NULL,
   city        TEXT        NOT NULL,
   address     TEXT        NOT NULL DEFAULT '',
@@ -18,26 +110,53 @@ CREATE TABLE IF NOT EXISTS locations (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ROOMS
 CREATE TABLE IF NOT EXISTS rooms (
-  id             TEXT        PRIMARY KEY DEFAULT 'R' || upper(substr(md5(random()::text), 1, 6)),
-  location_id    TEXT        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
-  name           TEXT        NOT NULL,
-  type           TEXT        NOT NULL DEFAULT 'Standard',
-  beds           INTEGER     NOT NULL DEFAULT 1,
-  max_guests     INTEGER     NOT NULL DEFAULT 2,
-  price_per_night BIGINT     NOT NULL,
-  status         TEXT        NOT NULL DEFAULT 'available'
-                             CHECK (status IN ('available','occupied','maintenance')),
-  amenities      TEXT[]      NOT NULL DEFAULT '{}',
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              TEXT        PRIMARY KEY DEFAULT 'R' || upper(substr(md5(random()::text), 1, 6)),
+  location_id     TEXT        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  store_id        TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name            TEXT        NOT NULL,
+  type            TEXT        NOT NULL DEFAULT 'Standard',
+  beds            INTEGER     NOT NULL DEFAULT 1,
+  max_guests      INTEGER     NOT NULL DEFAULT 2,
+  price_per_night BIGINT      NOT NULL,
+  status          TEXT        NOT NULL DEFAULT 'available'
+                              CHECK (status IN ('available','occupied','maintenance')),
+  amenities       TEXT[]      NOT NULL DEFAULT '{}',
+  photos          TEXT[]      NOT NULL DEFAULT '{}',
+  video_url       TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- BOOKINGS
+CREATE TABLE IF NOT EXISTS staff (
+  id          TEXT        PRIMARY KEY DEFAULT 'S' || upper(substr(md5(random()::text), 1, 6)),
+  store_id    TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,
+  email       TEXT        NOT NULL,
+  phone       TEXT,
+  role        TEXT        NOT NULL DEFAULT 'Receptionist',
+  location_id TEXT        REFERENCES locations(id),
+  pin_hash    TEXT        NOT NULL,
+  active      BOOLEAN     NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(store_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id            TEXT        PRIMARY KEY DEFAULT 'C' || upper(substr(md5(random()::text), 1, 6)),
+  name          TEXT        NOT NULL,
+  email         TEXT        UNIQUE NOT NULL,
+  phone         TEXT,
+  nationality   TEXT,
+  password_hash TEXT        NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS bookings (
   id               TEXT        PRIMARY KEY DEFAULT 'B' || upper(substr(md5(random()::text), 1, 6)),
+  store_id         TEXT        REFERENCES stores(id),
   room_id          TEXT        REFERENCES rooms(id),
   location_id      TEXT        REFERENCES locations(id),
+  customer_id      TEXT        REFERENCES customers(id),
   guest_name       TEXT        NOT NULL,
   guest_phone      TEXT        NOT NULL,
   guest_email      TEXT,
@@ -47,8 +166,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   nights           INTEGER     NOT NULL,
   base_amount      BIGINT      NOT NULL,
   discount         NUMERIC     NOT NULL DEFAULT 0,
-  discount_type    TEXT        NOT NULL DEFAULT 'pct'
-                               CHECK (discount_type IN ('pct','fix')),
+  discount_type    TEXT        NOT NULL DEFAULT 'pct' CHECK (discount_type IN ('pct','fix')),
   total_amount     BIGINT      NOT NULL,
   paid_amount      BIGINT      NOT NULL DEFAULT 0,
   status           TEXT        NOT NULL DEFAULT 'pending'
@@ -59,9 +177,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- EXPENSES
 CREATE TABLE IF NOT EXISTS expenses (
   id           TEXT        PRIMARY KEY DEFAULT 'E' || upper(substr(md5(random()::text), 1, 6)),
+  store_id     TEXT        REFERENCES stores(id),
   location_id  TEXT        NOT NULL REFERENCES locations(id),
   category     TEXT        NOT NULL,
   description  TEXT        NOT NULL,
@@ -71,87 +189,63 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- STAFF
-CREATE TABLE IF NOT EXISTS staff (
-  id          TEXT        PRIMARY KEY DEFAULT 'S' || upper(substr(md5(random()::text), 1, 6)),
-  name        TEXT        NOT NULL,
-  email       TEXT        UNIQUE NOT NULL,
-  phone       TEXT,
-  role        TEXT        NOT NULL DEFAULT 'Receptionist',
-  location_id TEXT        REFERENCES locations(id),
-  pin_hash    TEXT        NOT NULL,
-  active      BOOLEAN     NOT NULL DEFAULT true,
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id         TEXT    PRIMARY KEY DEFAULT 'PM' || upper(substr(md5(random()::text), 1, 5)),
+  store_id   TEXT    REFERENCES stores(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  active     BOOLEAN NOT NULL DEFAULT true,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(store_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id          TEXT        PRIMARY KEY DEFAULT 'REV' || upper(substr(md5(random()::text), 1, 5)),
+  store_id    TEXT        NOT NULL REFERENCES stores(id),
+  room_id     TEXT        REFERENCES rooms(id),
+  booking_id  TEXT        REFERENCES bookings(id),
+  customer_id TEXT        NOT NULL REFERENCES customers(id),
+  rating      INTEGER     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment     TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- INDEXES
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_locations_store    ON locations(store_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_store        ON rooms(store_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_location     ON rooms(location_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_store     ON bookings(store_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_location  ON bookings(location_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_room      ON bookings(room_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_customer  ON bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_staff_store        ON staff(store_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_store     ON expenses(store_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_store ON subscriptions(store_id);
+CREATE INDEX IF NOT EXISTS idx_stores_owner       ON stores(owner_id);
+CREATE INDEX IF NOT EXISTS idx_stores_status      ON stores(status);
 
 -- ============================================================
 -- SEED DATA
 -- ============================================================
 
-INSERT INTO locations (id, name, city, address, icon, description) VALUES
-  ('L1', 'BNC Msasani',    'Dar es Salaam', 'Msasani Peninsula, DSM',  '🏙️', 'Upscale waterfront property in the heart of the peninsula'),
-  ('L2', 'BNC Mikocheni',  'Dar es Salaam', 'Mikocheni B, DSM',        '🌿', 'Serene garden property away from the city bustle'),
-  ('L3', 'BNC Stone Town', 'Zanzibar',      'Stone Town, Zanzibar',    '🏛️', 'Heritage property in historic Stone Town')
+INSERT INTO subscription_plans (id, name, price_monthly, price_yearly, max_locations, max_rooms, max_staff, features, sort_order) VALUES
+  ('PLN001', 'Free Trial',    0,       0,         1,   10,  2,   ARRAY['Basic booking','Reports'],                                           0),
+  ('PLN002', 'Starter',       29000,   290000,    1,   15,  3,   ARRAY['Basic booking','Reports','Customer portal'],                         1),
+  ('PLN003', 'Professional',  79000,   790000,    5,   50,  10,  ARRAY['Everything in Starter','Multi-location','Analytics','Priority support'], 2),
+  ('PLN004', 'Enterprise',    199000,  1990000,   999, 999, 999, ARRAY['Unlimited everything','Custom branding','API access','Dedicated support'], 3)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO rooms (id, location_id, name, type, beds, max_guests, price_per_night, status, amenities) VALUES
-  ('R1','L1','Penthouse Suite',   'Suite',     2,4,280000,'available',  ARRAY['WiFi','AC','Pool','Kitchen','Parking']),
-  ('R2','L1','Deluxe Ocean View', 'Deluxe',    1,2,180000,'available',  ARRAY['WiFi','AC','Sea View','Breakfast']),
-  ('R3','L1','Standard Room A',   'Standard',  1,2, 95000,'available',  ARRAY['WiFi','AC','TV']),
-  ('R4','L1','Family Apartment',  'Apartment', 3,6,320000,'available',  ARRAY['WiFi','AC','Kitchen','Parking']),
-  ('R5','L2','Garden Cottage',    'Cottage',   1,2,140000,'available',  ARRAY['WiFi','AC','Garden','Breakfast']),
-  ('R6','L2','Executive Studio',  'Studio',    1,2,110000,'maintenance',ARRAY['WiFi','AC','Kitchenette']),
-  ('R7','L2','Premium Suite',     'Suite',     2,4,260000,'available',  ARRAY['WiFi','AC','Lounge','Kitchen']),
-  ('R8','L3','Heritage Room',     'Standard',  1,2,130000,'available',  ARRAY['WiFi','AC','Historic View']),
-  ('R9','L3','Sultan Suite',      'Suite',     2,4,310000,'available',  ARRAY['WiFi','AC','Rooftop','Breakfast'])
+INSERT INTO platform_settings (key, value) VALUES
+  ('platform_name',     'BNBMS'),
+  ('platform_currency', 'TZS'),
+  ('support_email',     'support@bnbms.co.tz'),
+  ('trial_days',        '14'),
+  ('platform_tagline',  'BNB Management System')
+ON CONFLICT (key) DO NOTHING;
+
+-- Super admin (CHANGE THIS PASSWORD AFTER FIRST LOGIN via the super admin dashboard)
+INSERT INTO super_admins (id, name, email, password_hash) VALUES
+  ('SADMIN', 'BNBMS Admin', 'admin@bnbms.co.tz', 'Admin@2024!')
 ON CONFLICT (id) DO NOTHING;
-
--- Staff accounts (pin_hash stores PIN as plain text for demo — use bcrypt in production)
-INSERT INTO staff (id, name, email, phone, role, location_id, pin_hash, active) VALUES
-  ('ADMIN', 'BNC Admin',    'admin@bnc.co.tz',  NULL,              'Admin',        NULL, '0000', true),
-  ('S1',    'Jane Mwangi',  'jane@bnc.co.tz',   '+255 712 000 001','Manager',      'L1', '1234', true),
-  ('S2',    'Peter Salum',  'peter@bnc.co.tz',  '+255 754 000 002','Receptionist', 'L3', '5678', true)
-ON CONFLICT (id) DO NOTHING;
-
--- ============================================================
--- VERIFY — run this after to confirm tables exist
--- ============================================================
--- SELECT table_name FROM information_schema.tables
--- WHERE table_schema = 'public'
--- ORDER BY table_name;
-
--- ============================================================
--- MIGRATION: Add photos column to rooms (run if upgrading)
--- ============================================================
-ALTER TABLE rooms ADD COLUMN IF NOT EXISTS photos TEXT[] NOT NULL DEFAULT '{}';
-
--- ============================================================
--- MIGRATION: Add customers table (run if upgrading)
--- ============================================================
-CREATE TABLE IF NOT EXISTS customers (
-  id          TEXT        PRIMARY KEY DEFAULT 'C' || upper(substr(md5(random()::text), 1, 6)),
-  name        TEXT        NOT NULL,
-  email       TEXT        UNIQUE NOT NULL,
-  phone       TEXT,
-  nationality TEXT,
-  password_hash TEXT      NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Link bookings to customer accounts (optional — existing bookings keep NULL)
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS customer_id TEXT REFERENCES customers(id);
-
--- ============================================================
--- MIGRATION: Payment methods (admin-configurable)
--- ============================================================
-CREATE TABLE IF NOT EXISTS payment_methods (
-  id         TEXT PRIMARY KEY DEFAULT 'PM' || upper(substr(md5(random()::text), 1, 5)),
-  name       TEXT NOT NULL UNIQUE,
-  active     BOOLEAN NOT NULL DEFAULT true,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-INSERT INTO payment_methods (name, sort_order) VALUES
-  ('Cash', 1), ('Mobile Money', 2), ('Bank Transfer', 3), ('Card', 4)
-ON CONFLICT (name) DO NOTHING;

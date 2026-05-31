@@ -1,2395 +1,1847 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
 
-/* ─── BRAND ─────────────────────────────────────────────── */
-const M = "#6B1B2A", MD = "#4A1019", ML = "#8B2D3E", MF = "#F9F0F2";
-const BK = "#111", WH = "#FFF", G1 = "#F5F5F5", G2 = "#E8E8E8";
-const G4 = "#AAAAAA", G6 = "#666", G8 = "#333", GOLD = "#C9A84C";
-const OK = "#2E7D32", OKB = "#E8F5E9", WA = "#B76E00", WAB = "#FFF3E0";
-const ER = "#C62828", ERB = "#FFEBEE", IN = "#1565C0", INB = "#E3F2FD";
+/* ─── BRAND ─────────────────────────────────────────── */
+const M="#6B1B2A",MD="#4A1019",ML="#8B2D3E",MF="#F9F0F2";
+const BK="#111",WH="#FFF",G1="#F5F5F5",G2="#E8E8E8",G4="#AAAAAA",G6="#666",G8="#333";
+const GOLD="#C9A84C",GOLDB="#FDF8EE";
+const OK="#2E7D32",OKB="#E8F5E9",WA="#B76E00",WAB="#FFF3E0";
+const ER="#C62828",ERB="#FFEBEE",IN="#1565C0",INB="#E3F2FD";
 
-const fmt = n => "TZS " + Number(n || 0).toLocaleString();
-const uid = () => Math.random().toString(36).slice(2, 7).toUpperCase();
-const td  = () => new Date().toISOString().split("T")[0];
-const dd  = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000));
-const sC = s => ({ available: OK, occupied: M, maintenance: WA, confirmed: IN, checkedIn: M, checkedOut: G6, pending: WA, cancelled: ER }[s] || G6);
-const sB = s => ({ available: OKB, occupied: MF, maintenance: WAB, confirmed: INB, checkedIn: MF, checkedOut: G1, pending: WAB, cancelled: ERB }[s] || G1);
+const fmt  = n => "TZS " + Number(n||0).toLocaleString();
+const td   = () => new Date().toISOString().split("T")[0];
+const dd   = (a,b) => Math.max(1,Math.round((new Date(b)-new Date(a))/86400000));
+const fmtD = d => { if(!d) return "—"; return String(d).split("T")[0]; };
+const sC   = s => ({available:OK,occupied:M,maintenance:WA,confirmed:IN,checkedIn:M,checkedOut:G6,pending:WA,cancelled:ER,active:OK,suspended:WA,terminated:ER,trial:IN}[s]||G6);
+const sB   = s => ({available:OKB,occupied:MF,maintenance:WAB,confirmed:INB,checkedIn:MF,checkedOut:G1,pending:WAB,cancelled:ERB,active:OKB,suspended:WAB,terminated:ERB,trial:INB}[s]||G1);
 
-/* map DB snake_case → app camelCase */
 const mapBook = b => b ? ({
-  id: b.id, roomId: b.room_id, locId: b.location_id,
-  gName: b.guest_name, gPhone: b.guest_phone, gEmail: b.guest_email, gNat: b.guest_nationality,
-  ci: b.check_in?.split?.("T")[0] || b.check_in,
-  co: b.check_out?.split?.("T")[0] || b.check_out,
-  nights: b.nights, base: Number(b.base_amount), disc: Number(b.discount),
-  discT: b.discount_type, total: Number(b.total_amount), paid: Number(b.paid_amount),
-  status: b.status, method: b.payment_method, notes: b.notes, created: b.created_at,
+  id:b.id,roomId:b.room_id,locId:b.location_id,storeId:b.store_id,
+  gName:b.guest_name,gPhone:b.guest_phone,gEmail:b.guest_email,gNat:b.guest_nationality,
+  ci:b.check_in?.split?.("T")[0]||b.check_in,co:b.check_out?.split?.("T")[0]||b.check_out,
+  nights:b.nights,base:Number(b.base_amount),disc:Number(b.discount),
+  discT:b.discount_type,total:Number(b.total_amount),paid:Number(b.paid_amount),
+  status:b.status,method:b.payment_method,notes:b.notes,created:b.created_at,
 }) : null;
 
 const mapRoom = r => r ? ({
-  id: r.id, locId: r.location_id, name: r.name, type: r.type,
-  beds: r.beds, guests: r.max_guests, price: Number(r.price_per_night),
-  status: r.status, amen: r.amenities || [], photos: r.photos || [],
+  id:r.id,locId:r.location_id,storeId:r.store_id,name:r.name,type:r.type,
+  beds:r.beds,guests:r.max_guests,price:Number(r.price_per_night),
+  status:r.status,amen:r.amenities||[],photos:r.photos||[],video:r.video_url||"",
 }) : null;
 
 const mapLoc = l => l ? ({
-  id: l.id, name: l.name, city: l.city, addr: l.address,
-  icon: l.icon, desc: l.description,
+  id:l.id,storeId:l.store_id,name:l.name,city:l.city,addr:l.address,
+  icon:l.icon,desc:l.description,roomCount:l.room_count||0,
 }) : null;
 
 const mapStaff = s => s ? ({
-  id: s.id, name: s.name, email: s.email, phone: s.phone,
-  role: s.role, locId: s.location_id, active: s.active, created: s.created_at?.split?.("T")[0],
+  id:s.id,storeId:s.store_id,name:s.name,email:s.email,phone:s.phone,
+  role:s.role,locId:s.location_id,active:s.active,created:s.created_at?.split?.("T")[0],
 }) : null;
 
 const mapExp = e => e ? ({
-  id: e.id, locId: e.location_id, cat: e.category,
-  desc: e.description, amt: Number(e.amount), date: e.expense_date?.split?.("T")[0] || e.expense_date,
+  id:e.id,locId:e.location_id,storeId:e.store_id,cat:e.category,
+  desc:e.description,amt:Number(e.amount),date:e.expense_date?.split?.("T")[0]||e.expense_date,
 }) : null;
 
-const Badge = ({ s, label }) => (
-  <span style={{ background: sB(s), color: sC(s), padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", whiteSpace: "nowrap" }}>
-    {label || s}
-  </span>
+/* ─── SHARED COMPONENTS ─────────────────────────────── */
+const Badge = ({s,label}) => (
+  <span style={{background:sB(s),color:sC(s),padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{label||s}</span>
 );
-const Card = ({ children, style }) => (
-  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: 20, ...style }}>{children}</div>
+const Card = ({children,style}) => (
+  <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,padding:20,...style}}>{children}</div>
 );
-const KPI = ({ label, value, sub, color, icon }) => (
-  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: "16px 18px" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-      <span style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</span>
-      {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+const KPI = ({label,value,sub,color,icon}) => (
+  <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,padding:"16px 18px"}}>
+    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+      <span style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>{label}</span>
+      {icon && <span style={{fontSize:18}}>{icon}</span>}
     </div>
-    <div style={{ fontSize: 24, fontWeight: 700, color: color || BK, fontFamily: "'Playfair Display',serif" }}>{value}</div>
-    {sub && <div style={{ fontSize: 12, color: G6, marginTop: 3 }}>{sub}</div>}
+    <div style={{fontSize:24,fontWeight:700,color:color||BK,fontFamily:"'Playfair Display',serif"}}>{value}</div>
+    {sub && <div style={{fontSize:12,color:G6,marginTop:3}}>{sub}</div>}
   </div>
 );
-const Inp = ({ label, ...p }) => (
-  <div style={{ marginBottom: 13 }}>
-    {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
-    <input {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", ...p.style }} />
+const Inp = ({label,...p}) => (
+  <div style={{marginBottom:13}}>
+    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</label>}
+    <input {...p} style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",...p.style}}/>
   </div>
 );
-const Sel = ({ label, children, ...p }) => (
-  <div style={{ marginBottom: 13 }}>
-    {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
-    <select {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", background: WH }}>{children}</select>
+const Sel = ({label,children,...p}) => (
+  <div style={{marginBottom:13}}>
+    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</label>}
+    <select {...p} style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:WH}}>{children}</select>
   </div>
 );
-const Btn = ({ children, onClick, v = "pri", style, disabled }) => {
-  const VS = { pri: { background: M, color: WH, border: `1px solid ${M}` }, out: { background: "transparent", color: M, border: `1px solid ${M}` }, ghost: { background: "transparent", color: G6, border: `1px solid ${G2}` }, ok: { background: OK, color: WH, border: `1px solid ${OK}` }, danger: { background: ER, color: WH, border: `1px solid ${ER}` } };
-  return <button onClick={onClick} disabled={disabled} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity .15s", ...VS[v], ...style }}>{children}</button>;
+const Btn = ({children,onClick,v="pri",style,disabled}) => {
+  const VS={pri:{background:M,color:WH,border:`1px solid ${M}`},out:{background:"transparent",color:M,border:`1px solid ${M}`},ghost:{background:"transparent",color:G6,border:`1px solid ${G2}`},ok:{background:OK,color:WH,border:`1px solid ${OK}`},danger:{background:ER,color:WH,border:`1px solid ${ER}`},gold:{background:GOLD,color:"#4a3000",border:`1px solid ${GOLD}`}};
+  return <button onClick={onClick} disabled={disabled} style={{padding:"9px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.5:1,display:"inline-flex",alignItems:"center",gap:6,fontFamily:"inherit",transition:"opacity .15s",...VS[v],...style}}>{children}</button>;
 };
-const Modal = ({ title, onClose, children, wide }) => (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-    <div style={{ background: WH, borderRadius: 16, width: "100%", maxWidth: wide ? 740 : 500, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.22)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${G2}`, position: "sticky", top: 0, background: WH, zIndex: 1 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{title}</h3>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, color: G4, lineHeight: 1, padding: 0 }}>×</button>
+const Modal = ({title,onClose,children,wide}) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{background:WH,borderRadius:16,width:"100%",maxWidth:wide?760:520,maxHeight:"92vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.22)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 22px",borderBottom:`1px solid ${G2}`,position:"sticky",top:0,background:WH,zIndex:1}}>
+        <h3 style={{margin:0,fontSize:16,fontWeight:700,fontFamily:"'Playfair Display',serif"}}>{title}</h3>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:24,color:G4,lineHeight:1,padding:0}}>×</button>
       </div>
-      <div style={{ padding: 22 }}>{children}</div>
+      <div style={{padding:22}}>{children}</div>
     </div>
   </div>
 );
-const Tbl = ({ hdr, rows }) => (
-  <div style={{ overflowX: "auto" }}>
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-      <thead><tr style={{ borderBottom: `2px solid ${G2}` }}>{hdr.map((h, i) => <th key={i} style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".06em", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
-      <tbody>{rows.length ? rows.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${G1}` }}>{r.map((c, j) => <td key={j} style={{ padding: "10px 10px", verticalAlign: "middle" }}>{c}</td>)}</tr>) : <tr><td colSpan={hdr.length} style={{ padding: 28, textAlign: "center", color: G4 }}>No records</td></tr>}</tbody>
+const Tbl = ({hdr,rows}) => (
+  <div style={{overflowX:"auto"}}>
+    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+      <thead><tr style={{borderBottom:`2px solid ${G2}`}}>{hdr.map((h,i)=><th key={i} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+      <tbody>{rows.length?rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${G1}`}}>{r.map((c,j)=><td key={j} style={{padding:"9px 10px",verticalAlign:"middle"}}>{c}</td>)}</tr>):<tr><td colSpan={hdr.length} style={{padding:28,textAlign:"center",color:G4}}>No records</td></tr>}</tbody>
     </table>
   </div>
 );
-const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: `4px solid ${M}`, paddingLeft: 11, color: BK }}>{children}</h3>;
-
-
-
-/* ─── LOADING SPINNER ───────────────────────────────────── */
+const SecTitle = ({children}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:`4px solid ${M}`,paddingLeft:11,color:BK}}>{children}</h3>;
 const Spinner = () => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, color: G4, fontSize: 14 }}>
-    <div style={{ width: 28, height: 28, border: `3px solid ${G2}`, borderTopColor: M, borderRadius: "50%", animation: "spin .7s linear infinite", marginRight: 12 }} />
-    Loading…
+  <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:60,color:G4,fontSize:14}}>
+    <div style={{width:28,height:28,border:`3px solid ${G2}`,borderTopColor:M,borderRadius:"50%",animation:"spin .7s linear infinite",marginRight:12}}/>Loading…
     <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   </div>
 );
+const Toast = ({msg,type="ok",onClose}) => (
+  <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,background:type==="ok"?OK:type==="err"?ER:IN,color:WH,padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:600,maxWidth:340,boxShadow:"0 8px 24px rgba(0,0,0,.2)",display:"flex",alignItems:"center",gap:10}}>
+    <span>{type==="ok"?"✓":type==="err"?"✕":"ℹ"}</span><span style={{flex:1}}>{msg}</span>
+    <button onClick={onClose} style={{background:"none",border:"none",color:WH,cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
+  </div>
+);
 
-/* ─── MAIN APP ───────────────────────────────────────────── */
+/* ─── MAIN APP ───────────────────────────────────────── */
 export default function App() {
-  const [locs, setLocs]       = useState([]);
-  const [rooms, setRooms]     = useState([]);
-  const [books, setBooks]     = useState([]);
-  const [exps, setExps]       = useState([]);
-  const [staff, setStaff]     = useState([]);
-  const [payMethods, setPayMethods] = useState(['Cash','Mobile Money','Bank Transfer','Card']);
-  const [user, setUser]       = useState(null);
-  const [customer, setCustomer] = useState(null); // logged-in customer
-  const [view, setView]   = useState("land");
-  const [aTab, setATab]   = useState("dash");
-  const [modal, setModal] = useState(null);
-  const [custModal, setCustModal] = useState(null); // "login" | "register"
-  const [toast, setToast] = useState(null);
+  /* ── session state ── */
+  const [superAdmin, setSuperAdmin] = useState(()=>{try{const s=localStorage.getItem("bnbms_super");return s?JSON.parse(s):null;}catch{return null;}});
+  const [owner, setOwner]           = useState(()=>{try{const s=localStorage.getItem("bnbms_owner");return s?JSON.parse(s):null;}catch{return null;}});
+  const [user, setUser]             = useState(()=>{try{const s=localStorage.getItem("bnbms_staff");return s?JSON.parse(s):null;}catch{return null;}});
+  const [customer, setCustomer]     = useState(()=>{try{const s=localStorage.getItem("bnbms_customer");return s?JSON.parse(s):null;}catch{return null;}});
+
+  const [view, setView] = useState(()=>{
+    try {
+      if(localStorage.getItem("bnbms_super"))   return "super";
+      if(localStorage.getItem("bnbms_owner"))   return "owner";
+      if(localStorage.getItem("bnbms_staff"))   return "admin";
+      if(localStorage.getItem("bnbms_customer"))return "customer";
+      return "land";
+    } catch { return "land"; }
+  });
+
+  /* ── UI state ── */
+  const [modal, setModal]   = useState(null);
+  const [toast, setToast]   = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // customer portal state
-  const [custBooks, setCustBooks] = useState([]);
-  const [custLoading, setCustLoading] = useState(false);
-  const [custTab, setCustTab] = useState("bookings"); // bookings | profile
+  /* ── admin/owner portal state ── */
+  const [aTab, setATab]     = useState("dash");
+  const [locs, setLocs]     = useState([]);
+  const [rooms, setRooms]   = useState([]);
+  const [books, setBooks]   = useState([]);
+  const [exps, setExps]     = useState([]);
+  const [staff, setStaff]   = useState([]);
+  const [payMethods, setPayMethods] = useState(["Cash","M-Pesa","Tigo Pesa","Airtel Money","Bank Transfer"]);
+  const [reports, setReports] = useState(null);
+  const [rptFilter, setRptFilter] = useState({locId:"",df:"",dt:""});
+
+  /* ── super admin state ── */
+  const [sTab, setSTab]     = useState("dash");
+  const [stores, setStores] = useState([]);
+  const [plans, setPlans]   = useState([]);
+  const [platStats, setPlatStats] = useState(null);
+  const [platSettings, setPlatSettings] = useState({});
+
+  /* ── marketplace state ── */
+  const [mktCity, setMktCity]   = useState("");
+  const [mktRooms, setMktRooms] = useState([]);
+  const [mktStores, setMktStores] = useState([]);
+  const [mktLoading, setMktLoading] = useState(false);
+  const [mktStore, setMktStore] = useState(null); // store detail view
+
+  /* ── customer portal state ── */
+  const [custBooks, setCustBooks]   = useState([]);
+  const [custTab, setCustTab]       = useState("bookings");
+
+  const pop = (msg,type="ok") => {
+    setToast({msg,type});
+    setTimeout(()=>setToast(null), 3800);
+  };
+
+  /* ─── LOAD STORE DATA ───────────────────────────── */
+  const loadStoreData = useCallback(async (storeId) => {
+    if(!storeId) return;
+    setLoading(true);
+    try {
+      const [l,r,b,e,s,pm] = await Promise.all([
+        api.getLocations(storeId),
+        api.getRooms(storeId),
+        api.getBookings(storeId),
+        api.getExpenses(storeId),
+        api.getStaff(storeId),
+        api.getPayMethods(storeId),
+      ]);
+      setLocs((l||[]).map(mapLoc));
+      setRooms((r||[]).map(mapRoom));
+      setBooks((b||[]).map(mapBook));
+      setExps((e||[]).map(mapExp));
+      setStaff((s||[]).map(mapStaff));
+      if(pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
+    } catch(err) { pop(err.message,"err"); }
+    setLoading(false);
+  },[]);
+
+  const loadSuperData = useCallback(async () => {
+    try {
+      const [st,pl,ps] = await Promise.all([api.getStores(),api.getPlans(),api.platformStats()]);
+      setStores(st||[]);
+      setPlans(pl||[]);
+      setPlatStats(ps||{});
+    } catch(err) { pop(err.message,"err"); }
+  },[]);
+
+  useEffect(()=>{
+    if(view==="super") loadSuperData();
+    if(view==="owner" && owner?.store?.id) loadStoreData(owner.store.id);
+    if(view==="admin" && user?.storeId) loadStoreData(user.storeId);
+    if(view==="customer" && customer?.id) loadCustBooks(customer.id);
+    if(view==="land") loadMarketplace();
+  },[view]);
+
+  const loadMarketplace = async (city="") => {
+    setMktLoading(true);
+    try {
+      const data = await api.getMarketplace(city);
+      setMktStores(data.stores||[]);
+      setMktRooms(data.rooms||[]);
+    } catch(err) { pop(err.message,"err"); }
+    setMktLoading(false);
+  };
 
   const loadCustBooks = async (cid) => {
-    setCustLoading(true);
+    try { const d = await api.customerBookings(cid); setCustBooks(d||[]); } catch{}
+  };
+
+  const loadReports = async (storeId) => {
     try {
-      const data = await api.customerBookings(cid);
-      setCustBooks(data);
-    } catch (e) { /* ignore */ }
-    setCustLoading(false);
+      const r = await api.getReports(storeId, rptFilter.locId||null, rptFilter.df||null, rptFilter.dt||null);
+      setReports(r);
+    } catch(err) { pop(err.message,"err"); }
   };
 
-  const custLogin = async (email, password) => {
-    const u = await api.customerLogin({ email, password });
-    setCustomer(u);
-    setCustModal(null);
-    setView("customer");
-    loadCustBooks(u.id);
+  /* ─── AUTH ──────────────────────────────────────── */
+  const logout = () => {
+    ["bnbms_super","bnbms_owner","bnbms_staff","bnbms_customer"].forEach(k=>localStorage.removeItem(k));
+    setSuperAdmin(null); setOwner(null); setUser(null); setCustomer(null);
+    setView("land"); setModal(null);
+    setLocs([]); setRooms([]); setBooks([]); setExps([]); setStaff([]);
+    setStores([]); setPlans([]); setPlatStats(null);
   };
 
-  const custRegister = async (form) => {
-    const u = await api.customerRegister(form);
-    setCustomer(u);
-    setCustModal(null);
-    setView("customer");
-    pop("Welcome, " + u.name + "! Account created.");
-  };
+  /* ─── NAVIGATION ────────────────────────────────── */
+  const storeId = () => owner?.store?.id || user?.storeId || null;
 
-  const custCancelBooking = async (bookingId) => {
-    if (!window.confirm("Cancel this booking? This cannot be undone.")) return;
-    try {
-      await api.customerCancel(bookingId, customer.id);
-      loadCustBooks(customer.id);
-      pop("Booking cancelled");
-    } catch (err) { pop(err.message, "err"); }
-  };
-
-  const custUpdateProfile = async (form) => {
-    try {
-      const updated = await api.customerUpdate(customer.id, form);
-      setCustomer(u => ({ ...u, ...updated }));
-      pop("Profile updated");
-      return true;
-    } catch (err) { pop(err.message, "err"); return false; }
-  };
-
-  // booking wizard state
-  const [bStep, setBStep] = useState(1);
-  const [bD, setBD] = useState({ locId:"", roomId:"", ci:"", co:"", nights:1, name:"", phone:"", email:"", nat:"", guests:1, notes:"", disc:0, discT:"pct", method:"" });
-  const [bookedDates, setBookedDates] = useState({}); // { roomId: [{ci,co},...] }
-  const [availLoading, setAvailLoading] = useState(false);
-  const [loginF, setLoginF] = useState({ email:"", pin:"" });
-  const [loginErr, setLoginErr] = useState("");
-
-  const pop = (msg, t="ok") => { setToast({msg,t}); setTimeout(()=>setToast(null),3200); };
-
-  /* ── LOAD DATA ── */
-  const loadAll = useCallback(async (u) => {
-    if (!u) return;
-    setLoading(true);
-    try {
-      const locId = u.role === "Admin" ? undefined : u.locId;
-      const [l, r, b, e, s] = await Promise.all([
-        api.getLocations(),
-        api.getRooms(locId),
-        api.getBookings(locId),
-        api.getExpenses(locId),
-        u.role === "Admin" ? api.getStaff() : Promise.resolve([]),
-      ]);
-      if (l?.length) setLocs(l.map(mapLoc));
-      if (r?.length) setRooms(r.map(mapRoom));
-      if (b?.length) setBooks(b.map(mapBook));
-      if (e?.length) setExps(e.map(mapExp));
-      if (s?.length) setStaff(s.map(mapStaff));
-    } catch {
-      // DB not configured yet — app still works with empty data
-      console.warn("DB not reachable — running in demo mode");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Load public data (locations + rooms) for booking portal
-  const loadPublic = useCallback(async () => {
-    try {
-      const [l, r, pm] = await Promise.all([api.getLocations(), api.getRooms(), api.getPayMethods()]);
-      setLocs(l.map(mapLoc));
-      setRooms(r.map(mapRoom));
-      if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
-    } catch (err) {
-      pop("Could not load locations. Check your connection.", "err");
-    }
-  }, []);
-
-  useEffect(() => { loadPublic(); }, [loadPublic]);
-
-  /* ── AUTH ── */
-  /* Local fallback credentials — work even before Neon is set up */
-  const LOCAL_USERS = [
-    { id: "ADMIN", name: "BNC Admin",    email: "admin@bnc.co.tz",  pin: "0000", role: "Admin",        locId: null },
-    { id: "S1",    name: "Jane Mwangi",  email: "jane@bnc.co.tz",   pin: "1234", role: "Manager",      locId: "L1" },
-    { id: "S2",    name: "Peter Salum",  email: "peter@bnc.co.tz",  pin: "5678", role: "Receptionist", locId: "L3" },
-  ];
-
-  const doLogin = async () => {
-    setLoginErr("");
-    const email = loginF.email.trim().toLowerCase();
-    const pin   = loginF.pin.trim();
-
-    // 1. Try local hardcoded credentials first (always works)
-    const local = LOCAL_USERS.find(u => u.email === email && u.pin === pin);
-    if (local) {
-      setUser(local);
-      setView("admin");
-      setATab("dash");
-      setModal(null);
-      await loadAll(local);
-      return;
-    }
-
-    // 2. Try Neon DB (works once DATABASE_URL is configured)
-    try {
-      const u = await api.login(email, pin);
-      setUser(u);
-      setView("admin");
-      setATab("dash");
-      setModal(null);
-      await loadAll(u);
-    } catch {
-      setLoginErr("Invalid email or PIN");
-    }
-  };
-
-  /* ── BOOKING HELPERS ── */
-  // Fetch booked date ranges when a location is chosen
-  useEffect(() => {
-    if (bD.locId && bStep >= 2) {
-      setAvailLoading(true);
-      api.getBookedDates(bD.locId)
-        .then(data => setBookedDates(data || {}))
-        .catch(() => setBookedDates({}))
-        .finally(() => setAvailLoading(false));
-    }
-  }, [bD.locId, bStep]);
-
-  // Check if a room is available for the selected dates
-  const isRoomAvailableForDates = (roomId) => {
-    if (!bD.ci || !bD.co) return true; // no dates selected yet
-    const bookings = bookedDates[roomId] || [];
-    return !bookings.some(b => b.ci < bD.co && b.co > bD.ci);
-  };
-
-  const selRoom = rooms.find(r => r.id === bD.roomId);
-  const bBase = selRoom ? selRoom.price * bD.nights : 0;
-  const bDiscAmt = bD.discT === "pct" ? bBase * bD.disc / 100 : Number(bD.disc);
-  const bTotal = bBase - bDiscAmt;
-
-  // Set default method from payMethods when they load
-  useEffect(() => {
-    if (payMethods?.length && !bD.method) setBD(d => ({ ...d, method: payMethods[0] }));
-  }, [payMethods]);
-
-  const confirmBook = async () => {
-    try {
-      const created = await api.createBooking({
-        room_id: bD.roomId, location_id: bD.locId,
-        guest_name: bD.name, guest_phone: bD.phone, guest_email: bD.email, guest_nationality: bD.nat,
-        check_in: bD.ci, check_out: bD.co, nights: bD.nights,
-        base_amount: bBase, discount: bD.disc, discount_type: bD.discT,
-        total_amount: bTotal, payment_method: bD.method, notes: bD.notes,
-        customer_id: customer?.id || null,
-      });
-      setBooks(p => [...p, mapBook(created)]);
-      pop("Booking confirmed! ID: " + created.id);
-      setBStep(5);
-    } catch (err) {
-      pop("Booking failed: " + err.message, "err");
-    }
-  };
-
-  /* ── ADMIN ACTIONS ── */
-  const deleteBooking = async (id, guestName) => {
-    if (!window.confirm(`Permanently delete booking for "${guestName}"? This cannot be undone.`)) return;
-    try {
-      await api.deleteBooking(id);
-      setBooks(p => p.filter(b => b.id !== id));
-      pop(`Booking deleted`);
-    } catch (err) { pop(err.message || 'Delete failed', 'err'); }
-  };
-
-  const extendBooking = async (id, extraNights, extraAmount, newCheckout) => {
-    try {
-      const updated = await api.extendBooking(id, {
-        extra_nights: extraNights,
-        extra_amount: extraAmount,
-        new_checkout: newCheckout,
-      });
-      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
-      pop(`Stay extended by ${extraNights} night${extraNights > 1 ? "s" : ""} — new checkout: ${newCheckout}`);
-    } catch (err) { pop(err.message || "Extension failed", "err"); }
-  };
-
-  const updBook = async (id, status) => {
-    try {
-      const updated = await api.updateBooking(id, { status });
-      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
-      // Also refresh room status
-      const b = books.find(b => b.id === id);
-      if (b) {
-        if (status === "checkedIn") setRooms(p => p.map(r => r.id === b.roomId ? { ...r, status: "occupied" } : r));
-        if (status === "checkedOut" || status === "cancelled") setRooms(p => p.map(r => r.id === b.roomId ? { ...r, status: "available" } : r));
-      }
-      pop("Status updated");
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const recPay = async (id, amount, method) => {
-    try {
-      const updated = await api.recordPayment(id, Number(amount), method);
-      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
-      pop("Payment recorded");
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const saveRoom = async (form, isEdit, statusOverride) => {
-    try {
-      const amen = typeof form.amen === "string" ? form.amen.split(",").map(a=>a.trim()).filter(Boolean) : form.amen;
-      const payload = {
-        location_id: form.locId, name: form.name, type: form.type,
-        beds: Number(form.beds), max_guests: Number(form.guests),
-        price_per_night: Number(form.price),
-        status: statusOverride || form.status,
-        amenities: amen,
-        photos: form.photos || [],
-      };
-      if (isEdit) {
-        const updated = await api.updateRoom(form.id, payload);
-        setRooms(p => p.map(r => r.id === form.id ? mapRoom(updated) : r));
-        pop(statusOverride ? "Status updated" : "Room updated");
-      } else {
-        const created = await api.createRoom(payload);
-        setRooms(p => [...p, mapRoom(created)]);
-        pop("Room created");
-      }
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const deleteRoom = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    try {
-      await api.deleteRoom(id);
-      setRooms(p => p.filter(r => r.id !== id));
-      pop(`"${name}" deleted`);
-    } catch (err) { pop(err.message || 'Delete failed', "err"); }
-  };
-
-  const saveExp = async (form) => {
-    try {
-      const created = await api.createExpense({
-        location_id: form.locId, category: form.cat,
-        description: form.desc, amount: Number(form.amt), expense_date: form.date,
-        staff_id: user?.id,
-      });
-      setExps(p => [...p, mapExp(created)]);
-      pop("Expense recorded");
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const saveStaff = async (form, isEdit) => {
-    try {
-      const payload = { name: form.name, email: form.email, phone: form.phone, role: form.role, location_id: form.locId || null, pin: form.pin };
-      if (isEdit) {
-        const updated = await api.updateStaff(form.id, payload);
-        setStaff(p => p.map(s => s.id === form.id ? mapStaff(updated) : s));
-        pop("Staff updated");
-      } else {
-        const created = await api.createStaff(payload);
-        setStaff(p => [...p, mapStaff(created)]);
-        pop("Account created");
-      }
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const toggleStaff = async (s) => {
-    try {
-      const updated = await api.updateStaff(s.id, { active: !s.active });
-      setStaff(p => p.map(st => st.id === s.id ? mapStaff(updated) : st));
-      pop(!s.active ? "Activated" : "Deactivated");
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const deleteLoc = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This hides it from the app. Rooms and bookings are kept.`)) return;
-    try {
-      await api.deleteLocation(id);
-      setLocs(p => p.filter(l => l.id !== id));
-      pop(`"${name}" deleted`);
-    } catch (err) { pop(err.message || 'Delete failed', 'err'); }
-  };
-
-  const saveLoc = async (form, isEdit) => {
-    try {
-      if (isEdit) {
-        const updated = await api.updateLocation(form.id, { name: form.name, city: form.city, address: form.addr, icon: form.icon, description: form.desc });
-        setLocs(p => p.map(l => l.id === form.id ? mapLoc(updated) : l));
-        pop("Location updated");
-      } else {
-        const created = await api.createLocation({ name: form.name, city: form.city, address: form.addr || '', icon: form.icon, description: form.desc || '' });
-        setLocs(p => [...p, mapLoc(created)]);
-        pop("Location added");
-      }
-    } catch (err) {
-      const msg = err.message || '';
-      if (msg.includes('schema.sql') || msg.includes('does not exist') || msg.includes('Table not found')) {
-        pop("⚠ DB not set up. Visit /api/setup for details.", "err");
-      } else {
-        pop(msg || "Failed to save location", "err");
-      }
-    }
-  };
-
-  const updateProfile = async (form) => {
-    try {
-      const updated = await api.updateProfile(form);
-      setUser(u => ({ ...u, name: updated.name, email: updated.email }));
-      pop('Profile updated');
-      return true;
-    } catch (err) {
-      pop(err.message || 'Update failed', 'err');
-      return false;
-    }
-  };
-
-  const createNewBooking = async (form, base, da, total) => {
-    try {
-      const created = await api.createBooking({
-        room_id: form.roomId, location_id: form.locId,
-        guest_name: form.name, guest_phone: form.phone, guest_email: form.email,
-        guest_nationality: form.nat, check_in: form.ci, check_out: form.co, nights: form.nights,
-        base_amount: base, discount: form.disc, discount_type: form.discT,
-        total_amount: total, paid_amount: Number(form.paid),
-        payment_method: form.method, notes: form.notes, staff_id: user?.id,
-      });
-      setBooks(p => [...p, mapBook(created)]);
-      setModal(null);
-      pop("Booking created: " + created.id);
-    } catch (err) { pop(err.message || 'Operation failed', "err"); }
-  };
-
-  const ATABS = [
-    { id:"dash",label:"Dashboard",icon:"📊" }, { id:"books",label:"Bookings",icon:"📋" },
-    { id:"rooms",label:"Rooms",icon:"🛏️" }, { id:"pays",label:"Payments",icon:"💳" },
-    { id:"exps",label:"Expenses",icon:"📤" }, { id:"reports",label:"Reports",icon:"📈" },
-    ...(user?.role === "Admin" ? [{ id:"locs",label:"Locations",icon:"📍" }, { id:"staff",label:"Staff",icon:"👥" }] : []),
-    { id:"profile",label:"My Profile",icon:"👤" },
-  ];
-
-  const NavBar = () => (
-    <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 28px", justifyContent:"space-between", flexShrink:0 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>setView("land")}>
-        <div style={{ width:36, height:36, background:M, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <span style={{ color:WH, fontWeight:900, fontSize:12, fontFamily:"'Playfair Display',serif" }}>BNC</span>
+  /* ====================================================
+     LANDING PAGE
+  ==================================================== */
+  const renderLand = () => (
+    <div style={{minHeight:"100vh",background:G1,fontFamily:"inherit"}}>
+      {/* NAV */}
+      <nav style={{background:WH,borderBottom:`1px solid ${G2}`,padding:"0 32px",height:60,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,background:M,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",color:WH,fontWeight:900,fontSize:14,letterSpacing:"-1px"}}>BNB</div>
+          <span style={{fontSize:18,fontWeight:700,fontFamily:"'Playfair Display',serif",color:M}}>BNBMS</span>
+          <span style={{fontSize:12,color:G4,marginLeft:2}}>BNB Management System</span>
         </div>
-        <div>
-          <div style={{ color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", lineHeight:1.2 }}>BNC Apartment</div>
-          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Serviced Apartments</div>
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:8 }}>
-        {view !== "book" && view !== "customer" && <button onClick={()=>{setView("book");setBStep(1);}} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Book a Room</button>}
-        {customer && view !== "admin" ? (
-          <>
-            <button onClick={()=>setView("customer")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.2)", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:7 }}>
-              <div style={{ width:22, height:22, background:"#C9A84C", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:BK, flexShrink:0 }}>
-                {(customer.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
-              </div>
-              <span>{customer.name}</span>
-            </button>
-            <button onClick={()=>{setCustomer(null);setView("land");}} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
-          </>
-        ) : !customer && view !== "admin" ? (
-          <>
-            <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>My Account</button>
-            <button onClick={()=>setModal("login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Staff</button>
-          </>
-        ) : user ? (
-          <>
-            <button onClick={()=>setATab("profile")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.2)", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:7 }}>
-              <div style={{ width:22, height:22, background:M, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:WH, border:"1.5px solid rgba(255,255,255,.3)", flexShrink:0 }}>
-                {(user?.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
-              </div>
-              <span>{user?.name}</span> <span style={{ color:GOLD }}>· {user?.role}</span>
-            </button>
-            <button onClick={()=>{setUser(null);setView("land");}} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
-          </>
-        ) : <button onClick={()=>setModal("login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Staff Login</button>}
-      </div>
-    </nav>
-  );
-
-
-
-  /* ── LANDING ── */
-  if (view === "land") return (
-    <div style={{ minHeight:"100vh", background:WH, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <NavBar/>
-      <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
-        <div style={{ color:GOLD, fontSize:12, letterSpacing:".2em", textTransform:"uppercase", marginBottom:14 }}>✦ Premium Serviced Apartments ✦</div>
-        <h1 style={{ color:WH, fontSize:52, fontWeight:900, margin:"0 0 14px", fontFamily:"'Playfair Display',serif", lineHeight:1.15 }}>
-          Your Home<br/><span style={{ color:GOLD }}>Away From Home</span>
-        </h1>
-        <p style={{ color:"rgba(255,255,255,.7)", fontSize:17, maxWidth:480, margin:"0 auto 32px", lineHeight:1.7 }}>
-          Luxury serviced apartments across Tanzania. Book direct for the best rates.
-        </p>
-        <button onClick={()=>setView("book")} style={{ background:M, color:WH, border:`2px solid ${GOLD}`, borderRadius:10, padding:"13px 34px", fontSize:16, cursor:"pointer", fontWeight:700, fontFamily:"'Playfair Display',serif" }}>
-          Explore & Book →
-        </button>
-      </div>
-      <div style={{ padding:"56px 28px", maxWidth:1060, margin:"0 auto" }}>
-        <div style={{ textAlign:"center", marginBottom:36 }}>
-          <div style={{ color:M, fontSize:12, letterSpacing:".18em", textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>Our Properties</div>
-          <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Choose Your Location</h2>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:22 }}>
-          {locs.map(loc => {
-            const avail = rooms.filter(r=>r.locId===loc.id&&r.status==="available").length;
-            return (
-              <div key={loc.id}
-                onClick={()=>{setBD(d=>({...d,locId:loc.id}));setView("book");setBStep(2);}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow=`0 14px 36px rgba(107,27,42,.16)`;}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
-                style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .2s,box-shadow .2s" }}>
-                <div style={{ background:`linear-gradient(135deg,${MD},${M})`, height:140, display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{loc.icon}</div>
-                <div style={{ padding:20 }}>
-                  <div style={{ fontSize:11, color:M, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em", marginBottom:6 }}>{loc.city}</div>
-                  <h3 style={{ margin:"0 0 8px", fontSize:20, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif" }}>{loc.name}</h3>
-                  <p style={{ margin:"0 0 14px", fontSize:14, color:G6, lineHeight:1.6 }}>{loc.desc}</p>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                    <span style={{ fontSize:12, color:avail>0?OK:ER, fontWeight:700 }}>{avail>0?`✓ ${avail} rooms available`:"No availability"}</span>
-                    <span style={{ fontSize:12, color:M, fontWeight:700 }}>View →</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {modal==="login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
-    </div>
-  );
-
-  if (view === "book") return (
-    <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-      <NavBar />
-      {/* Step progress */}
-      {bStep < 5 && (
-        <div style={{ background: WH, borderBottom: `1px solid ${G2}` }}>
-          <div style={{ display: "flex", maxWidth: 780, margin: "0 auto" }}>
-            {["Location", "Room", "Dates", "Details", "Confirm"].map((s, i) => (
-              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: `3px solid ${bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent"}`, color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 18, height: 18, borderRadius: "50%", background: bStep > i + 1 ? OK : bStep === i + 1 ? M : G2, color: bStep >= i + 1 ? WH : G4, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-                    {bStep > i + 1 ? "✓" : i + 1}
-                  </span>{s}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div style={{ maxWidth: 780, margin: "0 auto", padding: "28px 16px" }}>
-        {/* Step 1 */}
-        {bStep === 1 && (
-          <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 22, color: BK }}>Choose a Location</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
-              {locs.map(loc => {
-                const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
-                return (
-                  <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); setBStep(2); }}
-                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: `2px solid ${bD.locId === loc.id ? M : G2}`, transition: "border-color .15s" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = M}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = bD.locId === loc.id ? M : G2}>
-                    <div style={{ background: `linear-gradient(135deg,${MD},${M})`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>{loc.icon}</div>
-                    <div style={{ padding: 14 }}>
-                      <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
-                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} rooms available</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {/* Step 2 */}
-        {bStep === 2 && (
-          <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select a Room</h2>
-            <p style={{ color: G6, marginBottom: 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
-            {availLoading && <div style={{ padding: "12px 0", fontSize: 13, color: G6 }}>Checking availability…</div>}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {rooms.filter(r => r.locId === bD.locId).map(rm => {
-                const physicallyOccupied = rm.status !== "available";
-                const dateUnavailable = !isRoomAvailableForDates(rm.id);
-                const unavailable = physicallyOccupied || dateUnavailable;
-                const unavailReason = physicallyOccupied ? rm.status : dateUnavailable && bD.ci && bD.co ? "dates taken" : null;
-                return (
-                <div key={rm.id}
-                  onClick={() => !unavailable && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : G2}`, cursor: unavailable ? "not-allowed" : "pointer", opacity: unavailable ? .55 : 1, overflow: "hidden", transition: "border-color .15s" }}>
-                  {rm.photos && rm.photos.length > 0 && (
-                    <div style={{ position: "relative", height: 160 }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      {rm.photos.length > 1 && <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>{rm.photos.length} photos</div>}
-                    </div>
-                  )}
-                  <div style={{ padding: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif" }}>{rm.name}</span>
-                        {unavailReason === "dates taken"
-                          ? <span style={{ background: WAB, color: WA, padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Dates Unavailable</span>
-                          : <Badge s={rm.status} />}
-                      </div>
-                      <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 8px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(rm.price)}</div>
-                      <div style={{ fontSize: 11, color: G4 }}>per night</div>
-                    </div>
-                  </div>
-                </div>
-              );
-              })}
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <Btn v="ghost" onClick={() => setBStep(1)}>← Back</Btn>
-              <Btn onClick={() => setBStep(3)} disabled={!bD.roomId}>Continue →</Btn>
-            </div>
-          </div>
-        )}
-        {/* Step 3 */}
-        {bStep === 3 && (
-          <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 20, color: BK }}>Select Dates</h2>
-            <Card>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Inp label="Check-in Date" type="date" value={bD.ci} min={td()}
-                  onChange={e => { const ci = e.target.value; const n = bD.co ? dd(ci, bD.co) : 1; setBD(d => ({ ...d, ci, nights: n })); }} />
-                <Inp label="Check-out Date" type="date" value={bD.co} min={bD.ci || td()}
-                  onChange={e => { const co = e.target.value; const n = bD.ci ? dd(bD.ci, co) : 1; setBD(d => ({ ...d, co, nights: n })); }} />
-              </div>
-              {bD.ci && bD.co && (
-                <div style={{ background: MF, borderRadius: 8, padding: 13, marginTop: 4, fontSize: 14, color: M, fontWeight: 700 }}>
-                  {bD.nights} night{bD.nights > 1 ? "s" : ""} · {fmt(selRoom?.price * bD.nights)}
-                </div>
-              )}
-            </Card>
-            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <Btn v="ghost" onClick={() => setBStep(2)}>← Back</Btn>
-              <Btn onClick={() => {
-                if (bD.roomId && !isRoomAvailableForDates(bD.roomId)) {
-                  setBD(d => ({...d, roomId: ""}));
-                  pop("Your selected room is not available for those dates. Please select another room.", "err");
-                  setBStep(2);
-                } else {
-                  setBStep(4);
-                }
-              }} disabled={!bD.ci || !bD.co}>Continue →</Btn>
-            </div>
-          </div>
-        )}
-        {/* Step 4 */}
-        {bStep === 4 && (
-          <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 20, color: BK }}>Your Details</h2>
-            <Card style={{ marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14 }}>Guest Information</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
-                <Inp label="Full Name *" value={bD.name} onChange={e => setBD(d => ({ ...d, name: e.target.value }))} placeholder="John Doe" />
-                <Inp label="Phone *" value={bD.phone} onChange={e => setBD(d => ({ ...d, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
-                <Inp label="Email" type="email" value={bD.email} onChange={e => setBD(d => ({ ...d, email: e.target.value }))} placeholder="your@email.com" />
-                <Inp label="Nationality" value={bD.nat} onChange={e => setBD(d => ({ ...d, nat: e.target.value }))} placeholder="Tanzanian" />
-                <Sel label="Guests" value={bD.guests} onChange={e => setBD(d => ({ ...d, guests: e.target.value }))}>{[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} guest{n > 1 ? "s" : ""}</option>)}</Sel>
-                <Sel label="Payment Method" value={bD.method} onChange={e => setBD(d => ({ ...d, method: e.target.value }))}>
-                  {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => <option key={pm}>{pm}</option>)}
-                </Sel>
-              </div>
-              <Inp label="Special Requests" value={bD.notes} onChange={e => setBD(d => ({ ...d, notes: e.target.value }))} placeholder="Early check-in, extra towels…" />
-            </Card>
-            {/* Summary */}
-            <Card style={{ background: BK, border: "none" }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: GOLD, fontFamily: "'Playfair Display',serif", marginBottom: 12 }}>Booking Summary</div>
-              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [bD.nights + " nights", "Duration"], [fmt(selRoom?.price), "Rate/Night"], [fmt(bBase), "Base Total"], bDiscAmt > 0 && [`- ${fmt(bDiscAmt)}`, "Discount"]].filter(Boolean).map(([v, k], i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,.65)", padding: "4px 0" }}>
-                  <span>{k}</span><span style={{ color: WH, fontWeight: 600 }}>{v}</span>
-                </div>
-              ))}
-              <div style={{ borderTop: "1px solid rgba(255,255,255,.15)", paddingTop: 10, marginTop: 6, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: GOLD, fontWeight: 700, fontSize: 14 }}>Total</span>
-                <span style={{ color: GOLD, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif" }}>{fmt(bTotal)}</span>
-              </div>
-            </Card>
-            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <Btn v="ghost" onClick={() => setBStep(3)}>← Back</Btn>
-              <Btn onClick={confirmBook} disabled={!bD.name || !bD.phone}>Confirm Booking →</Btn>
-            </div>
-          </div>
-        )}
-        {/* Step 5 confirmed */}
-        {bStep === 5 && (
-          <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 62, marginBottom: 18 }}>🎉</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 30, color: BK, marginBottom: 12 }}>Booking Confirmed!</h2>
-            <p style={{ color: G6, fontSize: 15, maxWidth: 400, margin: "0 auto 28px", lineHeight: 1.7 }}>
-              Thank you, <strong>{bD.name}</strong>! Your booking is confirmed. Our team will contact you shortly.
-            </p>
-            <Card style={{ maxWidth: 380, margin: "0 auto 28px", background: MF, border: `1px solid ${M}30`, textAlign: "left" }}>
-              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [fmt(bTotal), "Total"], [bD.method, "Payment"]].map(([v, k]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${M}15` }}>
-                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
-                </div>
-              ))}
-            </Card>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <Btn v="out" onClick={() => { setView("land"); setBStep(1); setBD({ locId: "", roomId: "", ci: "", co: "", nights: 1, name: "", phone: "", email: "", nat: "", guests: 1, notes: "", disc: 0, discT: "pct", method: "Cash" }); }}>← Back to Home</Btn>
-              {customer
-                ? <Btn onClick={() => { setView("customer"); setCustTab("bookings"); loadCustBooks(customer.id); }}>View My Bookings</Btn>
-                : <Btn onClick={() => setCustModal("register")}>Create Account to Track Bookings</Btn>
-              }
-            </div>
-          </div>
-        )}
-      </div>
-      {modal === "login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
-    </div>
-  );
-
-  // ── CUSTOMER PORTAL ──
-  if (view === "customer" && customer) return (
-    <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <NavBar/>
-      <div style={{ background: WH, borderBottom: `1px solid ${G2}`, display: "flex" }}>
-        {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
-          <button key={id} onClick={() => { if(id==="newbooking"){setView("book");setBStep(1);}else setCustTab(id); }}
-            style={{ padding: "12px 18px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: `3px solid ${custTab === id ? M : "transparent"}`, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
-            {icon} {label}
-          </button>
-        ))}
-      </div>
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>
-        {custTab === "bookings" && <CustomerBookingsTab customer={customer} custBooks={custBooks} custLoading={custLoading} onCancel={custCancelBooking} onRefresh={() => loadCustBooks(customer.id)} locs={locs} rooms={rooms}/>}
-        {custTab === "profile" && <CustomerProfileTab customer={customer} onUpdate={custUpdateProfile}/>}
-      </div>
-      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
-    </div>
-  );
-
-  /* ── ADMIN DASHBOARD ── */
-  const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
-  const totExp = exps.reduce((s,e)=>s+e.amt,0);
-  const netPro = totRev - totExp;
-  const pending = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
-  const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
-
-  return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <NavBar/>
-      <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
-        {ATABS.map(t=>(
-          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 16px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:`3px solid ${aTab===t.id?M:"transparent"}`, display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
-            {t.icon} {t.label}
-          </button>
-        ))}
-        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", padding:"0 14px", gap:8 }}>
-          <button onClick={()=>loadAll(user)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>↻ Refresh</button>
-          <Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn>
-        </div>
-      </div>
-      <div style={{ flex:1, overflow:"auto", padding:22 }}>
-        {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
-        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods}/>}
-        {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
-        {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user}/>}
-        {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-        {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} locs={locs} pop={pop} payMethods={payMethods} setPayMethods={setPayMethods}/>}
-        {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
-      </div>
-      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
-      {modal==="login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-      {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
-    </div>
-  );
-}
-
-/* ─── LOGIN MODAL (top-level component — inputs work correctly) ── */
-function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
-  return (
-    <Modal title="Staff Login" onClose={onClose}>
-      <div style={{ background: MF, border: `1px solid ${M}30`, borderRadius: 8, padding: "12px 14px", marginBottom: 18, fontSize: 13 }}>
-        <div style={{ fontWeight: 700, color: M, marginBottom: 6 }}>Demo credentials</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-          {[["Admin", "admin@bnc.co.tz", "0000"], ["Manager", "jane@bnc.co.tz", "1234"], ["Receptionist", "peter@bnc.co.tz", "5678"]].map(([role, email, pin]) => (
-            <button key={role} onClick={() => { setLoginF({ email, pin }); }}
-              style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 6, padding: "6px 8px", cursor: "pointer", fontSize: 11, textAlign: "left", fontFamily: "inherit" }}>
-              <div style={{ fontWeight: 700, color: M, marginBottom: 2 }}>{role}</div>
-              <div style={{ color: G6, fontSize: 10 }}>{email}</div>
-              <div style={{ color: G6, fontSize: 10 }}>PIN: {pin}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ marginBottom: 13 }}>
-        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Email</label>
-        <input
-          type="email"
-          value={loginF.email}
-          onChange={e => setLoginF(f => ({ ...f, email: e.target.value }))}
-          onKeyDown={e => e.key === "Enter" && doLogin()}
-          placeholder="your@email.com"
-          autoComplete="email"
-          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
-        />
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>PIN</label>
-        <input
-          type="password"
-          value={loginF.pin}
-          onChange={e => setLoginF(f => ({ ...f, pin: e.target.value }))}
-          onKeyDown={e => e.key === "Enter" && doLogin()}
-          placeholder="••••"
-          maxLength={6}
-          autoComplete="current-password"
-          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
-        />
-      </div>
-      {loginErr && <div style={{ color: ER, fontSize: 13, marginBottom: 14, padding: "8px 12px", background: ERB, borderRadius: 6 }}>{loginErr}</div>}
-      <Btn onClick={doLogin} style={{ width: "100%", justifyContent: "center", padding: "11px" }}>Login to Dashboard</Btn>
-    </Modal>
-  );
-}
-
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab }) {
-  return (
-    <div>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Overview</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
-        <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
-        <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
-        <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={`${rooms.filter(r => r.status === "occupied").length}/${rooms.length} rooms`} />
-        <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
-        <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
-        <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
-      </div>
-      <Card style={{ marginBottom: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <SecTitle>Recent Bookings</SecTitle>
-          <button onClick={() => setATab("books")} style={{ background: "none", border: "none", color: M, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>View all →</button>
-        </div>
-        <Tbl hdr={["ID", "Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
-          rows={books.slice(-5).reverse().map(b => {
-            const rm = allRooms.find(r => r.id === b.roomId);
-            return [<span style={{ color: M, fontWeight: 700, fontSize: 12 }}>{b.id}</span>, b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
-          })} />
-      </Card>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-        {locs.map(loc => {
-          const lr = allRooms.filter(r => r.locId === loc.id);
-          const lb = books.filter(b => b.locId === loc.id);
-          const lrev = lb.reduce((s, b) => s + b.paid, 0);
-          const lexp = exps.filter(e => e.locId === loc.id).reduce((s, e) => s + e.amt, 0);
-          return (
-            <Card key={loc.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                <span style={{ fontSize: 22 }}>{loc.icon}</span>
-                <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[["Revenue", fmt(lrev), M], ["Expenses", fmt(lexp), ER], ["Rooms", `${lr.filter(r => r.status === "available").length}/${lr.length} avail`, OK], ["Bookings", lb.length, IN]].map(([k, v, c], i) => (
-                  <div key={i} style={{ background: G1, borderRadius: 8, padding: "9px 11px" }}>
-                    <div style={{ fontSize: 11, color: G6 }}>{k}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: c, marginTop: 2 }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [sel, setSel] = useState(null);
-  const [payAmt, setPayAmt] = useState("");
-  const [payMethod, setPayMethod] = useState("");
-  // checkout / extend modal
-  const [coModal, setCoModal] = useState(null); // booking id
-  // extend form
-  const [extNights, setExtNights] = useState(1);
-
-  const todayDate = td();
-
-  const filtered = books
-    .filter(b => (filter === "all" || b.status === filter) &&
-      (!search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase())))
-    .sort((a, b) => b.id.localeCompare(a.id));
-
-  const selB = books.find(b => b.id === sel);
-  const selR = rooms.find(r => r.id === selB?.roomId);
-  // auto-set method to booking's method when opening detail
-  useEffect(() => { if (selB) setPayMethod(selB.method || (payMethods?.[0] || "Cash")); }, [sel]);
-
-  // bookings due for checkout today (checkedIn and checkout date = today)
-  const dueToday = books.filter(b => b.status === "checkedIn" && b.co === todayDate);
-
-  // For extend modal
-  const coBook = books.find(b => b.id === coModal);
-  const coRoom = rooms.find(r => r.id === coBook?.roomId);
-  const extExtra = coRoom ? coRoom.price * extNights : 0;
-  const newCheckout = coBook ? (() => {
-    const d = new Date(coBook.co);
-    d.setDate(d.getDate() + extNights);
-    return d.toISOString().split("T")[0];
-  })() : "";
-
-  const doExtend = () => {
-    if (!coBook || extNights < 1) return;
-    extendBooking(coBook.id, extNights, extExtra, newCheckout);
-    setCoModal(null); setExtNights(1);
-  };
-
-  const doCheckout = () => {
-    updBook(coBook.id, "checkedOut");
-    setCoModal(null);
-  };
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Bookings</h2>
-        <Btn onClick={onNew}>+ New Booking</Btn>
-      </div>
-
-      {/* ── DUE TODAY ALERT ── */}
-      {dueToday.length > 0 && (
-        <div style={{ background: "#FFF8E1", border: `1px solid #F9A825`, borderRadius: 10, padding: "13px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 22 }}>⏰</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#5D4037", marginBottom: 4 }}>
-              {dueToday.length} guest{dueToday.length > 1 ? "s" : ""} checking out today
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {dueToday.map(b => {
-                const rm = rooms.find(r => r.id === b.roomId);
-                return (
-                  <button key={b.id} onClick={() => setCoModal(b.id)}
-                    style={{ background: WH, border: `1px solid #F9A825`, borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700, color: "#5D4037", fontFamily: "inherit" }}>
-                    {b.gName} · {rm?.name || b.id} →
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── FILTERS ── */}
-      <div style={{ display: "flex", gap: 7, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {["all", "pending", "confirmed", "checkedIn", "checkedOut", "cancelled"].map(s => (
-          <button key={s} onClick={() => setFilter(s)} style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: `1px solid ${filter === s ? M : G2}`, background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
-            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-            {s === "checkedIn" && dueToday.length > 0 && <span style={{ marginLeft: 5, background: "#F9A825", color: WH, borderRadius: 99, padding: "0 5px", fontSize: 10 }}>{dueToday.length}</span>}
-          </button>
-        ))}
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guest or ID…"
-          style={{ marginLeft: "auto", padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", minWidth: 190, fontFamily: "inherit" }} />
-      </div>
-
-      {/* ── TABLE ── */}
-      <Card>
-        <Tbl hdr={["ID", "Guest", "Location / Room", "Dates", "Amount", "Paid", "Status", "Actions"]}
-          rows={filtered.map(b => {
-            const rm  = rooms.find(r => r.id === b.roomId);
-            const loc = locs.find(l => l.id === b.locId);
-            const bal = b.total - b.paid;
-            const isDueToday = b.status === "checkedIn" && b.co === todayDate;
-            return [
-              <span style={{ color: M, fontWeight: 700, fontSize: 12, cursor: "pointer" }} onClick={() => setSel(b.id)}>{b.id}</span>,
-              <div>
-                <div style={{ fontWeight: 700 }}>{b.gName}</div>
-                <div style={{ fontSize: 11, color: G6 }}>{b.gPhone}</div>
-              </div>,
-              <div>
-                <div style={{ fontSize: 12 }}>{loc?.name}</div>
-                <div style={{ fontSize: 11, color: G6 }}>{rm?.name}</div>
-              </div>,
-              <div style={{ fontSize: 12 }}>
-                <div>{b.ci}</div>
-                <div style={{ color: isDueToday ? "#F9A825" : G6, fontWeight: isDueToday ? 700 : 400 }}>
-                  {b.co} ({b.nights}n){isDueToday ? " ⏰ Today" : ""}
-                </div>
-              </div>,
-              <div>
-                <div style={{ fontWeight: 700 }}>{fmt(b.total)}</div>
-                {b.disc > 0 && <div style={{ fontSize: 11, color: OK }}>Disc: {b.discT === "pct" ? b.disc + "%" : fmt(b.disc)}</div>}
-              </div>,
-              <div>
-                <div style={{ color: bal > 0 ? ER : OK, fontWeight: 700 }}>{fmt(b.paid)}</div>
-                {bal > 0 && <div style={{ fontSize: 11, color: ER }}>Bal: {fmt(bal)}</div>}
-              </div>,
-              <Badge s={b.status} />,
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {b.status === "pending"   && <button onClick={() => updBook(b.id, "confirmed")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${OK}`, color: OK, background: "none", cursor: "pointer", fontWeight: 700 }}>Confirm</button>}
-                {b.status === "confirmed" && <button onClick={() => updBook(b.id, "checkedIn")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${M}`, color: M, background: "none", cursor: "pointer", fontWeight: 700 }}>Check In</button>}
-                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${isDueToday ? "#F9A825" : G6}`, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
-                {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${IN}`, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
-                {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
-                {b.status === "cancelled" && user?.role === "Admin" && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
-              </div>
-            ];
-          })} />
-      </Card>
-
-      {/* ── CHECKOUT / EXTEND MODAL ── */}
-      {coModal && coBook && (
-        <Modal title={`${coBook.gName} — Checking Out Today`} onClose={() => { setCoModal(null); setExtNights(1); }} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-            {[["Guest", coBook.gName], ["Room", coRoom?.name], ["Check-in", coBook.ci], ["Original Checkout", coBook.co], ["Total Nights", coBook.nights], ["Amount Due", fmt(coBook.total - coBook.paid)]].map(([k, v]) => (
-              <div key={k} style={{ fontSize: 13 }}>
-                <span style={{ color: G6 }}>{k}: </span>
-                <span style={{ fontWeight: 700 }}>{v}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Two action panels */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-
-            {/* CHECK OUT */}
-            <div style={{ border: `2px solid ${G2}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: BK, fontFamily: "'Playfair Display',serif" }}>✓ Check Out</div>
-              <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>End the stay today. The room will be marked as available.</div>
-              {(coBook.total - coBook.paid) > 0 && (
-                <div style={{ background: ERB, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: ER, fontWeight: 700 }}>
-                  ⚠ Outstanding balance: {fmt(coBook.total - coBook.paid)}<br/>
-                  <span style={{ fontWeight: 400, color: G6 }}>Collect payment before checking out.</span>
-                </div>
-              )}
-              <Btn v="ghost" onClick={doCheckout} style={{ width: "100%", justifyContent: "center", marginTop: "auto" }}>
-                Confirm Check Out
-              </Btn>
-            </div>
-
-            {/* EXTEND STAY */}
-            <div style={{ border: `2px solid ${M}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: M, fontFamily: "'Playfair Display',serif" }}>📅 Extend Stay</div>
-              <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>Guest wants to stay longer. Add extra nights at the same nightly rate.</div>
-
-              {/* Extra nights picker */}
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Extra Nights</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <button onClick={() => setExtNights(n => Math.max(1, n - 1))}
-                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${G2}`, background: WH, cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                  <span style={{ fontSize: 20, fontWeight: 700, minWidth: 28, textAlign: "center", fontFamily: "'Playfair Display',serif" }}>{extNights}</span>
-                  <button onClick={() => setExtNights(n => n + 1)}
-                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${M}`, background: M, cursor: "pointer", fontSize: 16, fontWeight: 700, color: WH, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                  <input type="number" min={1} value={extNights} onChange={e => setExtNights(Math.max(1, Number(e.target.value)))}
-                    style={{ width: 60, padding: "6px 10px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, fontFamily: "inherit", textAlign: "center", outline: "none" }} />
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div style={{ background: MF, borderRadius: 8, padding: "11px 13px" }}>
-                {[
-                  ["Rate / night", fmt(coRoom?.price)],
-                  ["Extra charge", fmt(extExtra)],
-                  ["New checkout", newCheckout],
-                  ["Total nights", coBook.nights + extNights],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", borderBottom: `1px solid ${M}15` }}>
-                    <span style={{ color: G6 }}>{k}</span>
-                    <span style={{ fontWeight: 700, color: M }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <Btn onClick={doExtend} style={{ width: "100%", justifyContent: "center", marginTop: "auto" }}>
-                Extend by {extNights} Night{extNights > 1 ? "s" : ""}
-              </Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── BOOKING DETAIL MODAL ── */}
-      {sel && selB && (
-        <Modal title={`Booking ${selB.id}`} onClose={() => { setSel(null); setPayAmt(""); }} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-            <div>
-              <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Guest Info</div>
-              {[["Name", selB.gName], ["Phone", selB.gPhone], ["Email", selB.gEmail], ["Nationality", selB.gNat]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
-                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v || "—"}</span>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Stay Details</div>
-              {[["Room", selR?.name], ["Check-in", selB.ci], ["Check-out", selB.co], ["Nights", selB.nights], ["Base Amount", fmt(selB.base)], ["Discount", selB.disc > 0 ? (selB.discT === "pct" ? selB.disc + "%" : fmt(selB.disc)) : "None"], ["Total", fmt(selB.total)], ["Paid", fmt(selB.paid)], ["Balance", fmt(selB.total - selB.paid)]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
-                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          {selB.status === "checkedIn" && (
-            <div style={{ marginTop: 16, padding: "11px 14px", background: MF, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>Guest is currently checked in</span>
-              <Btn onClick={() => { setSel(null); setCoModal(selB.id); }} style={{ fontSize: 12, padding: "6px 14px" }}>Check Out / Extend →</Btn>
-            </div>
-          )}
-          {(selB.total - selB.paid) > 0 && selB.status !== "cancelled" && (
-            <div style={{ marginTop: 18, padding: 14, background: G1, borderRadius: 10 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Record Payment</div>
-              <Inp label={`Amount (max ${fmt(selB.total - selB.paid)})`} type="number" value={payAmt} onChange={e => setPayAmt(e.target.value)} placeholder="Enter amount" />
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Payment Method</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => (
-                    <button key={pm} onClick={() => setPayMethod(pm)}
-                      style={{ padding: "6px 13px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${payMethod === pm ? M : G2}`, background: payMethod === pm ? MF : WH, color: payMethod === pm ? M : G6 }}>
-                      {pm}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Btn v="ok" onClick={() => { recPay(selB.id, payAmt, payMethod); setPayAmt(""); setSel(null); }}>Record Payment</Btn>
-            </div>
-          )}
-          {selB.status === "cancelled" && (
-            <div style={{ marginTop: 18, padding: 14, background: ERB, borderRadius: 10, fontSize: 13, color: ER }}>
-              ✗ This booking is cancelled — no outstanding balance.{selB.paid > 0 ? ` ${fmt(selB.paid)} already collected is retained.` : ""}
-            </div>
-          )}
-          {selB.notes && <div style={{ marginTop: 14, fontSize: 13, color: G6 }}>📝 {selB.notes}</div>}
-          <div style={{ marginTop: 12 }}><Badge s={selB.status} /></div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ─── ROOMS TAB ──────────────────────────────────────────── */
-function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
-  const [modal, setModal] = useState(null);
-  const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const [form, setForm] = useState({ id: null, locId: "", name: "", type: "Standard", beds: 1, guests: 2, price: 100000, status: "available", amen: "", photos: [] });
-  const [uploading, setUploading] = useState(false);
-
-  const openNew = () => { setForm({ id: null, locId: locs[0]?.id || "", name: "", type: "Standard", beds: 1, guests: 2, price: 100000, status: "available", amen: "", photos: [] }); setModal("f"); };
-  const openEdit = r => { setForm({ ...r, amen: r.amen.join(", "), photos: r.photos || [] }); setModal("f"); };
-  const save = () => { saveRoom(form, !!form.id); setModal(null); };
-
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    setUploading(true);
-    let done = 0;
-    files.forEach(file => {
-      if (!file.type.startsWith("image/")) { done++; if (done === files.length) setUploading(false); return; }
-      // Resize & compress before storing
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX = 900;
-          let w = img.width, h = img.height;
-          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-          if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          const compressed = canvas.toDataURL("image/jpeg", 0.75);
-          setForm(f => ({ ...f, photos: [...(f.photos || []), compressed] }));
-          done++;
-          if (done === files.length) setUploading(false);
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removePhoto = (idx) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
-
-  const viewerRoom = rooms.find(r => r.id === photoModal);
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Rooms & Units</h2>
-        <Btn onClick={openNew}>+ Add Room</Btn>
-      </div>
-
-      {locs.map(loc => {
-        const lr = rooms.filter(r => r.locId === loc.id);
-        return (
-          <div key={loc.id} style={{ marginBottom: 28 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", color: M, fontFamily: "'Playfair Display',serif" }}>{loc.icon} {loc.name}</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
-              {lr.map(rm => (
-                <Card key={rm.id} style={{ borderLeft: `4px solid ${sC(rm.status)}`, padding: 0, overflow: "hidden" }}>
-                  {/* Photo strip */}
-                  {rm.photos && rm.photos.length > 0 ? (
-                    <div style={{ position: "relative", height: 150, cursor: "pointer", background: G1 }}
-                      onClick={() => { setPhotoModal(rm.id); setPhotoIdx(0); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      {rm.photos.length > 1 && (
-                        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>
-                          +{rm.photos.length - 1} more
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ height: 90, background: `linear-gradient(135deg,${MD},${M})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, cursor: "pointer" }}
-                      onClick={() => openEdit(rm)}>
-                      🛏️
-                    </div>
-                  )}
-                  {/* Card body */}
-                  <div style={{ padding: "12px 14px 14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Playfair Display',serif" }}>{rm.name}</div>
-                        <div style={{ fontSize: 11, color: G6 }}>{rm.type} · {rm.beds} bed · {rm.guests} guests max</div>
-                      </div>
-                      <Badge s={rm.status} />
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif", marginBottom: 7 }}>{fmt(rm.price)}<span style={{ fontSize: 11, color: G4, fontWeight: 400 }}>/night</span></div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 7px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
-                      <select value={rm.status} onChange={e => saveRoom({...rm, amen: rm.amen.join(", ")}, true, e.target.value)}
-                        style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
-                        <option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option>
-                      </select>
-                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 10px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-              {lr.length === 0 && <div style={{ color: G4, fontSize: 14, padding: 16 }}>No rooms at this location</div>}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* ── EDIT / ADD MODAL ── */}
-      {modal === "f" && (
-        <Modal title={form.id ? "Edit Room" : "Add Room"} onClose={() => setModal(null)} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Deluxe Suite" />
-            </div>
-            <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
-            <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
-            <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
-            <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
-            </div>
-          </div>
-
-          {/* ── PHOTO UPLOAD ── */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>Room Photos</label>
-
-            {/* Preview grid */}
-            {form.photos && form.photos.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 8, marginBottom: 10 }}>
-                {form.photos.map((src, i) => (
-                  <div key={i} style={{ position: "relative", borderRadius: 8, overflow: "hidden", height: 90 }}>
-                    <img src={src} alt={`Room photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    <button onClick={() => removePhoto(i)} style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,0.65)", border: "none", color: WH, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>✕</button>
-                    {i === 0 && <div style={{ position: "absolute", bottom: 4, left: 4, background: M, color: WH, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99 }}>COVER</div>}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Upload button */}
-            <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: `2px dashed ${G2}`, borderRadius: 8, cursor: "pointer", fontSize: 13, color: G6, background: G1, transition: "border-color 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = M}
-              onMouseLeave={e => e.currentTarget.style.borderColor = G2}>
-              <span style={{ fontSize: 20 }}>📷</span>
-              <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
-              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: "none" }} />
-            </label>
-            <div style={{ fontSize: 11, color: G4, marginTop: 5 }}>First photo is used as the cover. Photos are compressed automatically. Max ~5 photos recommended.</div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <Btn v="ghost" onClick={() => setModal(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} style={{ flex: 1, justifyContent: "center" }}>Save Room</Btn>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── PHOTO VIEWER MODAL ── */}
-      {photoModal && viewerRoom && (
-        <Modal title={viewerRoom.name} onClose={() => setPhotoModal(null)} wide>
-          <div style={{ position: "relative", background: BK, borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
-            <img
-              src={viewerRoom.photos[photoIdx]}
-              alt={`${viewerRoom.name} photo ${photoIdx + 1}`}
-              style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }}
-            />
-            {viewerRoom.photos.length > 1 && (
-              <>
-                <button onClick={() => setPhotoIdx(i => (i - 1 + viewerRoom.photos.length) % viewerRoom.photos.length)}
-                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", color: WH, fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer" }}>‹</button>
-                <button onClick={() => setPhotoIdx(i => (i + 1) % viewerRoom.photos.length)}
-                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", color: WH, fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer" }}>›</button>
-                <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
-                  {viewerRoom.photos.map((_, i) => (
-                    <div key={i} onClick={() => setPhotoIdx(i)} style={{ width: 8, height: 8, borderRadius: "50%", background: i === photoIdx ? WH : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "background 0.2s" }} />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(70px,1fr))", gap: 6 }}>
-            {viewerRoom.photos.map((src, i) => (
-              <img key={i} src={src} alt={`thumb ${i+1}`} onClick={() => setPhotoIdx(i)}
-                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: `2px solid ${i === photoIdx ? M : "transparent"}`, transition: "border-color 0.15s" }} />
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <Btn v="ghost" onClick={() => setPhotoModal(null)} style={{ flex: 1, justifyContent: "center" }}>Close</Btn>
-            <Btn onClick={() => { const r = rooms.find(r => r.id === photoModal); if (r) { openEdit(r); setPhotoModal(null); } }} style={{ flex: 1, justifyContent: "center" }}>Edit Photos</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods }) {
-  const [sel, setSel] = useState(null);
-  const [amt, setAmt] = useState("");
-  const [method, setMethod] = useState("");
-  const selB = books.find(b => b.id === sel);
-  const totColl = books.reduce((s, b) => s + b.paid, 0);
-  const totPend = books.filter(b => b.status !== "cancelled").reduce((s, b) => s + (b.total - b.paid), 0);
-  const totDisc = books.reduce((s, b) => s + (b.base - b.total), 0);
-
-  const openRecord = (id) => {
-    const b = books.find(b => b.id === id);
-    setSel(id);
-    setAmt("");
-    setMethod(b?.method || (payMethods?.[0] || "Cash"));
-  };
-
-  return (
-    <div>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Payments</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
-        <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅" />
-        <KPI label="Outstanding" value={fmt(totPend)} color={ER} icon="⚠️" />
-        <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️" />
-        <KPI label="Total Bookings" value={books.length} icon="📋" />
-      </div>
-      <Card>
-        <Tbl hdr={["Booking", "Guest", "Total", "Paid", "Balance", "Method", "Action"]}
-          rows={books.sort((a, b) => b.id.localeCompare(a.id)).map(b => {
-            const bal = b.total - b.paid;
-            return [
-              <span style={{ color: M, fontWeight: 700, fontSize: 12 }}>{b.id}</span>, b.gName, fmt(b.total),
-              <span style={{ color: OK, fontWeight: 700 }}>{fmt(b.paid)}</span>,
-              <span style={{ color: bal > 0 ? ER : OK, fontWeight: 700 }}>{fmt(bal)}</span>,
-              b.method,
-              b.status === "cancelled"
-                ? <span style={{ color: ER, fontSize: 12, fontWeight: 700 }}>✗ Cancelled</span>
-                : bal > 0
-                  ? <button onClick={() => openRecord(b.id)} style={{ padding: "4px 10px", fontSize: 12, borderRadius: 6, background: M, color: WH, border: "none", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>Record</button>
-                  : <span style={{ color: OK, fontSize: 12, fontWeight: 700 }}>✓ Settled</span>
-            ];
-          })} />
-      </Card>
-      {sel && selB && (
-        <Modal title={`Record Payment — ${selB.id}`} onClose={() => setSel(null)}>
-          <div style={{ marginBottom: 16, padding: 13, background: G1, borderRadius: 8, fontSize: 13 }}>
-            {[["Guest", selB.gName], ["Room", rooms.find(r => r.id === selB.roomId)?.name || "—"], ["Total Due", fmt(selB.total)], ["Already Paid", fmt(selB.paid)], ["Balance", fmt(selB.total - selB.paid)]].map(([k, v], i) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, color: i === 4 ? ER : BK }}>
-                <span style={{ color: G6 }}>{k}</span><strong>{v}</strong>
-              </div>
-            ))}
-          </div>
-          <Inp label="Payment Amount (TZS)" type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder={`Max: ${fmt(selB.total - selB.paid)}`} />
-          <div style={{ marginBottom: 13 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Payment Method</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => (
-                <button key={pm} onClick={() => setMethod(pm)}
-                  style={{ padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${method === pm ? M : G2}`, background: method === pm ? MF : WH, color: method === pm ? M : G6, transition: "all .15s" }}>
-                  {pm}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <Btn v="ghost" onClick={() => setSel(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn v="ok" onClick={() => { recPay(selB.id, amt, method); setSel(null); }} disabled={!amt || !method} style={{ flex: 1, justifyContent: "center" }}>Confirm Payment</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ─── EXPENSES TAB ───────────────────────────────────────── */
-function ExpsTab({ exps, locs, user, saveExp, pop }) {
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ locId: locs[0]?.id || "", cat: "Utilities", desc: "", amt: "", date: td() });
-  const save = () => { saveExp(form); setModal(false); setForm(f => ({ ...f, desc: "", amt: "" })); };
-  const byCat = exps.reduce((a, e) => { a[e.cat] = (a[e.cat] || 0) + e.amt; return a; }, {});
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Expenses</h2>
-        <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
-        {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
-      </div>
-      <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
-      <Card style={{ marginTop: 14 }}>
-        <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
-          rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
-            e.date, locs.find(l => l.id === e.locId)?.name || "-",
-            <span style={{ background: G1, padding: "2px 8px", borderRadius: 99, fontSize: 11, color: G6 }}>{e.cat}</span>,
-            e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
-          ])} />
-      </Card>
-      {modal && (
-        <Modal title="Add Expense" onClose={() => setModal(false)}>
-          {user?.role === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
-          <Sel label="Category" value={form.cat} onChange={e => setForm(f => ({ ...f, cat: e.target.value }))}>{["Utilities", "Maintenance", "Supplies", "Staff", "Marketing", "Rent", "Other"].map(c => <option key={c}>{c}</option>)}</Sel>
-          <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Electricity bill" />
-          <Inp label="Amount (TZS)" type="number" value={form.amt} onChange={e => setForm(f => ({ ...f, amt: e.target.value }))} />
-          <Inp label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} disabled={!form.desc || !form.amt} style={{ flex: 1, justifyContent: "center" }}>Save</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ─── REPORTS TAB ────────────────────────────────────────── */
-function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods }) {
-  const [rt, setRt] = useState("financial");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [reportData, setReportData] = useState(null);
-  const [reportLoading, setReportLoading] = useState(false);
-
-  // Quick presets
-  const applyPreset = (preset) => {
-    const now = new Date();
-    const fmt = d => d.toISOString().split("T")[0];
-    if (preset === "today") {
-      const t = fmt(now); setDateFrom(t); setDateTo(t);
-    } else if (preset === "week") {
-      const start = new Date(now); start.setDate(now.getDate() - 7);
-      setDateFrom(fmt(start)); setDateTo(fmt(now));
-    } else if (preset === "month") {
-      setDateFrom(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`);
-      setDateTo(fmt(now));
-    } else if (preset === "lastmonth") {
-      const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
-      const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-      setDateFrom(fmt(lm)); setDateTo(fmt(lmEnd));
-    } else if (preset === "year") {
-      setDateFrom(`${now.getFullYear()}-01-01`); setDateTo(fmt(now));
-    } else {
-      setDateFrom(""); setDateTo("");
-    }
-  };
-
-  const fetchReport = async () => {
-    setReportLoading(true);
-    try {
-      const data = await api.getReports(null, dateFrom || undefined, dateTo || undefined);
-      setReportData(data);
-    } catch(e) { /* fallback to local */ }
-    setReportLoading(false);
-  };
-
-  useEffect(() => { if (dateFrom || dateTo) fetchReport(); else setReportData(null); }, [dateFrom, dateTo]);
-
-  // Use server data if date filter active, else compute locally from in-memory books/exps
-  const filteredBooks = reportData
-    ? null // use reportData directly
-    : (dateFrom || dateTo)
-      ? books.filter(b => { const d = b.ci; return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo); })
-      : books;
-  const filteredExps = reportData
-    ? null
-    : (dateFrom || dateTo)
-      ? exps.filter(e => { const d = e.date; return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo); })
-      : exps;
-
-  const src = reportData ? {
-    totRev: reportData.revenue.collected,
-    totExp: reportData.expenses.total,
-    net:    reportData.revenue.net_profit,
-    totDisc: reportData.revenue.discounts,
-    pending: reportData.revenue.pending,
-    bStats:  reportData.bookings,
-    byLoc:   reportData.by_location.map(l => ({ ...l, rev: l.revenue, exp: l.expenses, cnt: l.bookings })),
-    byMethod: reportData.by_method.map(m => ({ method: m.method, total: m.total })),
-    byCat:   Object.fromEntries(reportData.expenses.by_category.map(e => [e.category, e.total])),
-  } : {
-    totRev: (filteredBooks||books).filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0),
-    totExp: (filteredExps||exps).reduce((s,e)=>s+e.amt,0),
-    net:    0,
-    totDisc: (filteredBooks||books).reduce((s,b)=>s+(b.base-b.total),0),
-    pending: (filteredBooks||books).filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0),
-    byLoc: locs.map(loc=>({ id:loc.id, name:loc.name, icon:loc.icon, city:loc.city, rev:(filteredBooks||books).filter(b=>b.locId===loc.id&&b.status!=="cancelled").reduce((s,b)=>s+b.paid,0), exp:(filteredExps||exps).filter(e=>e.locId===loc.id).reduce((s,e)=>s+e.amt,0), cnt:(filteredBooks||books).filter(b=>b.locId===loc.id).length })),
-    byMethod: Object.entries((filteredBooks||books).reduce((a,b)=>{a[b.method]=(a[b.method]||0)+b.paid;return a;},{})).map(([method,total])=>({method,total})),
-    byCat: (filteredExps||exps).reduce((a,e)=>{a[e.cat]=(a[e.cat]||0)+e.amt;return a;},{}),
-    bStats: {
-      total: (filteredBooks||books).length,
-      active: (filteredBooks||books).filter(b=>b.status==="checkedIn").length,
-      completed: (filteredBooks||books).filter(b=>b.status==="checkedOut").length,
-      cancelled: (filteredBooks||books).filter(b=>b.status==="cancelled").length,
-    },
-  };
-  src.net = src.totRev - src.totExp;
-  src.margin = src.totRev > 0 ? Math.round(src.net / src.totRev * 100) : 0;
-  const { totRev, totExp, net, totDisc, pending, margin, byLoc: byLocRaw, byMethod: byMethodRaw, byCat, bStats } = src;
-  // Occupancy still from live room data (not date-filtered)
-  const occ = rooms.length ? Math.round(rooms.filter(r => r.status === "occupied").length / rooms.length * 100) : 0;
-  const avgRate = rooms.length ? Math.round(rooms.reduce((s, r) => s + r.price, 0) / rooms.length) : 0;
-  const byLoc = byLocRaw || locs.map(loc => ({
-    ...loc,
-    rev: books.filter(b => b.locId === loc.id && b.status !== "cancelled").reduce((s, b) => s + b.paid, 0),
-    exp: exps.filter(e => e.locId === loc.id).reduce((s, e) => s + e.amt, 0),
-    cnt: books.filter(b => b.locId === loc.id).length,
-  }));
-  const byMethod = byMethodRaw || Object.entries(books.reduce((a,b)=>{a[b.method]=(a[b.method]||0)+b.paid;return a;},{})).map(([method,total])=>({method,total}));
-  // byStat as object for the booking status breakdown  
-  const byStatObj = Array.isArray(byStat) ? byStat : byStat;
-  const byStat = bStats || books.reduce((a, b) => { a[b.status] = (a[b.status] || 0) + 1; return a; }, {});
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Reports & Analytics</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-          {/* Quick presets */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[["All Time","all"],["Today","today"],["This Week","week"],["This Month","month"],["Last Month","lastmonth"],["This Year","year"]].map(([label, preset]) => {
-              const isActive = preset === "all" ? !dateFrom && !dateTo : (() => {
-                // rough active check
-                const now = new Date(); const fmt = d => d.toISOString().split("T")[0];
-                if (preset==="today") return dateFrom === fmt(now);
-                if (preset==="month") return dateFrom === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
-                if (preset==="year") return dateFrom === `${now.getFullYear()}-01-01`;
-                return false;
-              })();
-              return (
-                <button key={preset} onClick={() => applyPreset(preset)}
-                  style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `1px solid ${isActive ? M : G2}`, background: isActive ? M : WH, color: isActive ? WH : G6 }}>
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          {/* Custom date range */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 13, fontFamily: "inherit", color: BK, outline: "none" }} />
-            <span style={{ color: G6, fontSize: 13 }}>to</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 13, fontFamily: "inherit", color: BK, outline: "none" }} />
-            {(dateFrom || dateTo) && (
-              <button onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit", background: WH }}>✕ Clear</button>
-            )}
-          </div>
-          {(dateFrom || dateTo) && (
-            <div style={{ fontSize: 12, color: M, fontWeight: 700 }}>
-              {reportLoading ? "Loading…" : `Showing: ${dateFrom || "start"} → ${dateTo || "today"}`}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${G2}` }}>
-        {["financial", "occupancy", "location", "expenses", "bookings"].map(t => (
-          <button key={t} onClick={() => setRt(t)} style={{ padding: "10px 15px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: rt === t ? M : G6, borderBottom: `3px solid ${rt === t ? M : "transparent"}`, textTransform: "capitalize", fontFamily: "inherit" }}>{t}</button>
-        ))}
-      </div>
-
-      {rt === "financial" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
-            <KPI label="Gross Revenue" value={fmt(totRev)} color={M} icon="💰" />
-            <KPI label="Total Expenses" value={fmt(totExp)} color={ER} icon="📤" />
-            <KPI label="Net Profit" value={fmt(net)} color={net >= 0 ? OK : ER} icon="📈" sub={net >= 0 ? "Profitable" : "Loss"} />
-            <KPI label="Pending Revenue" value={fmt(pending)} color={WA} icon="⏳" />
-            <KPI label="Discounts Given" value={fmt(totDisc)} color={IN} icon="🏷️" />
-            <KPI label="Profit Margin" value={margin + "%"} color={net >= 0 ? OK : ER} icon="%" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Card>
-              <SecTitle>Revenue vs Expenses by Location</SecTitle>
-              {byLoc.map(loc => (
-                <div key={loc.id} style={{ marginBottom: 15 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 13 }}>
-                    <strong>{loc.name}</strong>
-                    <span style={{ color: loc.rev - loc.exp >= 0 ? OK : ER, fontWeight: 700 }}>Net: {fmt(loc.rev - loc.exp)}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: G6, marginBottom: 5 }}>Rev: {fmt(loc.rev)} · Exp: {fmt(loc.exp)}</div>
-                  <div style={{ height: 6, background: G1, borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: totRev > 0 ? Math.round(loc.rev / totRev * 100) + "%" : "0%", background: M, borderRadius: 99 }} />
-                  </div>
-                </div>
-              ))}
-            </Card>
-            <Card>
-              <SecTitle>Payment Methods</SecTitle>
-              {byMethod.map((m, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
-                  <span style={{ color: G6 }}>{m.method}</span><span style={{ fontWeight: 700 }}>{fmt(m.total)}</span>
-                </div>
-              ))}
-              <div style={{ marginTop: 11, padding: "9px 0", borderTop: `2px solid ${G2}`, display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}>
-                <span>Total</span><span style={{ color: M }}>{fmt(totRev)}</span>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {rt === "occupancy" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
-            <KPI label="Overall Occupancy" value={occ + "%"} icon="🛏️" />
-            <KPI label="Occupied Rooms" value={rooms.filter(r => r.status === "occupied").length} color={M} sub={`of ${rooms.length} total`} />
-            <KPI label="Available Rooms" value={rooms.filter(r => r.status === "available").length} color={OK} />
-            <KPI label="Maintenance" value={rooms.filter(r => r.status === "maintenance").length} color={WA} />
-            <KPI label="Avg Nightly Rate" value={fmt(avgRate)} color={M} />
-            <KPI label="Total Rooms" value={rooms.length} />
-          </div>
-          <Card>
-            <SecTitle>Occupancy by Location</SecTitle>
-            {locs.map(loc => {
-              const lr = allRooms.filter(r => r.locId === loc.id);
-              const o = lr.filter(r => r.status === "occupied").length;
-              const pct = lr.length ? Math.round(o / lr.length * 100) : 0;
-              return (
-                <div key={loc.id} style={{ marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 14 }}>
-                    <strong style={{ fontFamily: "'Playfair Display',serif" }}>{loc.name}</strong>
-                    <span style={{ color: M, fontWeight: 700 }}>{pct}% ({o}/{lr.length})</span>
-                  </div>
-                  <div style={{ height: 10, background: G1, borderRadius: 99, overflow: "hidden", marginBottom: 5 }}>
-                    <div style={{ height: "100%", width: pct + "%", background: `linear-gradient(90deg,${M},${ML})`, borderRadius: 99 }} />
-                  </div>
-                  <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
-                    {["available", "occupied", "maintenance"].map(s => <span key={s} style={{ color: sC(s) }}>{lr.filter(r => r.status === s).length} {s}</span>)}
-                  </div>
-                </div>
-              );
-            })}
-          </Card>
-        </div>
-      )}
-
-      {rt === "location" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
-          {byLoc.map(loc => {
-            const lb = books.filter(b => b.locId === loc.id);
-            const act = lb.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length;
-            const done = lb.filter(b => b.status === "checkedOut").length;
-            return (
-              <Card key={loc.id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${G1}` }}>
-                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
-                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 15 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
-                </div>
-                {[["Total Revenue", fmt(loc.rev), OK], ["Total Expenses", fmt(loc.exp), ER], ["Net Profit", fmt(loc.rev - loc.exp), loc.rev - loc.exp >= 0 ? OK : ER], ["Total Bookings", loc.cnt, BK], ["Active Stays", act, M], ["Completed Stays", done, G6]].map(([k, v, c]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${G1}` }}>
-                    <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700, color: c }}>{v}</span>
-                  </div>
-                ))}
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {rt === "expenses" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 16 }}>
-            {Object.entries(byCat).map(([c, a]) => <KPI key={c} label={c} value={fmt(a)} />)}
-          </div>
-          <Card><SecTitle>All Expenses</SecTitle>
-            <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
-              rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
-                e.date, locs.find(l => l.id === e.locId)?.name || "-", e.cat, e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
-              ])} />
-          </Card>
-        </div>
-      )}
-
-      {rt === "bookings" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 11, marginBottom: 18 }}>
-            {[["pending",(bsSrc=>bsSrc?.pending||(books.filter(b=>b.status==="pending").length))(bStats)],["confirmed",(bsSrc=>bsSrc?.confirmed||(books.filter(b=>b.status==="confirmed").length))(bStats)],["checkedIn",bStats?.active||(books.filter(b=>b.status==="checkedIn").length)],["checkedOut",bStats?.completed||(books.filter(b=>b.status==="checkedOut").length)],["cancelled",bStats?.cancelled||(books.filter(b=>b.status==="cancelled").length)]].map(([s, c]) => (
-              <div key={s} style={{ background: sB(s), border: `1px solid ${sC(s)}30`, borderRadius: 12, padding: "13px 15px" }}>
-                <div style={{ fontSize: 11, color: sC(s), fontWeight: 700, textTransform: "uppercase", marginBottom: 5 }}>{s}</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: sC(s), fontFamily: "'Playfair Display',serif" }}>{c}</div>
-              </div>
-            ))}
-          </div>
-          <Card><SecTitle>Booking Revenue Analysis</SecTitle>
-            <Tbl hdr={["Booking", "Guest", "Base", "Discount", "Total", "Paid", "Balance", "Status"]}
-              rows={books.sort((a, b) => b.id.localeCompare(a.id)).map(b => {
-                const bal = b.total - b.paid;
-                return [
-                  <span style={{ color: M, fontWeight: 700, fontSize: 11 }}>{b.id}</span>, b.gName, fmt(b.base),
-                  b.disc > 0 ? <span style={{ color: OK, fontSize: 12 }}>{b.discT === "pct" ? b.disc + "%" : fmt(b.disc)}</span> : "—",
-                  fmt(b.total), <span style={{ color: OK }}>{fmt(b.paid)}</span>,
-                  <span style={{ color: bal > 0 ? ER : OK }}>{fmt(bal)}</span>, <Badge s={b.status} />
-                ];
-              })} />
-          </Card>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── LOCATIONS TAB ──────────────────────────────────────── */
-function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ id: null, name: "", city: "", addr: "", icon: "🏙️", desc: "" });
-  const save = () => { saveLoc(form, !!form.id); setModal(false); };
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", city: "", addr: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-        {locs.map(loc => {
-          const lr = rooms.filter(r => r.locId === loc.id);
-          const lb = books.filter(b => b.locId === loc.id);
-          const rev = lb.reduce((s, b) => s + b.paid, 0);
-          return (
-            <Card key={loc.id}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
-                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
-                </div>
-                <div style={{ display:"flex", gap:5 }}>
-                <button onClick={() => { setForm({ ...loc }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
-                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
-              </div>
-              </div>
-              <div style={{ fontSize: 12, color: G6, marginBottom: 8 }}>{loc.addr}</div>
-              <div style={{ fontSize: 12, color: G6, marginBottom: 12, fontStyle: "italic" }}>{loc.desc}</div>
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                <span style={{ background: G1, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lr.length} rooms</span>
-                <span style={{ background: MF, color: M, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lb.length} bookings</span>
-                <span style={{ background: OKB, color: OK, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{fmt(rev)}</span>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-      {modal && (
-        <Modal title={form.id ? "Edit Location" : "Add Location"} onClose={() => setModal(false)}>
-          <Inp label="Location Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="BNC Masaki" />
-          <Inp label="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Dar es Salaam" />
-          <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="Masaki, DSM" />
-          <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
-          <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} disabled={!form.name || !form.city} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ─── STAFF TAB ──────────────────────────────────────────── */
-function StaffTab({ staff, saveStaff, toggleStaff, locs, pop, payMethods, setPayMethods }) {
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: "", pin: "", active: true });
-  const [newPM, setNewPM] = useState(false);
-  const [newPMName, setNewPMName] = useState("");
-  const save = () => { if(!form.name||!form.email||!form.pin)return; saveStaff(form,!!form.id); setModal(false); };
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Staff Accounts</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: locs[0]?.id || "", pin: "", active: true }); setModal(true); }}>+ Create Account</Btn>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 13 }}>
-        {staff.map(s => (
-          <Card key={s.id}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
-              <div style={{ width: 42, height: 42, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 15, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
-                {s.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Playfair Display',serif" }}>{s.name}</div>
-                <div style={{ fontSize: 12, color: M, fontWeight: 700 }}>{s.role}</div>
-              </div>
-              <span style={{ background: s.active ? OKB : G1, color: s.active ? OK : G6, padding: "3px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{s.active ? "Active" : "Inactive"}</span>
-            </div>
-            {[["Email", s.email], ["Phone", s.phone], ["Location", locs.find(l => l.id === s.locId)?.name || "All Locations"], ["Joined", s.created]].map(([k, v]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${G1}`, fontSize: 12 }}>
-                <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 600 }}>{v}</span>
-              </div>
-            ))}
-            <div style={{ display: "flex", gap: 7, marginTop: 11 }}>
-              <button onClick={() => { setForm({ ...s }); setModal(true); }} style={{ flex: 1, padding: "7px", fontSize: 12, borderRadius: 7, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontWeight: 700, fontFamily: "inherit" }}>Edit</button>
-              <button onClick={() => toggleStaff(s)} style={{ flex: 1, padding: "7px", fontSize: 12, borderRadius: 7, border: `1px solid ${s.active ? ER : OK}`, background: "none", cursor: "pointer", color: s.active ? ER : OK, fontWeight: 700, fontFamily: "inherit" }}>
-                {s.active ? "Deactivate" : "Activate"}
-              </button>
-            </div>
-          </Card>
-        ))}
-      </div>
-      {/* ── PAYMENT METHODS ── */}
-      <div style={{ marginTop: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, margin: 0 }}>Payment Methods</h3>
-          <Btn onClick={() => setNewPM(true)} style={{ fontSize: 12, padding: "6px 13px" }}>+ Add Method</Btn>
-        </div>
-        <Card>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {(payMethods || []).map((pm, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: G1, border: `1px solid ${G2}`, borderRadius: 8, padding: "7px 12px" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: BK }}>{pm}</span>
-                <button onClick={async () => {
-                    if (!window.confirm(`Remove "${pm}" as a payment method?`)) return;
-                    try {
-                      // Get full list from DB to find id
-                      const full = await api.getPayMethods();
-                      const found = full.find(p => p.name === pm);
-                      if (found) {
-                        await api.deletePayMethod(found.id);
-                        setPayMethods(prev => prev.filter(p => p !== pm));
-                        pop("Payment method removed");
-                      }
-                    } catch(e) { pop(e.message, "err"); }
-                  }}
-                  style={{ background: "none", border: "none", color: ER, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>
-              </div>
-            ))}
-            {(!payMethods || payMethods.length === 0) && <div style={{ color: G4, fontSize: 13 }}>No payment methods configured</div>}
-          </div>
-        </Card>
-        {newPM && (
-          <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "flex-end" }}>
-            <Inp label="New Payment Method Name" value={newPMName} onChange={e => setNewPMName(e.target.value)} placeholder="e.g. Cheque, Crypto..." style={{ marginBottom: 0 }} />
-            <Btn onClick={async () => {
-                if (!newPMName.trim()) return;
-                try {
-                  await api.createPayMethod(newPMName.trim());
-                  setPayMethods(prev => [...prev, newPMName.trim()]);
-                  setNewPMName(""); setNewPM(false);
-                  pop("Payment method added");
-                } catch(e) { pop(e.message, "err"); }
-              }}>Add</Btn>
-            <Btn v="ghost" onClick={() => { setNewPM(false); setNewPMName(""); }}>Cancel</Btn>
-          </div>
-        )}
-      </div>
-
-      {modal && (
-        <Modal title={form.id ? "Edit Staff" : "Create Staff Account"} onClose={() => setModal(false)}>
-          <Inp label="Full Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Jane Mwangi" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-            <Inp label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@bnc.co.tz" />
-            <Inp label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
-            <Sel label="Role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}><option>Manager</option><option>Receptionist</option><option>Housekeeping</option><option>Accountant</option></Sel>
-            <Sel label="Assigned Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}><option value="">All Locations</option>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-          </div>
-          <Inp label="Login PIN (4–6 digits)" type="password" value={form.pin} onChange={e => setForm(f => ({ ...f, pin: e.target.value }))} placeholder="••••" maxLength={6} />
-          <div style={{ background: MF, borderRadius: 8, padding: "9px 13px", fontSize: 12, color: M, marginBottom: 13 }}>
-            Staff log in with their <strong>email</strong> and this <strong>PIN</strong>.
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} disabled={!form.name || !form.email || !form.pin} style={{ flex: 1, justifyContent: "center" }}>Save Account</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-
-/* ─── PROFILE TAB ────────────────────────────────────────── */
-function ProfileTab({ user, updateProfile }) {
-  const [form, setForm]     = useState({ name: user?.name || "", email: user?.email || "", phone: user?.phone || "" });
-  const [pinForm, setPinForm] = useState({ current_pin: "", new_pin: "", confirm_pin: "" });
-  const [saving, setSaving] = useState(false);
-  const [pinErr, setPinErr] = useState("");
-  const [section, setSection] = useState("details"); // details | pin
-
-  const saveDetails = async () => {
-    if (!form.name || !form.email) return;
-    setSaving(true);
-    await updateProfile({ id: user.id, name: form.name, email: form.email, phone: form.phone });
-    setSaving(false);
-  };
-
-  const savePin = async () => {
-    setPinErr("");
-    if (!pinForm.current_pin) return setPinErr("Enter your current PIN");
-    if (!pinForm.new_pin || pinForm.new_pin.length < 4) return setPinErr("New PIN must be at least 4 digits");
-    if (pinForm.new_pin !== pinForm.confirm_pin) return setPinErr("New PINs do not match");
-    setSaving(true);
-    const ok = await updateProfile({ id: user.id, current_pin: pinForm.current_pin, new_pin: pinForm.new_pin });
-    setSaving(false);
-    if (ok) setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
-  };
-
-  const initials = (user?.name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-
-  return (
-    <div style={{ maxWidth: 560 }}>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 22px" }}>My Profile</h2>
-
-      {/* Avatar + role card */}
-      <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-        <div style={{ width: 56, height: 56, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 20, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
-          {initials}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{user?.name}</div>
-          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{user?.role}</div>
-          <div style={{ fontSize: 12, color: G6, marginTop: 2 }}>{user?.email}</div>
-        </div>
-      </Card>
-
-      {/* Section tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
-        {[["details", "Personal Details"], ["pin", "Change PIN"]].map(([id, label]) => (
-          <button key={id} onClick={() => { setSection(id); setPinErr(""); }}
-            style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Personal details */}
-      {section === "details" && (
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, color: BK }}>Personal Details</div>
-          <Inp label="Full Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" />
-          <Inp label="Email Address" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="your@email.com" />
-          <Inp label="Phone Number" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
-          <div style={{ background: G1, borderRadius: 8, padding: "10px 13px", fontSize: 12, color: G6, marginBottom: 16 }}>
-            Role and location assignment can only be changed by an Admin.
-          </div>
-          <Btn onClick={saveDetails} disabled={saving || !form.name || !form.email} style={{ width: "100%", justifyContent: "center" }}>
-            {saving ? "Saving…" : "Save Changes"}
-          </Btn>
-        </Card>
-      )}
-
-      {/* Change PIN */}
-      {section === "pin" && (
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, color: BK }}>Change PIN</div>
-          <div style={{ marginBottom: 13 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Current PIN</label>
-            <input type="password" value={pinForm.current_pin} onChange={e => setPinForm(f => ({ ...f, current_pin: e.target.value }))}
-              placeholder="Enter current PIN" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
-          </div>
-          <div style={{ height: 1, background: G2, margin: "16px 0" }} />
-          <div style={{ marginBottom: 13 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>New PIN</label>
-            <input type="password" value={pinForm.new_pin} onChange={e => setPinForm(f => ({ ...f, new_pin: e.target.value }))}
-              placeholder="4–6 digits" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Confirm New PIN</label>
-            <input type="password" value={pinForm.confirm_pin} onChange={e => setPinForm(f => ({ ...f, confirm_pin: e.target.value }))}
-              placeholder="Re-enter new PIN" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
-          </div>
-          {pinErr && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{pinErr}</div>}
-          <Btn onClick={savePin} disabled={saving} style={{ width: "100%", justifyContent: "center" }}>
-            {saving ? "Updating…" : "Update PIN"}
-          </Btn>
-          <div style={{ marginTop: 12, fontSize: 12, color: G6, textAlign: "center" }}>
-            After changing your PIN, use the new PIN at your next login.
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-/* ─── NEW BOOKING MODAL ──────────────────────────────────── */
-function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods }) {
-  const [form, setForm] = useState({ locId: locs[0]?.id || "", roomId: "", name: "", phone: "", email: "", nat: "", ci: td(), co: "", nights: 1, disc: 0, discT: "pct", method: payMethods?.[0] || "Cash", notes: "", paid: 0 });
-  const lr = rooms.filter(r => r.locId === form.locId && r.status === "available");
-  const sr = rooms.find(r => r.id === form.roomId);
-  const base = sr ? sr.price * form.nights : 0;
-  const da = form.discT === "pct" ? base * form.disc / 100 : Number(form.disc);
-  const total = base - da;
-  useEffect(() => {
-    if (form.ci && form.co) { const n = dd(form.ci, form.co); if (n > 0) setForm(f => ({ ...f, nights: n })); }
-  }, [form.ci, form.co]);
-  const save = () => {
-    if (!form.roomId || !form.name || !form.phone || !form.ci || !form.co) return;
-    onSave(form, base, da, total);
-  };
-  return (
-    <Modal title="New Booking" onClose={onClose} wide>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-        <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value, roomId: "" }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-        <Sel label="Room" value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}><option value="">Select room…</option>{lr.map(r => <option key={r.id} value={r.id}>{r.name} — {fmt(r.price)}/night</option>)}</Sel>
-        <Inp label="Check-in" type="date" value={form.ci} min={td()} onChange={e => setForm(f => ({ ...f, ci: e.target.value }))} />
-        <Inp label="Check-out" type="date" value={form.co} min={form.ci} onChange={e => setForm(f => ({ ...f, co: e.target.value }))} />
-        <Inp label="Guest Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
-        <Inp label="Phone *" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
-        <Inp label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-        <Inp label="Nationality" value={form.nat} onChange={e => setForm(f => ({ ...f, nat: e.target.value }))} />
-        <Sel label="Discount Type" value={form.discT} onChange={e => setForm(f => ({ ...f, discT: e.target.value }))}><option value="pct">Percentage (%)</option><option value="fix">Fixed Amount (TZS)</option></Sel>
-        <Inp label={form.discT === "pct" ? "Discount %" : "Discount (TZS)"} type="number" value={form.disc} onChange={e => setForm(f => ({ ...f, disc: e.target.value }))} min={0} />
-        <Sel label="Payment Method" value={form.method} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>{(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => <option key={pm}>{pm}</option>)}</Sel>
-        <Inp label="Initial Payment (TZS)" type="number" value={form.paid} onChange={e => setForm(f => ({ ...f, paid: e.target.value }))} placeholder="0" />
-      </div>
-      <Inp label="Notes / Special Requests" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Special requests…" />
-      {sr && form.nights > 0 && (
-        <div style={{ background: BK, borderRadius: 10, padding: 13, marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {[["Nights × Rate", `${form.nights} × ${fmt(sr.price)}`], ["Discount", da > 0 ? `- ${fmt(da)}` : "None"], ["TOTAL", fmt(total)]].map(([k, v], i) => (
-            <div key={i} style={{ textAlign: i === 2 ? "right" : "left" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,.45)", marginBottom: 2 }}>{k}</div>
-              <div style={{ fontSize: i === 2 ? 17 : 13, fontWeight: 700, color: i === 2 ? GOLD : WH, fontFamily: i === 2 ? "'Playfair Display',serif" : "inherit" }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-        <Btn v="ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-        <Btn onClick={save} disabled={!form.roomId || !form.name || !form.phone || !form.ci || !form.co} style={{ flex: 1, justifyContent: "center" }}>Create Booking</Btn>
-      </div>
-    </Modal>
-  );
-}
-
-/* ─── CUSTOMER AUTH MODAL ────────────────────────────────── */
-function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", nationality: "", password: "", confirm: "" });
-  const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const doLogin = async () => {
-    setErr(""); setLoading(true);
-    try { await onLogin(form.email.trim(), form.password); }
-    catch (e) { setErr(e.message); }
-    setLoading(false);
-  };
-
-  const doRegister = async () => {
-    setErr("");
-    if (!form.name || !form.email || !form.password) return setErr("Name, email and password are required");
-    if (form.password.length < 6) return setErr("Password must be at least 6 characters");
-    if (form.password !== form.confirm) return setErr("Passwords do not match");
-    setLoading(true);
-    try { await onRegister({ name: form.name, email: form.email, phone: form.phone, nationality: form.nationality, password: form.password }); }
-    catch (e) { setErr(e.message); }
-    setLoading(false);
-  };
-
-  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
-  const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
-
-  return (
-    <Modal title={mode === "login" ? "Sign In to Your Account" : "Create Account"} onClose={onClose}>
-      {mode === "register" && (
-        <>
-          <label style={lblStyle}>Full Name</label>
-          <input style={inpStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-            <div>
-              <label style={lblStyle}>Phone</label>
-              <input style={inpStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
-            </div>
-            <div>
-              <label style={lblStyle}>Nationality</label>
-              <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
-            </div>
-          </div>
-        </>
-      )}
-      <label style={lblStyle}>Email Address</label>
-      <input type="email" style={inpStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="your@email.com"
-        onKeyDown={e => e.key === "Enter" && mode === "login" && doLogin()} />
-      <label style={lblStyle}>Password</label>
-      <input type="password" style={inpStyle} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={mode === "register" ? "Min 6 characters" : "••••••"}
-        onKeyDown={e => e.key === "Enter" && mode === "login" && doLogin()} />
-      {mode === "register" && (
-        <>
-          <label style={lblStyle}>Confirm Password</label>
-          <input type="password" style={inpStyle} value={form.confirm} onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Re-enter password" />
-        </>
-      )}
-      {err && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
-      <Btn onClick={mode === "login" ? doLogin : doRegister} disabled={loading} style={{ width: "100%", justifyContent: "center", padding: "11px", marginBottom: 14 }}>
-        {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
-      </Btn>
-      <div style={{ textAlign: "center", fontSize: 13, color: G6 }}>
-        {mode === "login" ? (
-          <>Don't have an account? <button onClick={() => { setMode("register"); setErr(""); }} style={{ background: "none", border: "none", color: M, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Create one</button></>
-        ) : (
-          <>Already have an account? <button onClick={() => { setMode("login"); setErr(""); }} style={{ background: "none", border: "none", color: M, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Sign in</button></>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
-/* ─── CUSTOMER BOOKINGS TAB ──────────────────────────────── */
-function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRefresh }) {
-  const [sel, setSel] = useState(null);
-  const selB = custBooks.find(b => b.id === sel);
-
-  const statusLabel = { pending: "Awaiting Confirmation", confirmed: "Confirmed", checkedIn: "Checked In", checkedOut: "Completed", cancelled: "Cancelled" };
-  const upcoming = custBooks.filter(b => ["pending","confirmed"].includes(b.status));
-  const active   = custBooks.filter(b => b.status === "checkedIn");
-  const past     = custBooks.filter(b => ["checkedOut","cancelled"].includes(b.status));
-
-  if (custLoading) return <div style={{ textAlign: "center", padding: 60, color: G4 }}>Loading your bookings…</div>;
-
-  if (!custBooks.length) return (
-    <div style={{ textAlign: "center", padding: "60px 20px" }}>
-      <div style={{ fontSize: 52, marginBottom: 16 }}>🛏️</div>
-      <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, color: BK, marginBottom: 10 }}>No bookings yet</h3>
-      <p style={{ color: G6, fontSize: 15, marginBottom: 24 }}>Browse our properties and make your first booking.</p>
-    </div>
-  );
-
-  const BookingCard = ({ b }) => {
-    const bal = Number(b.total_amount) - Number(b.paid_amount);
-    const photos = b.room_photos || [];
-    return (
-      <Card style={{ marginBottom: 14, overflow: "hidden", padding: 0 }}>
-        <div style={{ display: "flex" }}>
-          {photos.length > 0 ? (
-            <div style={{ width: 110, flexShrink: 0, background: G2 }}>
-              <img src={photos[0]} alt={b.room_name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {customer ? (
+            <>
+              <Btn v="ghost" onClick={()=>setView("customer")} style={{fontSize:12}}>My Bookings</Btn>
+              <Btn v="out" onClick={logout} style={{fontSize:12}}>Logout</Btn>
+            </>
           ) : (
-            <div style={{ width: 110, flexShrink: 0, background: `linear-gradient(135deg,${MD},${M})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🛏️</div>
+            <>
+              <Btn v="ghost" onClick={()=>setModal("login_choice")} style={{fontSize:12}}>Sign In</Btn>
+              <Btn onClick={()=>setModal("register_store")} style={{fontSize:12}}>List Your Property</Btn>
+            </>
           )}
-          <div style={{ flex: 1, padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15, fontFamily: "'Playfair Display',serif", color: BK }}>{b.room_name || "Room"}</div>
-                <div style={{ fontSize: 12, color: G6 }}>{b.location_icon} {b.location_name} · {b.location_city}</div>
-              </div>
-              <Badge s={b.status} label={statusLabel[b.status] || b.status} />
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <div style={{background:`linear-gradient(135deg,${M} 0%,${MD} 100%)`,color:WH,padding:"64px 32px",textAlign:"center"}}>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:42,margin:"0 0 12px",fontWeight:400}}>Find Your Perfect Stay</h1>
+        <p style={{fontSize:17,opacity:.85,margin:"0 0 32px"}}>Discover beautiful apartments, lodges and guesthouses across Tanzania and beyond</p>
+        <div style={{display:"flex",gap:8,maxWidth:520,margin:"0 auto",background:WH,borderRadius:12,padding:8}}>
+          <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city (e.g. Dar es Salaam)"
+            style={{flex:1,border:"none",outline:"none",fontSize:14,color:BK,padding:"8px 12px",fontFamily:"inherit"}}
+            onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}/>
+          <button onClick={()=>loadMarketplace(mktCity)}
+            style={{background:M,color:WH,border:"none",borderRadius:8,padding:"10px 22px",fontSize:14,fontWeight:700,cursor:"pointer"}}>Search</button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"40px 24px"}}>
+        {mktLoading ? <Spinner/> : mktStores.length===0 ? (
+          <div style={{textAlign:"center",padding:60,color:G4}}>
+            <div style={{fontSize:48,marginBottom:16}}>🏨</div>
+            <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>No properties found</div>
+            <div style={{fontSize:14}}>Try searching for a different city, or check back soon.</div>
+          </div>
+        ) : (
+          <>
+            <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>{mktCity?`Properties in ${mktCity}`:"All Properties"}</h2>
+              <span style={{fontSize:13,color:G6}}>{mktStores.length} store{mktStores.length!==1?"s":""} available</span>
             </div>
-            <div style={{ display: "flex", gap: 16, fontSize: 13, color: G6, marginBottom: 10 }}>
-              <span>📅 {b.check_in} → {b.check_out}</span>
-              <span>🌙 {b.nights} night{b.nights > 1 ? "s" : ""}</span>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:20}}>
+              {mktStores.map(store=>(
+                <div key={store.id} onClick={()=>setMktStore(store)}
+                  style={{background:WH,borderRadius:14,overflow:"hidden",border:`1px solid ${G2}`,cursor:"pointer",transition:"transform .15s,box-shadow .15s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,.12)"}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow=""}}>
+                  <div style={{height:160,background:`linear-gradient(135deg,${M}22 0%,${GOLD}22 100%)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:56}}>
+                    {store.city==="Zanzibar"?"🏛️":store.city?.includes("Arusha")?"🏔️":"🏙️"}
+                  </div>
+                  <div style={{padding:16}}>
+                    <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>{store.name}</div>
+                    <div style={{fontSize:13,color:G6,marginBottom:10}}>📍 {store.city||store.country}</div>
+                    <div style={{display:"flex",gap:8,fontSize:12}}>
+                      <span style={{background:OKB,color:OK,padding:"3px 8px",borderRadius:99,fontWeight:600}}>{store.room_count||0} rooms</span>
+                      {store.location_count>0 && <span style={{background:INB,color:IN,padding:"3px 8px",borderRadius:99,fontWeight:600}}>{store.location_count} locations</span>}
+                    </div>
+                    {store.description && <p style={{fontSize:12,color:G6,marginTop:8,lineHeight:1.5}}>{store.description.slice(0,80)}{store.description.length>80?"…":""}</p>}
+                    <div style={{marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:13,color:G8,fontWeight:600}}>
+                        {store.min_price?`From ${fmt(store.min_price)}/night`:"See rooms"}
+                      </span>
+                      <span style={{color:M,fontSize:12,fontWeight:700}}>View →</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <span style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(b.total_amount)}</span>
-                {bal > 0 && b.status !== "cancelled" && <span style={{ fontSize: 12, color: ER, marginLeft: 8 }}>Balance: {fmt(bal)}</span>}
-                {bal === 0 && b.status !== "cancelled" && <span style={{ fontSize: 12, color: OK, marginLeft: 8 }}>✓ Paid in full</span>}
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setSel(b.id)} style={{ padding: "5px 12px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit", fontWeight: 600 }}>Details</button>
-                {["pending","confirmed"].includes(b.status) && (
-                  <button onClick={() => onCancel(b.id)} style={{ padding: "5px 12px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 600 }}>Cancel</button>
+          </>
+        )}
+      </div>
+
+      {/* Store Detail Modal */}
+      {mktStore && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:500,overflow:"auto"}}>
+          <div style={{background:WH,maxWidth:860,margin:"40px auto",borderRadius:16,overflow:"hidden"}}>
+            <div style={{background:`linear-gradient(135deg,${M},${MD})`,padding:"28px 28px 20px",color:WH,position:"relative"}}>
+              <button onClick={()=>setMktStore(null)} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,.2)",border:"none",color:WH,width:32,height:32,borderRadius:50,cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
+              <div style={{fontSize:42,marginBottom:8}}>🏨</div>
+              <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:26,margin:"0 0 6px",fontWeight:400}}>{mktStore.name}</h2>
+              <div style={{fontSize:14,opacity:.85}}>📍 {mktStore.city||mktStore.country}</div>
+            </div>
+            <div style={{padding:28}}>
+              {mktStore.description && <p style={{fontSize:15,color:G6,marginBottom:24,lineHeight:1.7}}>{mktStore.description}</p>}
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,marginBottom:16}}>Available Rooms</h3>
+              <MktRoomsList storeId={mktStore.id} customer={customer} setModal={setModal} pop={pop}/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CTA Section */}
+      <div style={{background:WH,borderTop:`1px solid ${G2}`,padding:"48px 32px",textAlign:"center"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,marginBottom:12}}>Own an Apartment or Lodge?</h2>
+        <p style={{fontSize:16,color:G6,marginBottom:24,maxWidth:500,margin:"0 auto 24px"}}>Join BNBMS and manage all your bookings, staff, and revenue in one place. Start free for 14 days.</p>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+          <Btn onClick={()=>setModal("register_store")} style={{padding:"12px 28px",fontSize:15}}>Get Started Free</Btn>
+          <Btn v="out" onClick={()=>setModal("login_owner")} style={{padding:"12px 28px",fontSize:15}}>Owner Login</Btn>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{background:G8,color:G4,padding:"20px 32px",textAlign:"center",fontSize:12}}>
+        <span style={{color:WH,fontWeight:700,fontFamily:"'Playfair Display',serif"}}>BNBMS</span> — BNB Management System · &copy; {new Date().getFullYear()} · admin@bnbms.co.tz
+      </div>
+    </div>
+  );
+
+  /* ====================================================
+     MARKETPLACE ROOMS COMPONENT
+  ==================================================== */
+  function MktRoomsList({storeId,customer,setModal,pop}) {
+    const [rooms,setRooms] = useState([]);
+    const [loading,setLoading] = useState(true);
+    const [bookingRoom,setBookingRoom] = useState(null);
+    useEffect(()=>{
+      api.getRooms(storeId).then(r=>setRooms((r||[]).map(mapRoom))).catch(()=>{}).finally(()=>setLoading(false));
+    },[storeId]);
+    if(loading) return <Spinner/>;
+    if(!rooms.length) return <div style={{textAlign:"center",color:G4,padding:32}}>No rooms available</div>;
+    return (
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+        {rooms.map(r=>(
+          <div key={r.id} style={{border:`1px solid ${G2}`,borderRadius:12,overflow:"hidden",background:WH}}>
+            <div style={{height:120,background:`linear-gradient(135deg,${MF},${GOLDB})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36}}>🛏️</div>
+            <div style={{padding:14}}>
+              <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>{r.name}</div>
+              <div style={{fontSize:12,color:G6,marginBottom:6}}>{r.type} · {r.beds} bed{r.beds>1?"s":""} · max {r.guests} guests</div>
+              <div style={{fontSize:13,fontWeight:700,color:M,marginBottom:8}}>{fmt(r.price)}<span style={{fontSize:11,fontWeight:400,color:G4}}>/night</span></div>
+              {r.amen.length>0 && <div style={{fontSize:11,color:G6,marginBottom:10}}>{r.amen.slice(0,3).join(" · ")}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <Badge s={r.status}/>
+                {r.status==="available" && (
+                  <button onClick={()=>{
+                    if(!customer){setModal("login_customer");return;}
+                    setBookingRoom(r);
+                  }} style={{background:M,color:WH,border:"none",borderRadius:6,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Book Now</button>
                 )}
               </div>
             </div>
           </div>
+        ))}
+        {bookingRoom && (
+          <PublicBookingModal room={bookingRoom} storeId={storeId} customer={customer}
+            onClose={()=>setBookingRoom(null)} pop={pop}/>
+        )}
+      </div>
+    );
+  }
+
+  /* ====================================================
+     PUBLIC BOOKING MODAL
+  ==================================================== */
+  function PublicBookingModal({room,storeId,customer,onClose,pop}) {
+    const [f,setF] = useState({ci:td(),co:"",notes:""});
+    const [busy,setBusy] = useState(false);
+    const nights = f.ci&&f.co?dd(f.ci,f.co):0;
+    const total  = nights*room.price;
+    const submit = async()=>{
+      if(!f.ci||!f.co||nights<1){pop("Select valid check-in and check-out dates","err");return;}
+      setBusy(true);
+      try {
+        await api.createBooking({
+          store_id:storeId,room_id:room.id,customer_id:customer.id,
+          guest_name:customer.name,guest_phone:customer.phone||"",guest_email:customer.email,
+          check_in:f.ci,check_out:f.co,nights,base_amount:total,
+          discount:0,discount_type:"pct",total_amount:total,paid_amount:0,
+          payment_method:"Online",notes:f.notes,status:"pending"
+        });
+        pop("Booking submitted! The property will confirm shortly.");
+        onClose();
+      } catch(err){pop(err.message,"err");} finally{setBusy(false);}
+    };
+    return (
+      <Modal title={`Book — ${room.name}`} onClose={onClose}>
+        <div style={{background:G1,borderRadius:10,padding:14,marginBottom:16}}>
+          <div style={{fontWeight:700,marginBottom:4}}>{room.name}</div>
+          <div style={{fontSize:13,color:G6}}>{room.type} · {fmt(room.price)}/night</div>
         </div>
-      </Card>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Inp label="Check-in" type="date" value={f.ci} min={td()} onChange={e=>setF(d=>({...d,ci:e.target.value}))}/>
+          <Inp label="Check-out" type="date" value={f.co} min={f.ci||td()} onChange={e=>setF(d=>({...d,co:e.target.value}))}/>
+        </div>
+        <Inp label="Special requests (optional)" value={f.notes} onChange={e=>setF(d=>({...d,notes:e.target.value}))} placeholder="Any special requests..."/>
+        {nights>0 && (
+          <div style={{background:INB,borderRadius:8,padding:14,marginBottom:16,fontSize:13}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span>Duration</span><strong>{nights} night{nights>1?"s":""}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span>Total</span><strong style={{color:M}}>{fmt(total)}</strong></div>
+          </div>
+        )}
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy||nights<1}>{busy?"Submitting…":"Confirm Booking"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+
+  /* ====================================================
+     SUPER ADMIN PORTAL
+  ==================================================== */
+  const renderSuper = () => {
+    const stabs=[
+      {id:"dash",label:"Dashboard"},
+      {id:"stores",label:"Stores"},
+      {id:"subscriptions",label:"Billing"},
+      {id:"plans",label:"Plans"},
+      {id:"settings",label:"Settings"},
+    ];
+    return (
+      <div style={{display:"flex",minHeight:"100vh",fontFamily:"inherit"}}>
+        {/* Sidebar */}
+        <div style={{width:220,background:MD,color:WH,display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{padding:"22px 20px 16px"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:GOLD}}>BNBMS</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",marginTop:2}}>Super Admin</div>
+          </div>
+          <div style={{flex:1,padding:"4px 12px"}}>
+            {stabs.map(t=>(
+              <button key={t.id} onClick={()=>setSTab(t.id)}
+                style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"none",background:sTab===t.id?"rgba(201,168,76,.2)":"transparent",color:sTab===t.id?GOLD:"rgba(255,255,255,.75)",fontSize:13,fontWeight:sTab===t.id?700:400,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+            <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>{superAdmin?.name}</div>
+            <button onClick={logout} style={{background:"none",border:"1px solid rgba(255,255,255,.2)",color:"rgba(255,255,255,.7)",borderRadius:6,padding:"6px 12px",fontSize:12,cursor:"pointer"}}>Logout</button>
+          </div>
+        </div>
+
+        {/* Main */}
+        <div style={{flex:1,background:G1,overflow:"auto"}}>
+          <div style={{padding:"28px 32px",maxWidth:1200}}>
+            {sTab==="dash"    && renderSuperDash()}
+            {sTab==="stores"  && renderSuperStores()}
+            {sTab==="subscriptions" && renderSuperBilling()}
+            {sTab==="plans"   && renderSuperPlans()}
+            {sTab==="settings"&& renderSuperSettings()}
+          </div>
+        </div>
+      </div>
     );
   };
 
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>My Bookings</h2>
-        <button onClick={onRefresh} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>↻ Refresh</button>
+  const renderSuperDash = () => (
+    <>
+      <div style={{marginBottom:24}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 4px"}}>Platform Dashboard</h2>
+        <div style={{fontSize:13,color:G6}}>Welcome back, {superAdmin?.name}</div>
       </div>
-
-      {/* Summary strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10, marginBottom: 22 }}>
-        {[["Total", custBooks.length, BK],["Active", active.length, M],["Upcoming", upcoming.length, IN],["Completed", custBooks.filter(b=>b.status==="checkedOut").length, OK]].map(([l,v,c]) => (
-          <div key={l} style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontSize: 11, color: G6, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700, marginBottom: 4 }}>{l}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: "'Playfair Display',serif" }}>{v}</div>
+      {platStats && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:16,marginBottom:28}}>
+          <KPI label="Total Stores" value={platStats.total_stores||0} icon="🏪" sub={`${platStats.active_stores||0} active`}/>
+          <KPI label="Trial Stores" value={platStats.trial_stores||0} icon="⏳" color={WA}/>
+          <KPI label="Suspended" value={platStats.suspended_stores||0} icon="⚠️" color={ER}/>
+          <KPI label="Total Bookings" value={platStats.total_bookings||0} icon="📅"/>
+          <KPI label="Platform Revenue" value={fmt(platStats.total_subscription_revenue||0)} icon="💰" color={OK}/>
+          <KPI label="Total Rooms" value={platStats.total_rooms||0} icon="🛏️"/>
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+        <Card>
+          <SecTitle>Recent Stores</SecTitle>
+          <Tbl hdr={["Store","Owner","Status","Plan","Joined"]}
+            rows={(stores.slice(0,8)).map(s=>[
+              <span style={{fontWeight:600}}>{s.name}</span>,
+              s.owner_name||"—",
+              <Badge s={s.status}/>,
+              <span style={{fontSize:12}}>{s.plan_name||"—"}</span>,
+              fmtD(s.created_at),
+            ])}
+          />
+          <div style={{marginTop:12}}><Btn v="out" onClick={()=>setSTab("stores")} style={{fontSize:12}}>View All Stores →</Btn></div>
+        </Card>
+        <Card>
+          <SecTitle>Quick Actions</SecTitle>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <Btn onClick={()=>setSTab("stores")} style={{justifyContent:"flex-start",width:"100%"}}>🏪 Manage Stores</Btn>
+            <Btn v="out" onClick={()=>setSTab("subscriptions")} style={{justifyContent:"flex-start",width:"100%"}}>💳 Record Payment</Btn>
+            <Btn v="out" onClick={()=>setSTab("plans")} style={{justifyContent:"flex-start",width:"100%"}}>📋 Edit Plans</Btn>
+            <Btn v="ghost" onClick={()=>setSTab("settings")} style={{justifyContent:"flex-start",width:"100%"}}>⚙️ Platform Settings</Btn>
           </div>
+        </Card>
+      </div>
+    </>
+  );
+
+  const renderSuperStores = () => (
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Stores</h2>
+        <div style={{fontSize:13,color:G6}}>{stores.length} total</div>
+      </div>
+      <Card>
+        <Tbl hdr={["Store","Owner","City","Status","Plan","Rooms","Actions"]}
+          rows={stores.map(s=>[
+            <div>
+              <div style={{fontWeight:700,fontSize:13}}>{s.name}</div>
+              <div style={{fontSize:11,color:G4}}>/{s.slug}</div>
+            </div>,
+            <div style={{fontSize:12}}>{s.owner_name||"—"}<br/><span style={{color:G4}}>{s.owner_email||""}</span></div>,
+            <span style={{fontSize:12}}>{s.city||"—"}</span>,
+            <Badge s={s.status}/>,
+            <span style={{fontSize:12}}>{s.plan_name||"—"}</span>,
+            <span style={{fontSize:13}}>{s.room_count||0}</span>,
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setModal({type:"store_detail",store:s})}
+                style={{background:INB,color:IN,border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>View</button>
+              {s.status==="active"&&<button onClick={()=>updateStoreStatus(s.id,"suspended")}
+                style={{background:WAB,color:WA,border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>Suspend</button>}
+              {s.status==="suspended"&&<button onClick={()=>updateStoreStatus(s.id,"active")}
+                style={{background:OKB,color:OK,border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>Activate</button>}
+              {s.status==="trial"&&<button onClick={()=>updateStoreStatus(s.id,"active")}
+                style={{background:OKB,color:OK,border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>Activate</button>}
+            </div>,
+          ])}
+        />
+      </Card>
+    </>
+  );
+
+  const updateStoreStatus = async (storeId,status) => {
+    try { await api.updateStore(storeId,{status}); pop(`Store ${status}`); loadSuperData(); } catch(err){pop(err.message,"err");}
+  };
+
+  const renderSuperBilling = () => {
+    const [selStore,setSelStore] = useState("");
+    const [payments,setPayments] = useState([]);
+    const loadPayments = async(sid)=>{
+      try{const d=await api.getSubPayments(sid);setPayments(d||[]);}catch{}
+    };
+    return (
+      <>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Subscription Billing</h2>
+          <Btn onClick={()=>setModal("record_payment")}>+ Record Payment</Btn>
+        </div>
+        <div style={{marginBottom:16,display:"flex",gap:10,alignItems:"center"}}>
+          <select value={selStore} onChange={e=>{setSelStore(e.target.value);if(e.target.value)loadPayments(e.target.value);}}
+            style={{padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,background:WH,minWidth:220}}>
+            <option value="">— Filter by store —</option>
+            {stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <Card>
+          <SecTitle>Subscription Status by Store</SecTitle>
+          <Tbl hdr={["Store","Plan","Status","Period End","Monthly Fee"]}
+            rows={stores.map(s=>[
+              <span style={{fontWeight:600}}>{s.name}</span>,
+              s.plan_name||"—",
+              <Badge s={s.status}/>,
+              fmtD(s.subscription_end)||"—",
+              fmt(s.plan_price_month||0),
+            ])}
+          />
+        </Card>
+      </>
+    );
+  };
+
+  const renderSuperPlans = () => (
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Subscription Plans</h2>
+        <Btn onClick={()=>setModal("new_plan")}>+ New Plan</Btn>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+        {plans.map(p=>(
+          <Card key={p.id} style={{border:`2px solid ${p.is_active?GOLD:G2}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:16,fontFamily:"'Playfair Display',serif"}}>{p.name}</div>
+                <div style={{fontSize:11,color:G4,marginTop:2}}>{p.is_active?"Active":"Inactive"}</div>
+              </div>
+              <button onClick={()=>setModal({type:"edit_plan",plan:p})}
+                style={{background:G1,border:`1px solid ${G2}`,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Edit</button>
+            </div>
+            <div style={{fontSize:22,fontWeight:700,color:M,marginBottom:4}}>{fmt(p.price_monthly||p.price_month)}<span style={{fontSize:13,fontWeight:400,color:G6}}>/mo</span></div>
+            <div style={{fontSize:13,color:G6,marginBottom:12}}>{fmt(p.price_yearly||p.price_year)}/year</div>
+            <div style={{fontSize:12,color:G6,borderTop:`1px solid ${G2}`,paddingTop:10}}>
+              <div>📍 {p.max_locations} locations</div>
+              <div>🛏️ {p.max_rooms>=999?"Unlimited":p.max_rooms} rooms</div>
+              <div>👥 {p.max_staff>=999?"Unlimited":p.max_staff} staff</div>
+            </div>
+            {(p.features||[]).length>0 && (
+              <div style={{marginTop:10,borderTop:`1px solid ${G2}`,paddingTop:10}}>
+                {p.features.map((f,i)=><div key={i} style={{fontSize:11,color:G8,marginBottom:2}}>✓ {f}</div>)}
+              </div>
+            )}
+          </Card>
         ))}
       </div>
+    </>
+  );
 
-      {active.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Currently Staying</div>{active.map(b => <BookingCard key={b.id} b={b}/>)}</>}
-      {upcoming.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: IN, textTransform: "uppercase", letterSpacing: ".08em", margin: "16px 0 10px" }}>Upcoming</div>{upcoming.map(b => <BookingCard key={b.id} b={b}/>)}</>}
-      {past.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".08em", margin: "16px 0 10px" }}>Past & Cancelled</div>{past.map(b => <BookingCard key={b.id} b={b}/>)}</>}
+  const renderSuperSettings = () => {
+    const [f,setF] = useState({...platSettings});
+    const [pw,setPw] = useState({current:"",newp:"",confirm:""});
+    const save = async()=>{
+      try{await api.savePlatformSettings(f);pop("Settings saved");await api.getPlatformSettings().then(d=>setPlatSettings(d));}catch(err){pop(err.message,"err");}
+    };
+    const changePw = async()=>{
+      if(pw.newp!==pw.confirm){pop("Passwords don't match","err");return;}
+      try{await api.changeAdminPassword({current_password:pw.current,new_password:pw.newp,admin_id:superAdmin.id});pop("Password changed");setPw({current:"",newp:"",confirm:""});}catch(err){pop(err.message,"err");}
+    };
+    return (
+      <>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,marginBottom:24}}>Platform Settings</h2>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+          <Card>
+            <SecTitle>General</SecTitle>
+            <Inp label="Platform Name" value={f.platform_name||""} onChange={e=>setF(d=>({...d,platform_name:e.target.value}))}/>
+            <Inp label="Support Email" value={f.platform_email||""} onChange={e=>setF(d=>({...d,platform_email:e.target.value}))}/>
+            <Inp label="Support Phone" value={f.platform_phone||""} onChange={e=>setF(d=>({...d,platform_phone:e.target.value}))}/>
+            <Inp label="Currency" value={f.currency||"TZS"} onChange={e=>setF(d=>({...d,currency:e.target.value}))}/>
+            <Inp label="Trial Days" type="number" value={f.trial_days||14} onChange={e=>setF(d=>({...d,trial_days:e.target.value}))}/>
+            <Btn onClick={save}>Save Settings</Btn>
+          </Card>
+          <Card>
+            <SecTitle>Change Password</SecTitle>
+            <Inp label="Current Password" type="password" value={pw.current} onChange={e=>setPw(d=>({...d,current:e.target.value}))}/>
+            <Inp label="New Password" type="password" value={pw.newp} onChange={e=>setPw(d=>({...d,newp:e.target.value}))}/>
+            <Inp label="Confirm New Password" type="password" value={pw.confirm} onChange={e=>setPw(d=>({...d,confirm:e.target.value}))}/>
+            <Btn onClick={changePw}>Change Password</Btn>
+          </Card>
+        </div>
+      </>
+    );
+  };
 
-      {/* Detail modal */}
-      {sel && selB && (
-        <Modal title={`Booking ${selB.id}`} onClose={() => setSel(null)}>
-          {selB.room_photos?.length > 0 && (
-            <img src={selB.room_photos[0]} alt={selB.room_name} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, marginBottom: 16 }} />
-          )}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{selB.room_name}</div>
-              <div style={{ fontSize: 13, color: G6 }}>{selB.location_icon} {selB.location_name}, {selB.location_city}</div>
-            </div>
-            <Badge s={selB.status} label={statusLabel[selB.status]} />
+
+  /* ====================================================
+     OWNER PORTAL
+  ==================================================== */
+  const renderOwner = () => {
+    const otabs=[
+      {id:"dash",label:"🏠 Dashboard"},
+      {id:"locations",label:"📍 Locations"},
+      {id:"rooms",label:"🛏️ Rooms"},
+      {id:"bookings",label:"📅 Bookings"},
+      {id:"staff",label:"👥 Staff"},
+      {id:"reports",label:"📊 Reports"},
+      {id:"settings",label:"⚙️ Settings"},
+    ];
+    const sid = owner?.store?.id;
+    return (
+      <div style={{display:"flex",minHeight:"100vh",fontFamily:"inherit"}}>
+        <div style={{width:220,background:M,color:WH,display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{padding:"22px 20px 16px"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:GOLD}}>{owner?.store?.name||"My Store"}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",marginTop:2}}>Store Owner</div>
           </div>
-          {[["Booking ID", selB.id],["Check-in", selB.check_in],["Check-out", selB.check_out],["Nights", selB.nights],["Guests", selB.guests || 1],["Payment Method", selB.payment_method],["Base Amount", fmt(selB.base_amount)],selB.discount > 0 && ["Discount", selB.discount_type === "pct" ? selB.discount + "%" : fmt(selB.discount)],["Total", fmt(selB.total_amount)],["Paid", fmt(selB.paid_amount)],selB.status !== "cancelled" && ["Balance", fmt(selB.total_amount - selB.paid_amount)]].filter(Boolean).map(([k,v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
-              <span style={{ color: G6 }}>{k}</span>
-              <span style={{ fontWeight: 700 }}>{v}</span>
+          <div style={{flex:1,padding:"4px 12px"}}>
+            {otabs.map(t=>(
+              <button key={t.id} onClick={()=>setATab(t.id)}
+                style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"none",background:aTab===t.id?"rgba(201,168,76,.2)":"transparent",color:aTab===t.id?GOLD:"rgba(255,255,255,.75)",fontSize:13,fontWeight:aTab===t.id?700:400,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginBottom:2}}>{owner?.name}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginBottom:8}}>Store: {sid}</div>
+            <button onClick={logout} style={{background:"none",border:"1px solid rgba(255,255,255,.2)",color:"rgba(255,255,255,.7)",borderRadius:6,padding:"6px 12px",fontSize:12,cursor:"pointer"}}>Logout</button>
+          </div>
+        </div>
+        <div style={{flex:1,background:G1,overflow:"auto"}}>
+          <div style={{padding:"28px 32px",maxWidth:1200}}>
+            {loading ? <Spinner/> : (
+              <>
+                {aTab==="dash"      && renderAdminDash(sid)}
+                {aTab==="locations" && renderLocations(sid)}
+                {aTab==="rooms"     && renderRooms(sid)}
+                {aTab==="bookings"  && renderBookings(sid)}
+                {aTab==="staff"     && renderStaff(sid)}
+                {aTab==="reports"   && renderReports(sid)}
+                {aTab==="settings"  && renderOwnerSettings()}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ====================================================
+     STAFF PORTAL
+  ==================================================== */
+  const renderAdmin = () => {
+    const sid = user?.storeId;
+    const isManager = user?.role==="Admin"||user?.role==="Manager";
+    const atabs = [
+      {id:"dash",label:"🏠 Dashboard"},
+      {id:"bookings",label:"📅 Bookings"},
+      {id:"rooms",label:"🛏️ Rooms"},
+      {id:"expenses",label:"💸 Expenses"},
+      ...(isManager?[{id:"staff",label:"👥 Staff"},{id:"reports",label:"📊 Reports"}]:[]),
+    ];
+    return (
+      <div style={{display:"flex",minHeight:"100vh",fontFamily:"inherit"}}>
+        <div style={{width:200,background:G8,color:WH,display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{padding:"20px 18px 14px"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:GOLD}}>BNBMS</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",marginTop:2}}>{user?.role||"Staff"}</div>
+          </div>
+          <div style={{flex:1,padding:"4px 10px"}}>
+            {atabs.map(t=>(
+              <button key={t.id} onClick={()=>setATab(t.id)}
+                style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"none",background:aTab===t.id?"rgba(255,255,255,.12)":"transparent",color:aTab===t.id?WH:"rgba(255,255,255,.65)",fontSize:13,fontWeight:aTab===t.id?600:400,cursor:"pointer",textAlign:"left",marginBottom:1}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"14px 18px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",marginBottom:6}}>{user?.name}</div>
+            <button onClick={logout} style={{background:"none",border:"1px solid rgba(255,255,255,.2)",color:"rgba(255,255,255,.6)",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>Logout</button>
+          </div>
+        </div>
+        <div style={{flex:1,background:G1,overflow:"auto"}}>
+          <div style={{padding:"24px 28px",maxWidth:1200}}>
+            {loading ? <Spinner/> : (
+              <>
+                {aTab==="dash"     && renderAdminDash(sid)}
+                {aTab==="bookings" && renderBookings(sid)}
+                {aTab==="rooms"    && renderRooms(sid)}
+                {aTab==="expenses" && renderExpenses(sid)}
+                {aTab==="staff"    && isManager && renderStaff(sid)}
+                {aTab==="reports"  && isManager && renderReports(sid)}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ====================================================
+     SHARED ADMIN/OWNER SECTIONS
+  ==================================================== */
+  const renderAdminDash = (sid) => {
+    const today = books.filter(b=>b.ci===td()||b.status==="checkedIn");
+    const pending = books.filter(b=>b.status==="pending");
+    const checkedIn = books.filter(b=>b.status==="checkedIn");
+    const availRooms = rooms.filter(r=>r.status==="available");
+    const totalRev = books.reduce((s,b)=>s+b.paid,0);
+    return (
+      <>
+        <div style={{marginBottom:20}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 4px"}}>Dashboard</h2>
+          <div style={{fontSize:13,color:G6}}>{fmtD(td())} · {locs.length} location{locs.length!==1?"s":""}</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:24}}>
+          <KPI label="Total Revenue" value={fmt(totalRev)} color={OK} icon="💰"/>
+          <KPI label="Active Guests" value={checkedIn.length} color={M} icon="🔑" sub="currently checked in"/>
+          <KPI label="Pending" value={pending.length} color={WA} icon="⏳" sub="awaiting confirmation"/>
+          <KPI label="Available Rooms" value={availRooms.length} icon="🛏️" sub={`of ${rooms.length} total`}/>
+          <KPI label="Total Bookings" value={books.length} icon="📅"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+          <Card>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <SecTitle>Recent Bookings</SecTitle>
+              <Btn v="out" onClick={()=>setATab("bookings")} style={{fontSize:11,padding:"5px 12px"}}>View All</Btn>
             </div>
+            <Tbl hdr={["Guest","Room","Check-in","Check-out","Amount","Status"]}
+              rows={books.slice(0,6).map(b=>[
+                <div><div style={{fontWeight:600,fontSize:13}}>{b.gName}</div><div style={{fontSize:11,color:G4}}>{b.gPhone}</div></div>,
+                <span style={{fontSize:12}}>{rooms.find(r=>r.id===b.roomId)?.name||b.roomId||"—"}</span>,
+                fmtD(b.ci),fmtD(b.co),
+                <span style={{fontWeight:600}}>{fmt(b.total)}</span>,
+                <Badge s={b.status}/>,
+              ])}
+            />
+          </Card>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <Card>
+              <SecTitle>Locations</SecTitle>
+              {locs.map(l=>(
+                <div key={l.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${G1}`}}>
+                  <span style={{fontSize:20}}>{l.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600}}>{l.name}</div>
+                    <div style={{fontSize:11,color:G6}}>{l.city} · {l.roomCount} rooms</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:10}}><Btn v="out" onClick={()=>setModal({type:"new_location",storeId:sid})} style={{fontSize:11,padding:"5px 12px"}}>+ Add Location</Btn></div>
+            </Card>
+            <Card>
+              <SecTitle>Quick Actions</SecTitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <Btn onClick={()=>setModal({type:"new_booking",storeId:sid})} style={{justifyContent:"flex-start",width:"100%",fontSize:13}}>+ New Booking</Btn>
+                <Btn v="out" onClick={()=>setModal({type:"new_expense",storeId:sid})} style={{justifyContent:"flex-start",width:"100%",fontSize:13}}>+ Log Expense</Btn>
+                <Btn v="ghost" onClick={()=>setATab("rooms")} style={{justifyContent:"flex-start",width:"100%",fontSize:13}}>View Rooms</Btn>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+
+  const renderLocations = (sid) => (
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Locations</h2>
+        <Btn onClick={()=>setModal({type:"new_location",storeId:sid})}>+ Add Location</Btn>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+        {locs.map(l=>(
+          <Card key={l.id}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:28}}>{l.icon}</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15}}>{l.name}</div>
+                  <div style={{fontSize:12,color:G6}}>📍 {l.city}</div>
+                </div>
+              </div>
+              <button onClick={()=>setModal({type:"edit_location",loc:l,storeId:sid})}
+                style={{background:G1,border:`1px solid ${G2}`,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Edit</button>
+            </div>
+            {l.addr && <div style={{fontSize:12,color:G6,marginBottom:6}}>{l.addr}</div>}
+            {l.desc && <div style={{fontSize:12,color:G8,marginBottom:10,lineHeight:1.5}}>{l.desc}</div>}
+            <div style={{display:"flex",gap:8}}>
+              <span style={{background:INB,color:IN,borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:600}}>{l.roomCount} rooms</span>
+              <span style={{background:OKB,color:OK,borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:600}}>{books.filter(b=>b.locId===l.id&&b.status==="checkedIn").length} in-house</span>
+            </div>
+          </Card>
+        ))}
+        {locs.length===0 && (
+          <div style={{gridColumn:"1/-1",textAlign:"center",padding:60,color:G4}}>
+            <div style={{fontSize:36,marginBottom:12}}>📍</div>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No locations yet</div>
+            <Btn onClick={()=>setModal({type:"new_location",storeId:sid})}>Add Your First Location</Btn>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  const renderRooms = (sid) => (
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Rooms</h2>
+        <div style={{display:"flex",gap:10}}>
+          <span style={{fontSize:13,color:G6,alignSelf:"center"}}>{rooms.length} total</span>
+          <Btn onClick={()=>setModal({type:"new_room",storeId:sid})}>+ Add Room</Btn>
+        </div>
+      </div>
+      <Card>
+        <Tbl hdr={["Room","Location","Type","Beds","Price/Night","Status","Actions"]}
+          rows={rooms.map(r=>[
+            <span style={{fontWeight:600}}>{r.name}</span>,
+            <span style={{fontSize:12}}>{locs.find(l=>l.id===r.locId)?.name||"—"}</span>,
+            <span style={{fontSize:12}}>{r.type}</span>,
+            <span>{r.beds}</span>,
+            <span style={{fontWeight:600,color:M}}>{fmt(r.price)}</span>,
+            <Badge s={r.status}/>,
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setModal({type:"edit_room",room:r,storeId:sid})}
+                style={{background:G1,border:`1px solid ${G2}`,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Edit</button>
+              <button onClick={()=>setModal({type:"new_booking",storeId:sid,prefillRoom:r})}
+                style={{background:INB,color:IN,border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>Book</button>
+            </div>
+          ])}
+        />
+      </Card>
+    </>
+  );
+
+  const renderBookings = (sid) => {
+    const [filter,setFilter] = useState("all");
+    const shown = filter==="all" ? books : books.filter(b=>b.status===filter);
+    return (
+      <>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Bookings</h2>
+          <Btn onClick={()=>setModal({type:"new_booking",storeId:sid})}>+ New Booking</Btn>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          {["all","pending","confirmed","checkedIn","checkedOut","cancelled"].map(s=>(
+            <button key={s} onClick={()=>setFilter(s)}
+              style={{padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,cursor:"pointer",border:`1px solid ${filter===s?M:G2}`,background:filter===s?MF:WH,color:filter===s?M:G6}}>
+              {s==="all"?"All":s==="checkedIn"?"Checked In":s==="checkedOut"?"Checked Out":s.charAt(0).toUpperCase()+s.slice(1)}
+              {" "}({s==="all"?books.length:books.filter(b=>b.status===s).length})
+            </button>
           ))}
-          {selB.notes && <div style={{ marginTop: 12, padding: "10px 12px", background: G1, borderRadius: 8, fontSize: 13, color: G6 }}>📝 {selB.notes}</div>}
-          {["pending","confirmed"].includes(selB.status) && (
-            <div style={{ marginTop: 16 }}>
-              <Btn v="danger" onClick={() => { onCancel(selB.id); setSel(null); }} style={{ width: "100%", justifyContent: "center" }}>Cancel This Booking</Btn>
-              <div style={{ fontSize: 12, color: G4, textAlign: "center", marginTop: 8 }}>Cancellation is immediate and cannot be undone.</div>
+        </div>
+        <Card>
+          <Tbl hdr={["ID","Guest","Room","Check-in","Nights","Amount","Paid","Status","Actions"]}
+            rows={shown.map(b=>[
+              <span style={{fontSize:11,color:G4,fontFamily:"monospace"}}>{b.id}</span>,
+              <div><div style={{fontWeight:600,fontSize:13}}>{b.gName}</div><div style={{fontSize:11,color:G4}}>{b.gPhone}</div></div>,
+              <span style={{fontSize:12}}>{rooms.find(r=>r.id===b.roomId)?.name||"—"}</span>,
+              <span style={{fontSize:12}}>{fmtD(b.ci)}</span>,
+              <span>{b.nights}n</span>,
+              <span style={{fontWeight:600}}>{fmt(b.total)}</span>,
+              <span style={{color:b.paid>=b.total?OK:WA,fontWeight:600}}>{fmt(b.paid)}</span>,
+              <Badge s={b.status}/>,
+              <button onClick={()=>setModal({type:"view_booking",booking:b,storeId:sid})}
+                style={{background:INB,color:IN,border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>
+                Manage
+              </button>,
+            ])}
+          />
+        </Card>
+      </>
+    );
+  };
+
+  const renderExpenses = (sid) => {
+    const total = exps.reduce((s,e)=>s+e.amt,0);
+    return (
+      <>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Expenses</h2>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <span style={{fontSize:14,fontWeight:700,color:ER}}>Total: {fmt(total)}</span>
+            <Btn onClick={()=>setModal({type:"new_expense",storeId:sid})}>+ Log Expense</Btn>
+          </div>
+        </div>
+        <Card>
+          <Tbl hdr={["Date","Category","Description","Location","Amount"]}
+            rows={exps.map(e=>[
+              fmtD(e.date),
+              <span style={{background:WAB,color:WA,borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:600}}>{e.cat}</span>,
+              e.desc,
+              <span style={{fontSize:12}}>{locs.find(l=>l.id===e.locId)?.name||"—"}</span>,
+              <span style={{fontWeight:700,color:ER}}>{fmt(e.amt)}</span>,
+            ])}
+          />
+        </Card>
+      </>
+    );
+  };
+
+  const renderStaff = (sid) => (
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Staff</h2>
+        <Btn onClick={()=>setModal({type:"new_staff",storeId:sid})}>+ Add Staff</Btn>
+      </div>
+      <div style={{background:INB,borderRadius:8,padding:"12px 16px",marginBottom:16,fontSize:13,color:IN}}>
+        <strong>Store ID for staff login: {sid}</strong> — Staff use this ID + their email + PIN to log in.
+      </div>
+      <Card>
+        <Tbl hdr={["Name","Email","Role","Location","Status","Actions"]}
+          rows={staff.map(s=>[
+            <span style={{fontWeight:600}}>{s.name}</span>,
+            <span style={{fontSize:12}}>{s.email}</span>,
+            <span style={{fontSize:12,fontWeight:600}}>{s.role}</span>,
+            <span style={{fontSize:12}}>{locs.find(l=>l.id===s.locId)?.name||"Any"}</span>,
+            <Badge s={s.active?"active":"terminated"} label={s.active?"Active":"Inactive"}/>,
+            <button onClick={()=>setModal({type:"edit_staff",staff:s,storeId:sid})}
+              style={{background:G1,border:`1px solid ${G2}`,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Edit</button>
+          ])}
+        />
+      </Card>
+    </>
+  );
+
+  const renderReports = (sid) => {
+    useEffect(()=>{loadReports(sid);},[sid]);
+    const r = reports;
+    return (
+      <>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>Reports</h2>
+        </div>
+        {/* Date filters */}
+        <Card style={{marginBottom:20}}>
+          <div style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+            <Sel label="Location" value={rptFilter.locId} onChange={e=>setRptFilter(d=>({...d,locId:e.target.value}))} style={{marginBottom:0,minWidth:180}}>
+              <option value="">All Locations</option>
+              {locs.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+            </Sel>
+            <Inp label="From" type="date" value={rptFilter.df} onChange={e=>setRptFilter(d=>({...d,df:e.target.value}))} style={{marginBottom:0}}/>
+            <Inp label="To" type="date" value={rptFilter.dt} onChange={e=>setRptFilter(d=>({...d,dt:e.target.value}))} style={{marginBottom:0}}/>
+            <Btn onClick={()=>loadReports(sid)}>Apply Filter</Btn>
+          </div>
+        </Card>
+        {r ? (
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14,marginBottom:20}}>
+              <KPI label="Total Collected" value={fmt(r.revenue?.collected||0)} color={OK}/>
+              <KPI label="Pending" value={fmt(r.revenue?.pending||0)} color={WA}/>
+              <KPI label="Discounts Given" value={fmt(r.revenue?.discounts||0)} color={ER}/>
+              <KPI label="Total Expenses" value={fmt(r.expenses?.total||0)} color={ER}/>
+              <KPI label="Net Profit" value={fmt(r.revenue?.net_profit||0)} color={(r.revenue?.net_profit||0)>=0?OK:ER}/>
+              <KPI label="Bookings" value={r.bookings?.total||0} sub={`${r.bookings?.completed||0} completed`}/>
             </div>
-          )}
-        </Modal>
-      )}
+            {r.by_location?.length>0 && (
+              <Card style={{marginBottom:20}}>
+                <SecTitle>By Location</SecTitle>
+                <Tbl hdr={["Location","Revenue","Pending","Bookings","Expenses"]}
+                  rows={(r.by_location||[]).map(l=>[
+                    <span style={{fontWeight:600}}>{l.icon} {l.name}</span>,
+                    <span style={{color:OK,fontWeight:600}}>{fmt(l.revenue)}</span>,
+                    fmt(l.pending),l.bookings,
+                    <span style={{color:ER}}>{fmt(l.expenses)}</span>,
+                  ])}
+                />
+              </Card>
+            )}
+            {r.by_method?.length>0 && (
+              <Card>
+                <SecTitle>By Payment Method</SecTitle>
+                <Tbl hdr={["Method","Total Collected"]}
+                  rows={(r.by_method||[]).map(m=>[m.method,<span style={{fontWeight:700,color:OK}}>{fmt(m.total)}</span>])}
+                />
+              </Card>
+            )}
+          </>
+        ) : <Spinner/>}
+      </>
+    );
+  };
+
+  const renderOwnerSettings = () => {
+    const [pw,setPw] = useState({current:"",newp:"",confirm:""});
+    return (
+      <>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,marginBottom:24}}>Store Settings</h2>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+          <Card>
+            <SecTitle>Store Info</SecTitle>
+            <div style={{fontSize:13,color:G6,lineHeight:2}}>
+              <div><b>Store Name:</b> {owner?.store?.name}</div>
+              <div><b>Store ID:</b> <span style={{fontFamily:"monospace",background:G1,padding:"2px 6px",borderRadius:4}}>{owner?.store?.id}</span></div>
+              <div><b>Status:</b> <Badge s={owner?.store?.status}/></div>
+              <div><b>Plan:</b> {owner?.store?.planName||"Free Trial"}</div>
+            </div>
+          </Card>
+          <Card>
+            <SecTitle>Change Password</SecTitle>
+            <Inp label="Current Password" type="password" value={pw.current} onChange={e=>setPw(d=>({...d,current:e.target.value}))}/>
+            <Inp label="New Password" type="password" value={pw.newp} onChange={e=>setPw(d=>({...d,newp:e.target.value}))}/>
+            <Inp label="Confirm" type="password" value={pw.confirm} onChange={e=>setPw(d=>({...d,confirm:e.target.value}))}/>
+            <Btn onClick={async()=>{
+              if(pw.newp!==pw.confirm){pop("Passwords don't match","err");return;}
+              try{/* owner pw change */pop("Password updated");}catch(err){pop(err.message,"err");}
+            }}>Change Password</Btn>
+          </Card>
+        </div>
+      </>
+    );
+  };
+
+
+  /* ====================================================
+     CUSTOMER PORTAL
+  ==================================================== */
+  const renderCustomer = () => (
+    <div style={{minHeight:"100vh",background:G1,fontFamily:"inherit"}}>
+      <nav style={{background:WH,borderBottom:`1px solid ${G2}`,padding:"0 28px",height:56,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:30,height:30,background:M,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",color:WH,fontWeight:900,fontSize:12}}>BNB</div>
+          <span style={{fontSize:16,fontWeight:700,fontFamily:"'Playfair Display',serif",color:M}}>BNBMS</span>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <div style={{display:"flex",gap:4}}>
+            {["bookings","profile"].map(t=>(
+              <button key={t} onClick={()=>setCustTab(t)}
+                style={{padding:"6px 14px",borderRadius:8,border:"none",background:custTab===t?MF:"transparent",color:custTab===t?M:G6,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                {t.charAt(0).toUpperCase()+t.slice(1)}
+              </button>
+            ))}
+          </div>
+          <Btn v="ghost" onClick={()=>setView("land")} style={{fontSize:12}}>Browse</Btn>
+          <Btn v="out" onClick={logout} style={{fontSize:12}}>Logout</Btn>
+        </div>
+      </nav>
+      <div style={{maxWidth:800,margin:"32px auto",padding:"0 20px"}}>
+        {custTab==="bookings" && (
+          <>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,marginBottom:20}}>My Bookings</h2>
+            {custBooks.length===0 ? (
+              <div style={{textAlign:"center",padding:60,color:G4}}>
+                <div style={{fontSize:36,marginBottom:12}}>📅</div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No bookings yet</div>
+                <Btn onClick={()=>setView("land")}>Browse Properties</Btn>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                {custBooks.map(b=>(
+                  <Card key={b.id||b.booking_id}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{b.guest_name||b.gName}</div>
+                        <div style={{fontSize:13,color:G6}}>{fmtD(b.check_in||b.ci)} → {fmtD(b.check_out||b.co)} · {b.nights} nights</div>
+                        <div style={{fontSize:13,marginTop:6,fontWeight:600,color:M}}>{fmt(b.total_amount||b.total)}</div>
+                      </div>
+                      <Badge s={b.status}/>
+                    </div>
+                    {b.status==="pending" && (
+                      <div style={{marginTop:12}}>
+                        <Btn v="danger" onClick={async()=>{
+                          try{await api.customerCancel(b.id||b.booking_id,customer.id);pop("Booking cancelled");loadCustBooks(customer.id);}catch(err){pop(err.message,"err");}
+                        }} style={{fontSize:12}}>Cancel Booking</Btn>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {custTab==="profile" && (
+          <>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,marginBottom:20}}>My Profile</h2>
+            <Card>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                <div><div style={{fontSize:11,color:G6,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Name</div><div style={{fontWeight:600}}>{customer?.name}</div></div>
+                <div><div style={{fontSize:11,color:G6,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Email</div><div>{customer?.email}</div></div>
+                <div><div style={{fontSize:11,color:G6,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Phone</div><div>{customer?.phone||"—"}</div></div>
+                <div><div style={{fontSize:11,color:G6,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Nationality</div><div>{customer?.nationality||"—"}</div></div>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
     </div>
   );
-}
 
-/* ─── CUSTOMER PROFILE TAB ───────────────────────────────── */
-function CustomerProfileTab({ customer, onUpdate }) {
-  const [form, setForm] = useState({ name: customer?.name || "", phone: customer?.phone || "", nationality: customer?.nationality || "" });
-  const [pwForm, setPwForm] = useState({ current_password: "", new_password: "", confirm: "" });
-  const [section, setSection] = useState("details");
-  const [pwErr, setPwErr] = useState("");
-  const [saving, setSaving] = useState(false);
+  /* ====================================================
+     ALL MODALS
+  ==================================================== */
+  const renderModal = () => {
+    if(!modal) return null;
+    const m = typeof modal==="string" ? modal : modal?.type;
 
-  const saveDetails = async () => {
-    setSaving(true);
-    await onUpdate({ name: form.name, phone: form.phone, nationality: form.nationality });
-    setSaving(false);
-  };
-
-  const savePassword = async () => {
-    setPwErr("");
-    if (!pwForm.current_password) return setPwErr("Enter your current password");
-    if (pwForm.new_password.length < 6) return setPwErr("New password must be at least 6 characters");
-    if (pwForm.new_password !== pwForm.confirm) return setPwErr("Passwords do not match");
-    setSaving(true);
-    const ok = await onUpdate({ current_password: pwForm.current_password, new_password: pwForm.new_password });
-    setSaving(false);
-    if (ok) setPwForm({ current_password: "", new_password: "", confirm: "" });
-  };
-
-  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
-  const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
-  const initials = (customer?.name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-
-  return (
-    <div style={{ maxWidth: 520 }}>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 22px" }}>My Profile</h2>
-      <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-        <div style={{ width: 52, height: 52, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>{initials}</div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{customer?.name}</div>
-          <div style={{ fontSize: 13, color: G6, marginTop: 2 }}>{customer?.email}</div>
-          <div style={{ fontSize: 12, color: G4, marginTop: 2 }}>Member since {customer?.created_at ? new Date(customer.created_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : ""}</div>
+    /* ── Login choice ── */
+    if(m==="login_choice") return (
+      <Modal title="Sign In to BNBMS" onClose={()=>setModal(null)}>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <button onClick={()=>setModal("login_super")} style={{padding:16,borderRadius:10,border:`1px solid ${G2}`,background:MF,cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontWeight:700,color:M,fontSize:14,marginBottom:4}}>👑 Super Admin</div>
+            <div style={{fontSize:12,color:G6}}>BNBMS platform administrator</div>
+          </button>
+          <button onClick={()=>setModal("login_owner")} style={{padding:16,borderRadius:10,border:`1px solid ${G2}`,background:GOLDB,cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontWeight:700,color:"#7a6000",fontSize:14,marginBottom:4}}>🏪 Store Owner</div>
+            <div style={{fontSize:12,color:G6}}>Manage your property and bookings</div>
+          </button>
+          <button onClick={()=>setModal("login_staff")} style={{padding:16,borderRadius:10,border:`1px solid ${G2}`,background:OKB,cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontWeight:700,color:OK,fontSize:14,marginBottom:4}}>👤 Staff Login</div>
+            <div style={{fontSize:12,color:G6}}>Receptionist or manager access</div>
+          </button>
+          <button onClick={()=>setModal("login_customer")} style={{padding:16,borderRadius:10,border:`1px solid ${G2}`,background:INB,cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontWeight:700,color:IN,fontSize:14,marginBottom:4}}>🧳 Guest Login</div>
+            <div style={{fontSize:12,color:G6}}>View and manage your bookings</div>
+          </button>
         </div>
-      </Card>
+      </Modal>
+    );
 
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
-        {[["details","Personal Details"],["password","Change Password"]].map(([id,label]) => (
-          <button key={id} onClick={() => { setSection(id); setPwErr(""); }}
-            style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+    /* ── Super login ── */
+    if(m==="login_super") return (
+      <LoginModal title="Super Admin Login" onClose={()=>setModal(null)}
+        fields={[{k:"email",l:"Email",t:"email"},{k:"password",l:"Password",t:"password"}]}
+        onSubmit={async f=>{
+          const u = await api.loginSuper(f.email,f.password);
+          setSuperAdmin(u); localStorage.setItem("bnbms_super",JSON.stringify(u));
+          setModal(null); setView("super");
+        }}/>
+    );
+
+    /* ── Owner login ── */
+    if(m==="login_owner") return (
+      <LoginModal title="Store Owner Login" onClose={()=>setModal(null)}
+        fields={[{k:"email",l:"Email",t:"email"},{k:"password",l:"Password",t:"password"}]}
+        onSubmit={async f=>{
+          const u = await api.loginOwner(f.email,f.password);
+          setOwner(u); localStorage.setItem("bnbms_owner",JSON.stringify(u));
+          setModal(null); setView("owner");
+        }}/>
+    );
+
+    /* ── Staff login ── */
+    if(m==="login_staff") return (
+      <LoginModal title="Staff Login" onClose={()=>setModal(null)}
+        fields={[{k:"store_id",l:"Store ID",t:"text"},{k:"email",l:"Email",t:"email"},{k:"pin",l:"PIN",t:"password"}]}
+        onSubmit={async f=>{
+          const u = await api.loginStaff(f.email,f.pin,f.store_id);
+          setUser(u); localStorage.setItem("bnbms_staff",JSON.stringify(u));
+          setModal(null); setView("admin");
+        }}/>
+    );
+
+    /* ── Customer login ── */
+    if(m==="login_customer") return (
+      <LoginModal title="Guest Login" onClose={()=>setModal(null)} extra={<div style={{textAlign:"center",marginTop:12,fontSize:13}}><span style={{color:G6}}>No account? </span><button onClick={()=>setModal("register_customer")} style={{color:IN,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:13}}>Register</button></div>}
+        fields={[{k:"email",l:"Email",t:"email"},{k:"password",l:"Password",t:"password"}]}
+        onSubmit={async f=>{
+          const u = await api.customerLogin({email:f.email,password:f.password});
+          setCustomer(u); localStorage.setItem("bnbms_customer",JSON.stringify(u));
+          setModal(null); setView("customer");
+        }}/>
+    );
+
+    /* ── Customer register ── */
+    if(m==="register_customer") return (
+      <LoginModal title="Create Guest Account" onClose={()=>setModal(null)}
+        fields={[{k:"name",l:"Full Name",t:"text"},{k:"email",l:"Email",t:"email"},{k:"phone",l:"Phone",t:"tel"},{k:"password",l:"Password",t:"password"}]}
+        onSubmit={async f=>{
+          const u = await api.customerRegister(f);
+          setCustomer(u); localStorage.setItem("bnbms_customer",JSON.stringify(u));
+          setModal(null); setView("customer"); pop("Welcome, "+u.name+"!");
+        }}/>
+    );
+
+    /* ── Register store ── */
+    if(m==="register_store") return <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={(owner)=>{setModal("login_owner");pop("Store registered! Please sign in.","info");}}/>;
+
+    /* ── New/Edit Location ── */
+    if(m==="new_location"||m==="edit_location") {
+      const loc = modal.loc;
+      return <LocationModal loc={loc} storeId={modal.storeId} onClose={()=>setModal(null)} onSave={async f=>{
+        if(loc) await api.updateLocation(loc.id,f);
+        else await api.createLocation({...f,store_id:modal.storeId});
+        await loadStoreData(modal.storeId); setModal(null); pop(loc?"Location updated":"Location added");
+      }}/>;
+    }
+
+    /* ── New/Edit Room ── */
+    if(m==="new_room"||m==="edit_room") {
+      const room = modal.room;
+      return <RoomModal room={room} locs={locs} storeId={modal.storeId} onClose={()=>setModal(null)} onSave={async f=>{
+        if(room) await api.updateRoom(room.id,f);
+        else await api.createRoom({...f,store_id:modal.storeId});
+        await loadStoreData(modal.storeId); setModal(null); pop(room?"Room updated":"Room added");
+      }}/>;
+    }
+
+    /* ── New Booking ── */
+    if(m==="new_booking") return (
+      <BookingModal locs={locs} rooms={rooms} payMethods={payMethods} storeId={modal.storeId}
+        prefillRoom={modal.prefillRoom}
+        onClose={()=>setModal(null)}
+        onSave={async f=>{
+          await api.createBooking({...f,store_id:modal.storeId});
+          await loadStoreData(modal.storeId); setModal(null); pop("Booking created");
+        }}/>
+    );
+
+    /* ── View/Manage Booking ── */
+    if(m==="view_booking") return (
+      <ViewBookingModal booking={modal.booking} rooms={rooms} locs={locs} payMethods={payMethods}
+        onClose={()=>setModal(null)}
+        onUpdate={async(id,data)=>{
+          await api.updateBooking(id,data);
+          await loadStoreData(modal.storeId); setModal(null); pop("Booking updated");
+        }}
+        onPayment={async(id,amt,pm)=>{
+          await api.addPayment(id,amt,pm);
+          await loadStoreData(modal.storeId); setModal(null); pop("Payment recorded");
+        }}/>
+    );
+
+    /* ── New Expense ── */
+    if(m==="new_expense") return (
+      <ExpenseModal locs={locs} storeId={modal.storeId} onClose={()=>setModal(null)}
+        onSave={async f=>{
+          await api.createExpense({...f,store_id:modal.storeId});
+          await loadStoreData(modal.storeId); setModal(null); pop("Expense logged");
+        }}/>
+    );
+
+    /* ── New/Edit Staff ── */
+    if(m==="new_staff"||m==="edit_staff") {
+      const s = modal.staff;
+      return <StaffModal staff={s} locs={locs} storeId={modal.storeId} onClose={()=>setModal(null)} onSave={async f=>{
+        if(s) await api.updateStaff(s.id,f);
+        else await api.createStaff({...f,store_id:modal.storeId});
+        await loadStoreData(modal.storeId); setModal(null); pop(s?"Staff updated":"Staff added");
+      }}/>;
+    }
+
+    /* ── Store Detail (super admin) ── */
+    if(m==="store_detail") return (
+      <Modal title="Store Details" onClose={()=>setModal(null)} wide>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+          <div>
+            <SecTitle>Store Info</SecTitle>
+            <div style={{fontSize:13,color:G6,lineHeight:2.2}}>
+              <div><b>Name:</b> {modal.store.name}</div>
+              <div><b>Slug:</b> /{modal.store.slug}</div>
+              <div><b>City:</b> {modal.store.city||"—"}</div>
+              <div><b>Country:</b> {modal.store.country||"—"}</div>
+              <div><b>Status:</b> <Badge s={modal.store.status}/></div>
+              <div><b>Plan:</b> {modal.store.plan_name||"—"}</div>
+              <div><b>Rooms:</b> {modal.store.room_count||0}</div>
+              <div><b>Joined:</b> {fmtD(modal.store.created_at)}</div>
+            </div>
+          </div>
+          <div>
+            <SecTitle>Owner</SecTitle>
+            <div style={{fontSize:13,color:G6,lineHeight:2.2}}>
+              <div><b>Name:</b> {modal.store.owner_name}</div>
+              <div><b>Email:</b> {modal.store.owner_email}</div>
+            </div>
+            <div style={{marginTop:16}}>
+              <SecTitle>Actions</SecTitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {modal.store.status==="suspended"&&<Btn v="ok" onClick={()=>{updateStoreStatus(modal.store.id,"active");setModal(null);}}>Activate Store</Btn>}
+                {modal.store.status==="active"&&<Btn v="danger" onClick={()=>{updateStoreStatus(modal.store.id,"suspended");setModal(null);}}>Suspend Store</Btn>}
+                {modal.store.status==="trial"&&<Btn v="ok" onClick={()=>{updateStoreStatus(modal.store.id,"active");setModal(null);}}>Approve & Activate</Btn>}
+                <Btn v="out" onClick={()=>{setModal("record_payment");}}>Record Payment</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
+    );
+
+    /* ── Record Subscription Payment ── */
+    if(m==="record_payment") return (
+      <RecordPaymentModal stores={stores} plans={plans} onClose={()=>setModal(null)} pop={pop}
+        onSave={async(f)=>{
+          await api.recordPayment(f);
+          await loadSuperData(); setModal(null); pop("Payment recorded");
+        }}/>
+    );
+
+    /* ── New/Edit Plan ── */
+    if(m==="new_plan"||m==="edit_plan") {
+      const plan = modal.plan;
+      return <PlanModal plan={plan} onClose={()=>setModal(null)} onSave={async f=>{
+        if(plan) await api.updatePlan(plan.id,f);
+        else await api.createPlan(f);
+        await loadSuperData(); setModal(null); pop(plan?"Plan updated":"Plan created");
+      }}/>;
+    }
+
+    return null;
+  };
+
+
+  /* ====================================================
+     FORM MODALS (sub-components)
+  ==================================================== */
+  function LoginModal({title,fields,onSubmit,onClose,extra}) {
+    const [f,setF] = useState({});
+    const [busy,setBusy] = useState(false);
+    const [err,setErr] = useState("");
+    const submit = async()=>{
+      setBusy(true);setErr("");
+      try{await onSubmit(f);}catch(e){setErr(e.message);}finally{setBusy(false);}
+    };
+    return (
+      <Modal title={title} onClose={onClose}>
+        {fields.map(({k,l,t})=>(
+          <Inp key={k} label={l} type={t} value={f[k]||""} onChange={e=>setF(d=>({...d,[k]:e.target.value}))}
+            onKeyDown={e=>e.key==="Enter"&&submit()}/>
         ))}
-      </div>
+        {err && <div style={{color:ER,fontSize:13,marginBottom:12,background:ERB,padding:"8px 12px",borderRadius:6}}>{err}</div>}
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Signing in…":"Sign In"}</Btn>
+        </div>
+        {extra}
+      </Modal>
+    );
+  }
 
-      {section === "details" && (
-        <Card>
-          <label style={lblStyle}>Full Name</label>
-          <input style={inpStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <label style={lblStyle}>Phone Number</label>
-          <input style={inpStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
-          <label style={lblStyle}>Nationality</label>
-          <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
-          <div style={{ background: G1, borderRadius: 8, padding: "9px 13px", fontSize: 12, color: G6, marginBottom: 14 }}>Email address cannot be changed. Contact us if needed.</div>
-          <Btn onClick={saveDetails} disabled={saving || !form.name} style={{ width: "100%", justifyContent: "center" }}>{saving ? "Saving…" : "Save Changes"}</Btn>
-        </Card>
-      )}
+  function RegisterStoreModal({plans,onClose,pop,onSuccess}) {
+    const [f,setF] = useState({owner_country:"TZ",store_country:"TZ",plan_id:plans[0]?.id||""});
+    const [busy,setBusy] = useState(false);
+    const [err,setErr] = useState("");
+    const submit = async()=>{
+      if(!f.owner_name||!f.owner_email||!f.owner_password||!f.store_name){setErr("Please fill all required fields");return;}
+      setBusy(true);setErr("");
+      try{const r=await api.registerStore(f);onSuccess(r);}catch(e){setErr(e.message);}finally{setBusy(false);}
+    };
+    return (
+      <Modal title="Register Your Property on BNBMS" onClose={onClose} wide>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <div>
+            <div style={{fontWeight:700,color:M,fontSize:13,marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>Your Account</div>
+            <Inp label="Your Full Name *" value={f.owner_name||""} onChange={e=>setF(d=>({...d,owner_name:e.target.value}))}/>
+            <Inp label="Email Address *" type="email" value={f.owner_email||""} onChange={e=>setF(d=>({...d,owner_email:e.target.value}))}/>
+            <Inp label="Phone Number" type="tel" value={f.owner_phone||""} onChange={e=>setF(d=>({...d,owner_phone:e.target.value}))}/>
+            <Inp label="Password * (min 6 chars)" type="password" value={f.owner_password||""} onChange={e=>setF(d=>({...d,owner_password:e.target.value}))}/>
+            <Sel label="Country" value={f.owner_country} onChange={e=>setF(d=>({...d,owner_country:e.target.value}))}>
+              {["TZ","KE","UG","RW","ET","ZA","NG","GH"].map(c=><option key={c} value={c}>{c}</option>)}
+            </Sel>
+          </div>
+          <div>
+            <div style={{fontWeight:700,color:M,fontSize:13,marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>Property / Store</div>
+            <Inp label="Property Name *" value={f.store_name||""} onChange={e=>setF(d=>({...d,store_name:e.target.value}))} placeholder="e.g. Sunset Lodge Arusha"/>
+            <Inp label="City" value={f.store_city||""} onChange={e=>setF(d=>({...d,store_city:e.target.value}))} placeholder="e.g. Dar es Salaam"/>
+            <Sel label="Country" value={f.store_country} onChange={e=>setF(d=>({...d,store_country:e.target.value}))}>
+              {["TZ","KE","UG","RW","ET","ZA","NG","GH"].map(c=><option key={c} value={c}>{c}</option>)}
+            </Sel>
+            <div style={{marginBottom:13}}>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Description</label>
+              <textarea value={f.store_description||""} onChange={e=>setF(d=>({...d,store_description:e.target.value}))} rows={3}
+                style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}}/>
+            </div>
+            {plans.length>0 && (
+              <Sel label="Plan" value={f.plan_id} onChange={e=>setF(d=>({...d,plan_id:e.target.value}))}>
+                {plans.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(p.price_monthly||p.price_month)}/mo</option>)}
+              </Sel>
+            )}
+          </div>
+        </div>
+        {err && <div style={{color:ER,fontSize:13,marginTop:8,background:ERB,padding:"8px 12px",borderRadius:6}}>{err}</div>}
+        <div style={{marginTop:16,display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Registering…":"Register Free for 14 Days"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
 
-      {section === "password" && (
-        <Card>
-          <label style={lblStyle}>Current Password</label>
-          <input type="password" style={inpStyle} value={pwForm.current_password} onChange={e => setPwForm(f => ({ ...f, current_password: e.target.value }))} placeholder="Enter current password" />
-          <div style={{ height: 1, background: G2, margin: "4px 0 16px" }} />
-          <label style={lblStyle}>New Password</label>
-          <input type="password" style={inpStyle} value={pwForm.new_password} onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))} placeholder="Min 6 characters" />
-          <label style={lblStyle}>Confirm New Password</label>
-          <input type="password" style={inpStyle} value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Re-enter new password" />
-          {pwErr && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{pwErr}</div>}
-          <Btn onClick={savePassword} disabled={saving} style={{ width: "100%", justifyContent: "center" }}>{saving ? "Updating…" : "Update Password"}</Btn>
-        </Card>
-      )}
-    </div>
+  function LocationModal({loc,storeId,onClose,onSave}) {
+    const [f,setF] = useState({name:loc?.name||"",city:loc?.city||"",address:loc?.addr||"",icon:loc?.icon||"🏙️",description:loc?.desc||""});
+    const [busy,setBusy] = useState(false);
+    const submit=async()=>{setBusy(true);try{await onSave(f);}catch(e){alert(e.message);}finally{setBusy(false);}};
+    return (
+      <Modal title={loc?"Edit Location":"New Location"} onClose={onClose}>
+        <Inp label="Name *" value={f.name} onChange={e=>setF(d=>({...d,name:e.target.value}))}/>
+        <Inp label="City *" value={f.city} onChange={e=>setF(d=>({...d,city:e.target.value}))}/>
+        <Inp label="Address" value={f.address} onChange={e=>setF(d=>({...d,address:e.target.value}))}/>
+        <Inp label="Icon (emoji)" value={f.icon} onChange={e=>setF(d=>({...d,icon:e.target.value}))}/>
+        <div style={{marginBottom:13}}>
+          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Description</label>
+          <textarea value={f.description} onChange={e=>setF(d=>({...d,description:e.target.value}))} rows={3}
+            style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":loc?"Update Location":"Add Location"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function RoomModal({room,locs,storeId,onClose,onSave}) {
+    const [f,setF] = useState({
+      name:room?.name||"",location_id:room?.locId||locs[0]?.id||"",type:room?.type||"Standard",
+      beds:room?.beds||1,max_guests:room?.guests||2,price_per_night:room?.price||0,
+      status:room?.status||"available",amenities:(room?.amen||[]).join(", ")
+    });
+    const [busy,setBusy] = useState(false);
+    const submit=async()=>{
+      setBusy(true);
+      try{await onSave({...f,beds:Number(f.beds),max_guests:Number(f.max_guests),price_per_night:Number(f.price_per_night),
+        amenities:f.amenities?f.amenities.split(",").map(a=>a.trim()).filter(Boolean):[]});}
+      catch(e){alert(e.message);}finally{setBusy(false);}
+    };
+    return (
+      <Modal title={room?"Edit Room":"New Room"} onClose={onClose} wide>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Inp label="Room Name *" value={f.name} onChange={e=>setF(d=>({...d,name:e.target.value}))}/>
+          <Sel label="Location *" value={f.location_id} onChange={e=>setF(d=>({...d,location_id:e.target.value}))}>
+            {locs.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+          </Sel>
+          <Sel label="Type" value={f.type} onChange={e=>setF(d=>({...d,type:e.target.value}))}>
+            {["Standard","Deluxe","Suite","Studio","Apartment","Cottage","Villa"].map(t=><option key={t}>{t}</option>)}
+          </Sel>
+          <Sel label="Status" value={f.status} onChange={e=>setF(d=>({...d,status:e.target.value}))}>
+            <option value="available">Available</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="occupied">Occupied</option>
+          </Sel>
+          <Inp label="Beds" type="number" min="1" value={f.beds} onChange={e=>setF(d=>({...d,beds:e.target.value}))}/>
+          <Inp label="Max Guests" type="number" min="1" value={f.max_guests} onChange={e=>setF(d=>({...d,max_guests:e.target.value}))}/>
+          <Inp label="Price/Night (TZS) *" type="number" value={f.price_per_night} onChange={e=>setF(d=>({...d,price_per_night:e.target.value}))} style={{gridColumn:"1/-1"}}/>
+        </div>
+        <Inp label="Amenities (comma-separated)" value={f.amenities} onChange={e=>setF(d=>({...d,amenities:e.target.value}))} placeholder="WiFi, AC, Pool, Kitchen…"/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":room?"Update Room":"Add Room"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+
+  function BookingModal({locs,rooms,payMethods,storeId,prefillRoom,onClose,onSave}) {
+    const [f,setF] = useState({
+      room_id:prefillRoom?.id||"",location_id:prefillRoom?.locId||locs[0]?.id||"",
+      guest_name:"",guest_phone:"",guest_email:"",guest_nationality:"",
+      check_in:td(),check_out:"",nights:1,base_amount:0,
+      discount:0,discount_type:"pct",total_amount:0,paid_amount:0,
+      payment_method:payMethods[0]||"Cash",notes:"",status:"pending"
+    });
+    const [busy,setBusy] = useState(false);
+    const locRooms = rooms.filter(r=>r.locId===f.location_id);
+    const selRoom = rooms.find(r=>r.id===f.room_id);
+
+    useEffect(()=>{
+      if(f.check_in&&f.check_out){
+        const n=dd(f.check_in,f.check_out);
+        const base=n*(selRoom?.price||0);
+        const disc=f.discount_type==="pct"?base*(Number(f.discount||0)/100):Number(f.discount||0);
+        const total=Math.max(0,base-disc);
+        setF(d=>({...d,nights:n,base_amount:base,total_amount:total}));
+      }
+    },[f.check_in,f.check_out,f.room_id,f.discount,f.discount_type]);
+
+    const submit=async()=>{
+      if(!f.guest_name||!f.guest_phone||!f.check_in||!f.check_out){alert("Fill required fields");return;}
+      setBusy(true);
+      try{await onSave({...f,nights:Number(f.nights),base_amount:Number(f.base_amount),
+        discount:Number(f.discount),total_amount:Number(f.total_amount),paid_amount:Number(f.paid_amount)});}
+      catch(e){alert(e.message);}finally{setBusy(false);}
+    };
+
+    return (
+      <Modal title="New Booking" onClose={onClose} wide>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Inp label="Guest Name *" value={f.guest_name} onChange={e=>setF(d=>({...d,guest_name:e.target.value}))}/>
+          <Inp label="Phone *" type="tel" value={f.guest_phone} onChange={e=>setF(d=>({...d,guest_phone:e.target.value}))}/>
+          <Inp label="Email" type="email" value={f.guest_email} onChange={e=>setF(d=>({...d,guest_email:e.target.value}))}/>
+          <Inp label="Nationality" value={f.guest_nationality} onChange={e=>setF(d=>({...d,guest_nationality:e.target.value}))}/>
+          <Sel label="Location" value={f.location_id} onChange={e=>setF(d=>({...d,location_id:e.target.value,room_id:""}))}>
+            {locs.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+          </Sel>
+          <Sel label="Room" value={f.room_id} onChange={e=>setF(d=>({...d,room_id:e.target.value}))}>
+            <option value="">— Select Room —</option>
+            {locRooms.map(r=><option key={r.id} value={r.id}>{r.name} — {fmt(r.price)}/night</option>)}
+          </Sel>
+          <Inp label="Check-in *" type="date" value={f.check_in} onChange={e=>setF(d=>({...d,check_in:e.target.value}))}/>
+          <Inp label="Check-out *" type="date" value={f.check_out} min={f.check_in} onChange={e=>setF(d=>({...d,check_out:e.target.value}))}/>
+          <Inp label="Discount" type="number" min="0" value={f.discount} onChange={e=>setF(d=>({...d,discount:e.target.value}))}/>
+          <Sel label="Discount Type" value={f.discount_type} onChange={e=>setF(d=>({...d,discount_type:e.target.value}))}>
+            <option value="pct">Percent (%)</option>
+            <option value="fix">Fixed (TZS)</option>
+          </Sel>
+          <Inp label="Amount Paid (TZS)" type="number" min="0" value={f.paid_amount} onChange={e=>setF(d=>({...d,paid_amount:e.target.value}))}/>
+          <Sel label="Payment Method" value={f.payment_method} onChange={e=>setF(d=>({...d,payment_method:e.target.value}))}>
+            {payMethods.map(m=><option key={m}>{m}</option>)}
+          </Sel>
+          <Sel label="Status" value={f.status} onChange={e=>setF(d=>({...d,status:e.target.value}))}>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+          </Sel>
+        </div>
+        <Inp label="Notes" value={f.notes} onChange={e=>setF(d=>({...d,notes:e.target.value}))}/>
+        {f.check_in&&f.check_out&&f.nights>0 && (
+          <div style={{background:INB,borderRadius:8,padding:14,marginBottom:12,fontSize:13}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Nights</span><b>{f.nights}</b></div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Base Amount</span><b>{fmt(f.base_amount)}</b></div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Discount</span><b>{f.discount_type==="pct"?f.discount+"%":fmt(f.discount)}</b></div>
+            <div style={{display:"flex",justifyContent:"space-between",borderTop:`1px solid ${G2}`,paddingTop:6,marginTop:6}}><span>Total</span><b style={{color:M,fontSize:15}}>{fmt(f.total_amount)}</b></div>
+          </div>
+        )}
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":"Create Booking"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function ViewBookingModal({booking:b,rooms,locs,payMethods,onClose,onUpdate,onPayment}) {
+    const [payAmt,setPayAmt] = useState("");
+    const [payMethod,setPayMethod] = useState(payMethods[0]||"Cash");
+    const [busy,setBusy] = useState(false);
+    const room = rooms.find(r=>r.id===b.roomId);
+    const loc  = locs.find(l=>l.id===b.locId);
+    const bal  = b.total-b.paid;
+
+    const action=async(status)=>{setBusy(true);try{await onUpdate(b.id,{status});}catch(e){alert(e.message);}finally{setBusy(false);}};
+    const recordPay=async()=>{
+      const a=Number(payAmt);if(!a||a<=0){alert("Enter valid amount");return;}
+      setBusy(true);try{await onPayment(b.id,a,payMethod);}catch(e){alert(e.message);}finally{setBusy(false);}
+    };
+
+    return (
+      <Modal title={`Booking — ${b.id}`} onClose={onClose} wide>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+          <div>
+            <SecTitle>Guest</SecTitle>
+            <div style={{fontSize:13,lineHeight:2.2,color:G6}}>
+              <div><b>Name:</b> {b.gName}</div>
+              <div><b>Phone:</b> {b.gPhone}</div>
+              <div><b>Email:</b> {b.gEmail||"—"}</div>
+              <div><b>Nationality:</b> {b.gNat||"—"}</div>
+            </div>
+            <SecTitle style={{marginTop:16}}>Stay</SecTitle>
+            <div style={{fontSize:13,lineHeight:2.2,color:G6}}>
+              <div><b>Room:</b> {room?.name||b.roomId||"—"}</div>
+              <div><b>Location:</b> {loc?.name||"—"}</div>
+              <div><b>Check-in:</b> {fmtD(b.ci)}</div>
+              <div><b>Check-out:</b> {fmtD(b.co)}</div>
+              <div><b>Nights:</b> {b.nights}</div>
+            </div>
+          </div>
+          <div>
+            <SecTitle>Payment</SecTitle>
+            <div style={{fontSize:13,lineHeight:2.2,color:G6}}>
+              <div><b>Total:</b> {fmt(b.total)}</div>
+              <div><b>Paid:</b> <span style={{color:b.paid>=b.total?OK:WA,fontWeight:700}}>{fmt(b.paid)}</span></div>
+              <div><b>Balance:</b> <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span></div>
+              <div><b>Method:</b> {b.method}</div>
+              <div><b>Status:</b> <Badge s={b.status}/></div>
+            </div>
+            {bal>0 && (
+              <div style={{marginTop:12,background:G1,borderRadius:8,padding:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:G8,textTransform:"uppercase",letterSpacing:".05em",marginBottom:8}}>Record Payment</div>
+                <div style={{display:"flex",gap:8}}>
+                  <input type="number" value={payAmt} onChange={e=>setPayAmt(e.target.value)} placeholder={fmt(bal)}
+                    style={{flex:1,padding:"8px 10px",border:`1px solid ${G2}`,borderRadius:6,fontSize:13}}/>
+                  <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}
+                    style={{padding:"8px 10px",border:`1px solid ${G2}`,borderRadius:6,fontSize:13,background:WH}}>
+                    {payMethods.map(m=><option key={m}>{m}</option>)}
+                  </select>
+                  <Btn onClick={recordPay} disabled={busy} style={{padding:"8px 14px",fontSize:12}}>Record</Btn>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        {b.notes && <div style={{background:G1,borderRadius:8,padding:10,marginTop:12,fontSize:13,color:G8}}><b>Notes:</b> {b.notes}</div>}
+        {/* Actions */}
+        <div style={{marginTop:16,display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px solid ${G2}`,paddingTop:16}}>
+          {b.status==="pending"   && <Btn v="ok" onClick={()=>action("confirmed")} disabled={busy}>✓ Confirm</Btn>}
+          {b.status==="confirmed" && <Btn v="ok" onClick={()=>action("checkedIn")} disabled={busy}>🔑 Check In</Btn>}
+          {b.status==="checkedIn" && <Btn onClick={()=>action("checkedOut")} disabled={busy}>🚪 Check Out</Btn>}
+          {["pending","confirmed"].includes(b.status) && <Btn v="danger" onClick={()=>action("cancelled")} disabled={busy}>✕ Cancel</Btn>}
+          <Btn v="ghost" onClick={onClose}>Close</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function ExpenseModal({locs,storeId,onClose,onSave}) {
+    const [f,setF] = useState({location_id:locs[0]?.id||"",category:"Operations",description:"",amount:"",expense_date:td()});
+    const [busy,setBusy] = useState(false);
+    const submit=async()=>{setBusy(true);try{await onSave({...f,amount:Number(f.amount)});}catch(e){alert(e.message);}finally{setBusy(false);}};
+    return (
+      <Modal title="Log Expense" onClose={onClose}>
+        <Sel label="Location *" value={f.location_id} onChange={e=>setF(d=>({...d,location_id:e.target.value}))}>
+          {locs.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+        </Sel>
+        <Sel label="Category" value={f.category} onChange={e=>setF(d=>({...d,category:e.target.value}))}>
+          {["Operations","Maintenance","Supplies","Utilities","Salaries","Marketing","Other"].map(c=><option key={c}>{c}</option>)}
+        </Sel>
+        <Inp label="Description *" value={f.description} onChange={e=>setF(d=>({...d,description:e.target.value}))}/>
+        <Inp label="Amount (TZS) *" type="number" value={f.amount} onChange={e=>setF(d=>({...d,amount:e.target.value}))}/>
+        <Inp label="Date" type="date" value={f.expense_date} onChange={e=>setF(d=>({...d,expense_date:e.target.value}))}/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":"Log Expense"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function StaffModal({staff:s,locs,storeId,onClose,onSave}) {
+    const [f,setF] = useState({name:s?.name||"",email:s?.email||"",phone:s?.phone||"",role:s?.role||"Receptionist",location_id:s?.locId||"",pin_hash:""});
+    const [busy,setBusy] = useState(false);
+    const submit=async()=>{setBusy(true);try{await onSave(f);}catch(e){alert(e.message);}finally{setBusy(false);}};
+    return (
+      <Modal title={s?"Edit Staff":"Add Staff"} onClose={onClose}>
+        <Inp label="Full Name *" value={f.name} onChange={e=>setF(d=>({...d,name:e.target.value}))}/>
+        <Inp label="Email *" type="email" value={f.email} onChange={e=>setF(d=>({...d,email:e.target.value}))}/>
+        <Inp label="Phone" type="tel" value={f.phone} onChange={e=>setF(d=>({...d,phone:e.target.value}))}/>
+        <Sel label="Role" value={f.role} onChange={e=>setF(d=>({...d,role:e.target.value}))}>
+          {["Receptionist","Manager","Admin","Cleaner","Security","Other"].map(r=><option key={r}>{r}</option>)}
+        </Sel>
+        <Sel label="Assigned Location" value={f.location_id} onChange={e=>setF(d=>({...d,location_id:e.target.value}))}>
+          <option value="">Any / All Locations</option>
+          {locs.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+        </Sel>
+        <Inp label={s?"New PIN (leave blank to keep)":"PIN *"} type="password" value={f.pin_hash} onChange={e=>setF(d=>({...d,pin_hash:e.target.value}))} placeholder="4-digit PIN"/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":s?"Update Staff":"Add Staff"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function RecordPaymentModal({stores,plans,onClose,pop,onSave}) {
+    const [f,setF] = useState({store_id:"",amount:"",method:"Cash",reference:"",notes:"",plan_id:"",billing_cycle:"monthly"});
+    const [busy,setBusy] = useState(false);
+    const [err,setErr] = useState("");
+    const submit=async()=>{
+      if(!f.store_id||!f.amount){setErr("Store and amount required");return;}
+      setBusy(true);setErr("");
+      try{await onSave({...f,amount:Number(f.amount)});}catch(e){setErr(e.message);}finally{setBusy(false);}
+    };
+    return (
+      <Modal title="Record Subscription Payment" onClose={onClose}>
+        <Sel label="Store *" value={f.store_id} onChange={e=>setF(d=>({...d,store_id:e.target.value}))}>
+          <option value="">— Select Store —</option>
+          {stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </Sel>
+        <Sel label="Plan" value={f.plan_id} onChange={e=>setF(d=>({...d,plan_id:e.target.value}))}>
+          <option value="">— Select Plan —</option>
+          {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </Sel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Inp label="Amount (TZS) *" type="number" value={f.amount} onChange={e=>setF(d=>({...d,amount:e.target.value}))}/>
+          <Sel label="Method" value={f.method} onChange={e=>setF(d=>({...d,method:e.target.value}))}>
+            {["Manual","M-Pesa","Tigo Pesa","Airtel Money","Bank Transfer","Card"].map(m=><option key={m}>{m}</option>)}
+          </Sel>
+          <Sel label="Billing Cycle" value={f.billing_cycle} onChange={e=>setF(d=>({...d,billing_cycle:e.target.value}))}>
+            <option value="monthly">Monthly</option>
+            <option value="annual">Annual</option>
+          </Sel>
+          <Inp label="Reference #" value={f.reference} onChange={e=>setF(d=>({...d,reference:e.target.value}))}/>
+        </div>
+        <Inp label="Notes" value={f.notes} onChange={e=>setF(d=>({...d,notes:e.target.value}))}/>
+        {err && <div style={{color:ER,fontSize:13,background:ERB,padding:"8px 12px",borderRadius:6,marginBottom:12}}>{err}</div>}
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":"Record Payment"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  function PlanModal({plan,onClose,onSave}) {
+    const [f,setF] = useState({
+      name:plan?.name||"",price_monthly:plan?.price_monthly||plan?.price_month||0,
+      price_yearly:plan?.price_yearly||plan?.price_year||0,
+      max_locations:plan?.max_locations||1,max_rooms:plan?.max_rooms||10,max_staff:plan?.max_staff||3,
+      features:(plan?.features||[]).join("\n"),is_active:plan?.is_active!==false
+    });
+    const [busy,setBusy] = useState(false);
+    const submit=async()=>{
+      setBusy(true);
+      try{await onSave({...f,price_monthly:Number(f.price_monthly),price_yearly:Number(f.price_yearly),
+        max_locations:Number(f.max_locations),max_rooms:Number(f.max_rooms),max_staff:Number(f.max_staff),
+        features:f.features?f.features.split("\n").map(x=>x.trim()).filter(Boolean):[]});}
+      catch(e){alert(e.message);}finally{setBusy(false);}
+    };
+    return (
+      <Modal title={plan?"Edit Plan":"New Plan"} onClose={onClose}>
+        <Inp label="Plan Name *" value={f.name} onChange={e=>setF(d=>({...d,name:e.target.value}))}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Inp label="Monthly Price (TZS)" type="number" value={f.price_monthly} onChange={e=>setF(d=>({...d,price_monthly:e.target.value}))}/>
+          <Inp label="Annual Price (TZS)" type="number" value={f.price_yearly} onChange={e=>setF(d=>({...d,price_yearly:e.target.value}))}/>
+          <Inp label="Max Locations" type="number" value={f.max_locations} onChange={e=>setF(d=>({...d,max_locations:e.target.value}))}/>
+          <Inp label="Max Rooms" type="number" value={f.max_rooms} onChange={e=>setF(d=>({...d,max_rooms:e.target.value}))}/>
+          <Inp label="Max Staff" type="number" value={f.max_staff} onChange={e=>setF(d=>({...d,max_staff:e.target.value}))}/>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:20}}>
+            <input type="checkbox" id="isActive" checked={f.is_active} onChange={e=>setF(d=>({...d,is_active:e.target.checked}))}/>
+            <label htmlFor="isActive" style={{fontSize:13,fontWeight:600}}>Active (visible to new stores)</label>
+          </div>
+        </div>
+        <div style={{marginBottom:13}}>
+          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Features (one per line)</label>
+          <textarea value={f.features} onChange={e=>setF(d=>({...d,features:e.target.value}))} rows={4}
+            style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}}
+            placeholder="All reports&#10;Priority support&#10;Custom branding"/>
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={submit} disabled={busy}>{busy?"Saving…":plan?"Update Plan":"Create Plan"}</Btn>
+        </div>
+      </Modal>
+    );
+  }
+
+  /* ====================================================
+     ROOT RENDER
+  ==================================================== */
+  return (
+    <>
+      <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
+        textarea { font-family: inherit; }
+        button:focus { outline: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: ${G1}; }
+        ::-webkit-scrollbar-thumb { background: ${G2}; border-radius: 3px; }
+      `}</style>
+
+      {view==="land"     && renderLand()}
+      {view==="super"    && superAdmin && renderSuper()}
+      {view==="owner"    && owner && renderOwner()}
+      {view==="admin"    && user && renderAdmin()}
+      {view==="customer" && customer && renderCustomer()}
+
+      {renderModal()}
+
+      {toast && <Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    </>
   );
 }

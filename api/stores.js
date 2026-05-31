@@ -1,0 +1,247 @@
+// api/stores.js — store registration, management, super-admin operations
+const { getDb, setCors, dbError, verifyToken } = require('./_db.js');
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+module.exports = async function handler(req, res) {
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  let sql;
+  try { sql = getDb(); } catch (err) { return res.status(500).json({ error: err.message }); }
+
+  const { id, action } = req.query;
+
+  try {
+    // ── PUBLIC: Register new store owner + store ──
+    if (req.method === 'POST' && action === 'register') {
+      const { owner_name, owner_email, owner_phone, owner_country, owner_password,
+              store_name, store_city, store_country, store_description, plan_id } = req.body || {};
+
+      if (!owner_name || !owner_email || !owner_password || !store_name)
+        return res.status(400).json({ error: 'owner_name, owner_email, owner_password, store_name required' });
+      if (owner_password.length < 6)
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+      const existing = await sql`SELECT id FROM store_owners WHERE lower(email) = lower(${owner_email})`;
+      if (existing.length) return res.status(400).json({ error: 'An account with this email already exists' });
+
+      // Create owner
+      const ownerRows = await sql`
+        INSERT INTO store_owners (name, email, phone, country, password_hash)
+        VALUES (${owner_name}, ${owner_email}, ${owner_phone || null},
+                ${owner_country || 'TZ'}, ${owner_password})
+        RETURNING id, name, email
+      `;
+      const owner = ownerRows[0];
+
+      // Create unique slug
+      let slug = slugify(store_name);
+      const slugCheck = await sql`SELECT id FROM stores WHERE slug = ${slug}`;
+      if (slugCheck.length) slug = slug + '-' + Math.random().toString(36).slice(2, 6);
+
+      // Get trial plan
+      const trialPlan = await sql`SELECT id FROM subscription_plans WHERE name = 'Free Trial' LIMIT 1`;
+      const defaultPlanId = plan_id || (trialPlan.length ? trialPlan[0].id : null);
+
+      // Create store (starts in trial)
+      const storeRows = await sql`
+        INSERT INTO stores (name, slug, owner_id, plan_id, status, city, country, description)
+        VALUES (${store_name}, ${slug}, ${owner.id}, ${defaultPlanId},
+                'trial', ${store_city || ''}, ${store_country || 'TZ'}, ${store_description || ''})
+        RETURNING *
+      `;
+      const store = storeRows[0];
+
+      // Seed default payment methods for new store
+      await sql`
+        INSERT INTO payment_methods (store_id, name, sort_order) VALUES
+          (${store.id}, 'Cash', 1), (${store.id}, 'M-Pesa', 2), (${store.id}, 'Tigo Pesa', 3),
+          (${store.id}, 'Airtel Money', 4), (${store.id}, 'Bank Transfer', 5)
+        ON CONFLICT DO NOTHING
+      `;
+
+      return res.status(201).json({
+        owner: { id: owner.id, name: owner.name, email: owner.email },
+        store: { id: store.id, name: store.name, slug: store.slug, status: store.status, trial_ends: store.trial_ends }
+      });
+    }
+
+    // ── PUBLIC: Get all active stores (marketplace) ──
+    if (req.method === 'GET' && action === 'marketplace') {
+      const { city, search } = req.query;
+      let rows;
+      if (city) {
+        rows = await sql`
+          SELECT s.*, p.name AS plan_name,
+            COUNT(DISTINCT l.id)::int AS location_count,
+            COUNT(DISTINCT r.id)::int AS room_count,
+            COALESCE(AVG(rev.rating), 0)::numeric(3,1) AS avg_rating,
+            COUNT(DISTINCT rev.id)::int AS review_count
+          FROM stores s
+          LEFT JOIN subscription_plans p ON p.id = s.plan_id
+          LEFT JOIN locations l ON l.store_id = s.id AND l.active = true
+          LEFT JOIN rooms r ON r.store_id = s.id AND r.status = 'available'
+          LEFT JOIN reviews rev ON rev.store_id = s.id
+          WHERE s.status IN ('active','trial') AND lower(s.city) LIKE lower(${'%' + city + '%'})
+          GROUP BY s.id, p.name ORDER BY s.created_at DESC
+        `;
+      } else {
+        rows = await sql`
+          SELECT s.*, p.name AS plan_name,
+            COUNT(DISTINCT l.id)::int AS location_count,
+            COUNT(DISTINCT r.id)::int AS room_count,
+            COALESCE(AVG(rev.rating), 0)::numeric(3,1) AS avg_rating,
+            COUNT(DISTINCT rev.id)::int AS review_count
+          FROM stores s
+          LEFT JOIN subscription_plans p ON p.id = s.plan_id
+          LEFT JOIN locations l ON l.store_id = s.id AND l.active = true
+          LEFT JOIN rooms r ON r.store_id = s.id AND r.status = 'available'
+          LEFT JOIN reviews rev ON rev.store_id = s.id
+          WHERE s.status IN ('active','trial')
+          GROUP BY s.id, p.name ORDER BY s.created_at DESC
+        `;
+      }
+      return res.status(200).json(rows);
+    }
+
+    // ── PUBLIC: Get single store by slug ──
+    if (req.method === 'GET' && action === 'by_slug') {
+      const { slug } = req.query;
+      if (!slug) return res.status(400).json({ error: 'slug required' });
+      const rows = await sql`
+        SELECT s.*, o.name AS owner_name,
+          COUNT(DISTINCT l.id)::int AS location_count,
+          COALESCE(AVG(rev.rating), 0)::numeric(3,1) AS avg_rating,
+          COUNT(DISTINCT rev.id)::int AS review_count
+        FROM stores s
+        JOIN store_owners o ON o.id = s.owner_id
+        LEFT JOIN locations l ON l.store_id = s.id AND l.active = true
+        LEFT JOIN reviews rev ON rev.store_id = s.id
+        WHERE s.slug = ${slug}
+        GROUP BY s.id, o.name
+        LIMIT 1
+      `;
+      if (!rows.length) return res.status(404).json({ error: 'Store not found' });
+      return res.status(200).json(rows[0]);
+    }
+
+    // ── SUPER ADMIN: List all stores ──
+    if (req.method === 'GET' && !id) {
+      const token = verifyToken(req);
+      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin access required' });
+
+      const rows = await sql`
+        SELECT s.*, o.name AS owner_name, o.email AS owner_email, o.phone AS owner_phone,
+          p.name AS plan_name, p.price_monthly,
+          COUNT(DISTINCT l.id)::int AS location_count,
+          COUNT(DISTINCT r.id)::int AS room_count,
+          COUNT(DISTINCT b.id)::int AS booking_count,
+          COALESCE(SUM(b.paid_amount), 0) AS total_revenue,
+          sub.status AS sub_status, sub.current_period_end,
+          COALESCE(sp_total.total, 0) AS subscription_paid
+        FROM stores s
+        JOIN store_owners o ON o.id = s.owner_id
+        LEFT JOIN subscription_plans p ON p.id = s.plan_id
+        LEFT JOIN locations l ON l.store_id = s.id
+        LEFT JOIN rooms r ON r.store_id = s.id
+        LEFT JOIN bookings b ON b.store_id = s.id
+        LEFT JOIN subscriptions sub ON sub.store_id = s.id AND sub.status IN ('active','trialing')
+        LEFT JOIN (
+          SELECT store_id, COALESCE(SUM(amount),0) AS total FROM subscription_payments GROUP BY store_id
+        ) sp_total ON sp_total.store_id = s.id
+        GROUP BY s.id, o.name, o.email, o.phone, p.name, p.price_monthly, sub.status, sub.current_period_end, sp_total.total
+        ORDER BY s.created_at DESC
+      `;
+      return res.status(200).json(rows);
+    }
+
+    // ── SUPER ADMIN: Get single store ──
+    if (req.method === 'GET' && id) {
+      const token = verifyToken(req);
+      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin access required' });
+      const rows = await sql`
+        SELECT s.*, o.name AS owner_name, o.email AS owner_email, o.phone AS owner_phone,
+          p.name AS plan_name, p.price_monthly, p.price_yearly
+        FROM stores s
+        JOIN store_owners o ON o.id = s.owner_id
+        LEFT JOIN subscription_plans p ON p.id = s.plan_id
+        WHERE s.id = ${id} LIMIT 1
+      `;
+      if (!rows.length) return res.status(404).json({ error: 'Store not found' });
+      return res.status(200).json(rows[0]);
+    }
+
+    // ── SUPER ADMIN or OWNER: Update store ──
+    if (req.method === 'PUT') {
+      if (!id) return res.status(400).json({ error: 'id required' });
+      const token = verifyToken(req);
+      if (!token || !['super','owner'].includes(token.type))
+        return res.status(401).json({ error: 'Authentication required' });
+      if (token.type === 'owner' && token.storeId !== id)
+        return res.status(403).json({ error: 'Access denied' });
+
+      const { name, description, city, country, phone, email, website, logo_url,
+              status, plan_id, notes } = req.body || {};
+
+      // Owners can't change status or plan themselves
+      const statusToSet = token.type === 'super' ? status : undefined;
+      const planToSet   = token.type === 'super' ? plan_id : undefined;
+
+      const rows = await sql`
+        UPDATE stores SET
+          name        = COALESCE(${name        ?? null}, name),
+          description = COALESCE(${description ?? null}, description),
+          city        = COALESCE(${city        ?? null}, city),
+          country     = COALESCE(${country     ?? null}, country),
+          phone       = COALESCE(${phone       ?? null}, phone),
+          email       = COALESCE(${email       ?? null}, email),
+          website     = COALESCE(${website     ?? null}, website),
+          logo_url    = COALESCE(${logo_url    ?? null}, logo_url),
+          status      = COALESCE(${statusToSet ?? null}, status),
+          plan_id     = COALESCE(${planToSet   ?? null}, plan_id),
+          notes       = COALESCE(${notes       ?? null}, notes)
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      if (!rows.length) return res.status(404).json({ error: 'Store not found' });
+      return res.status(200).json(rows[0]);
+    }
+
+    // ── SUPER ADMIN: Platform stats ──
+    if (req.method === 'GET' && action === 'platform_stats') {
+      const token = verifyToken(req);
+      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin access required' });
+
+      const [storeStats, revenueStats, bookingStats, subPayments] = await Promise.all([
+        sql`SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER(WHERE status='active')::int   AS active,
+          COUNT(*) FILTER(WHERE status='trial')::int    AS trial,
+          COUNT(*) FILTER(WHERE status='suspended')::int AS suspended
+          FROM stores`,
+        sql`SELECT COALESCE(SUM(amount),0) AS total_sub_revenue FROM subscription_payments`,
+        sql`SELECT COUNT(*)::int AS total_bookings, COALESCE(SUM(paid_amount),0) AS total_booking_revenue FROM bookings`,
+        sql`SELECT COALESCE(SUM(amount),0) AS mrr FROM subscription_payments
+            WHERE paid_at >= date_trunc('month', NOW())`
+      ]);
+
+      return res.status(200).json({
+        stores: storeStats[0],
+        revenue: {
+          total_sub_revenue: Number(revenueStats[0].total_sub_revenue),
+          total_booking_revenue: Number(bookingStats[0].total_booking_revenue),
+          mrr: Number(subPayments[0].mrr)
+        },
+        bookings: { total: bookingStats[0].total_bookings }
+      });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (err) {
+    console.error('stores error:', err.message);
+    return res.status(500).json({ error: dbError(err) });
+  }
+};
