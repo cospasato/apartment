@@ -1,686 +1,2395 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
-import { LodgeApp } from "./LodgeApp";
 
-/* ─── BRAND ────────────────────────────────────────────── */
-const M="#6B1B2A",MD="#4A1019",ML="#8B2D3E",MF="#F9F0F2";
-const BK="#111",WH="#FFF",G1="#F5F5F5",G2="#E8E8E8",G4="#AAA",G6="#666",G8="#333";
-const OK="#2E7D32",OKB="#E8F5E9",ER="#C62828",ERB="#FFEBEE",IN="#1565C0",GOLD="#C9A84C";
-const fmt = n => "TZS " + Number(n||0).toLocaleString();
+/* ─── BRAND ─────────────────────────────────────────────── */
+const M = "#6B1B2A", MD = "#4A1019", ML = "#8B2D3E", MF = "#F9F0F2";
+const BK = "#111", WH = "#FFF", G1 = "#F5F5F5", G2 = "#E8E8E8";
+const G4 = "#AAAAAA", G6 = "#666", G8 = "#333", GOLD = "#C9A84C";
+const OK = "#2E7D32", OKB = "#E8F5E9", WA = "#B76E00", WAB = "#FFF3E0";
+const ER = "#C62828", ERB = "#FFEBEE", IN = "#1565C0", INB = "#E3F2FD";
 
-/* ─── ATOMS ─────────────────────────────────────────────── */
-const Inp = ({label,...p}) => (
-  <div style={{marginBottom:14}}>
-    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</label>}
-    <input {...p} style={{width:"100%",padding:"10px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",...p.style}}/>
+const fmt = n => "TZS " + Number(n || 0).toLocaleString();
+const uid = () => Math.random().toString(36).slice(2, 7).toUpperCase();
+const td  = () => new Date().toISOString().split("T")[0];
+const dd  = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000));
+const sC = s => ({ available: OK, occupied: M, maintenance: WA, confirmed: IN, checkedIn: M, checkedOut: G6, pending: WA, cancelled: ER }[s] || G6);
+const sB = s => ({ available: OKB, occupied: MF, maintenance: WAB, confirmed: INB, checkedIn: MF, checkedOut: G1, pending: WAB, cancelled: ERB }[s] || G1);
+
+/* map DB snake_case → app camelCase */
+const mapBook = b => b ? ({
+  id: b.id, roomId: b.room_id, locId: b.location_id,
+  gName: b.guest_name, gPhone: b.guest_phone, gEmail: b.guest_email, gNat: b.guest_nationality,
+  ci: b.check_in?.split?.("T")[0] || b.check_in,
+  co: b.check_out?.split?.("T")[0] || b.check_out,
+  nights: b.nights, base: Number(b.base_amount), disc: Number(b.discount),
+  discT: b.discount_type, total: Number(b.total_amount), paid: Number(b.paid_amount),
+  status: b.status, method: b.payment_method, notes: b.notes, created: b.created_at,
+}) : null;
+
+const mapRoom = r => r ? ({
+  id: r.id, locId: r.location_id, name: r.name, type: r.type,
+  beds: r.beds, guests: r.max_guests, price: Number(r.price_per_night),
+  status: r.status, amen: r.amenities || [], photos: r.photos || [],
+}) : null;
+
+const mapLoc = l => l ? ({
+  id: l.id, name: l.name, city: l.city, addr: l.address,
+  icon: l.icon, desc: l.description,
+}) : null;
+
+const mapStaff = s => s ? ({
+  id: s.id, name: s.name, email: s.email, phone: s.phone,
+  role: s.role, locId: s.location_id, active: s.active, created: s.created_at?.split?.("T")[0],
+}) : null;
+
+const mapExp = e => e ? ({
+  id: e.id, locId: e.location_id, cat: e.category,
+  desc: e.description, amt: Number(e.amount), date: e.expense_date?.split?.("T")[0] || e.expense_date,
+}) : null;
+
+const Badge = ({ s, label }) => (
+  <span style={{ background: sB(s), color: sC(s), padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", whiteSpace: "nowrap" }}>
+    {label || s}
+  </span>
+);
+const Card = ({ children, style }) => (
+  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: 20, ...style }}>{children}</div>
+);
+const KPI = ({ label, value, sub, color, icon }) => (
+  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: "16px 18px" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+      <span style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</span>
+      {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+    </div>
+    <div style={{ fontSize: 24, fontWeight: 700, color: color || BK, fontFamily: "'Playfair Display',serif" }}>{value}</div>
+    {sub && <div style={{ fontSize: 12, color: G6, marginTop: 3 }}>{sub}</div>}
   </div>
 );
-const Sel = ({label,children,...p}) => (
-  <div style={{marginBottom:14}}>
-    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</label>}
-    <select {...p} style={{width:"100%",padding:"10px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:WH}}>{children}</select>
+const Inp = ({ label, ...p }) => (
+  <div style={{ marginBottom: 13 }}>
+    {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
+    <input {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", ...p.style }} />
   </div>
 );
-const Btn = ({children,onClick,v="pri",style,disabled}) => {
-  const S={pri:{background:M,color:WH,border:`1px solid ${M}`},out:{background:"transparent",color:M,border:`1px solid ${M}`},ghost:{background:"transparent",color:G6,border:`1px solid ${G2}`},ok:{background:OK,color:WH,border:`1px solid ${OK}`}};
-  return <button onClick={onClick} disabled={disabled} style={{padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:700,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.5:1,display:"inline-flex",alignItems:"center",gap:7,fontFamily:"inherit",...S[v],...style}}>{children}</button>;
+const Sel = ({ label, children, ...p }) => (
+  <div style={{ marginBottom: 13 }}>
+    {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
+    <select {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", background: WH }}>{children}</select>
+  </div>
+);
+const Btn = ({ children, onClick, v = "pri", style, disabled }) => {
+  const VS = { pri: { background: M, color: WH, border: `1px solid ${M}` }, out: { background: "transparent", color: M, border: `1px solid ${M}` }, ghost: { background: "transparent", color: G6, border: `1px solid ${G2}` }, ok: { background: OK, color: WH, border: `1px solid ${OK}` }, danger: { background: ER, color: WH, border: `1px solid ${ER}` } };
+  return <button onClick={onClick} disabled={disabled} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity .15s", ...VS[v], ...style }}>{children}</button>;
 };
-const Card = ({children,style}) => <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,padding:22,...style}}>{children}</div>;
-const Badge = ({text,color,bg}) => <span style={{background:bg||G1,color:color||G6,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700,textTransform:"uppercase"}}>{text}</span>;
+const Modal = ({ title, onClose, children, wide }) => (
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ background: WH, borderRadius: 16, width: "100%", maxWidth: wide ? 740 : 500, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.22)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${G2}`, position: "sticky", top: 0, background: WH, zIndex: 1 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{title}</h3>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, color: G4, lineHeight: 1, padding: 0 }}>×</button>
+      </div>
+      <div style={{ padding: 22 }}>{children}</div>
+    </div>
+  </div>
+);
+const Tbl = ({ hdr, rows }) => (
+  <div style={{ overflowX: "auto" }}>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <thead><tr style={{ borderBottom: `2px solid ${G2}` }}>{hdr.map((h, i) => <th key={i} style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".06em", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+      <tbody>{rows.length ? rows.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${G1}` }}>{r.map((c, j) => <td key={j} style={{ padding: "10px 10px", verticalAlign: "middle" }}>{c}</td>)}</tr>) : <tr><td colSpan={hdr.length} style={{ padding: 28, textAlign: "center", color: G4 }}>No records</td></tr>}</tbody>
+    </table>
+  </div>
+);
+const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: `4px solid ${M}`, paddingLeft: 11, color: BK }}>{children}</h3>;
 
+
+
+/* ─── LOADING SPINNER ───────────────────────────────────── */
+const Spinner = () => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, color: G4, fontSize: 14 }}>
+    <div style={{ width: 28, height: 28, border: `3px solid ${G2}`, borderTopColor: M, borderRadius: "50%", animation: "spin .7s linear infinite", marginRight: 12 }} />
+    Loading…
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>
+);
+
+/* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
-  const [page, setPage]       = useState("land"); // land | register | login | app | super | superlogin
-  const [tenant, setTenant]   = useState(null);
-  const [superUser, setSuperUser] = useState(null);
-  const [plans, setPlans]     = useState([]);
-  const [toast, setToast]     = useState(null);
-  const [billing, setBilling] = useState("monthly");
+  const [locs, setLocs]       = useState([]);
+  const [rooms, setRooms]     = useState([]);
+  const [books, setBooks]     = useState([]);
+  const [exps, setExps]       = useState([]);
+  const [staff, setStaff]     = useState([]);
+  const [payMethods, setPayMethods] = useState(['Cash','Mobile Money','Bank Transfer','Card']);
+  const [user, setUser]       = useState(null);
+  const [customer, setCustomer] = useState(null); // logged-in customer
+  const [view, setView]   = useState("land");
+  const [aTab, setATab]   = useState("dash");
+  const [modal, setModal] = useState(null);
+  const [custModal, setCustModal] = useState(null); // "login" | "register"
+  const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const pop = (msg, t="ok") => { setToast({msg,t}); setTimeout(()=>setToast(null),3500); };
+  // customer portal state
+  const [custBooks, setCustBooks] = useState([]);
+  const [custLoading, setCustLoading] = useState(false);
+  const [custTab, setCustTab] = useState("bookings"); // bookings | profile
 
-  useEffect(() => {
-    api.getPlans().then(setPlans).catch(()=>{});
-    // Restore session
-    const saved = sessionStorage.getItem("tenant");
-    if (saved) { try { setTenant(JSON.parse(saved)); setPage("app"); } catch {} }
-    const savedSuper = sessionStorage.getItem("superUser");
-    if (savedSuper) { try { setSuperUser(JSON.parse(savedSuper)); setPage("super"); } catch {} }
+  const loadCustBooks = async (cid) => {
+    setCustLoading(true);
+    try {
+      const data = await api.customerBookings(cid);
+      setCustBooks(data);
+    } catch (e) { /* ignore */ }
+    setCustLoading(false);
+  };
+
+  const custLogin = async (email, password) => {
+    const u = await api.customerLogin({ email, password });
+    setCustomer(u);
+    setCustModal(null);
+    setView("customer");
+    loadCustBooks(u.id);
+  };
+
+  const custRegister = async (form) => {
+    const u = await api.customerRegister(form);
+    setCustomer(u);
+    setCustModal(null);
+    setView("customer");
+    pop("Welcome, " + u.name + "! Account created.");
+  };
+
+  const custCancelBooking = async (bookingId) => {
+    if (!window.confirm("Cancel this booking? This cannot be undone.")) return;
+    try {
+      await api.customerCancel(bookingId, customer.id);
+      loadCustBooks(customer.id);
+      pop("Booking cancelled");
+    } catch (err) { pop(err.message, "err"); }
+  };
+
+  const custUpdateProfile = async (form) => {
+    try {
+      const updated = await api.customerUpdate(customer.id, form);
+      setCustomer(u => ({ ...u, ...updated }));
+      pop("Profile updated");
+      return true;
+    } catch (err) { pop(err.message, "err"); return false; }
+  };
+
+  // booking wizard state
+  const [bStep, setBStep] = useState(1);
+  const [bD, setBD] = useState({ locId:"", roomId:"", ci:"", co:"", nights:1, name:"", phone:"", email:"", nat:"", guests:1, notes:"", disc:0, discT:"pct", method:"" });
+  const [bookedDates, setBookedDates] = useState({}); // { roomId: [{ci,co},...] }
+  const [availLoading, setAvailLoading] = useState(false);
+  const [loginF, setLoginF] = useState({ email:"", pin:"" });
+  const [loginErr, setLoginErr] = useState("");
+
+  const pop = (msg, t="ok") => { setToast({msg,t}); setTimeout(()=>setToast(null),3200); };
+
+  /* ── LOAD DATA ── */
+  const loadAll = useCallback(async (u) => {
+    if (!u) return;
+    setLoading(true);
+    try {
+      const locId = u.role === "Admin" ? undefined : u.locId;
+      const [l, r, b, e, s] = await Promise.all([
+        api.getLocations(),
+        api.getRooms(locId),
+        api.getBookings(locId),
+        api.getExpenses(locId),
+        u.role === "Admin" ? api.getStaff() : Promise.resolve([]),
+      ]);
+      if (l?.length) setLocs(l.map(mapLoc));
+      if (r?.length) setRooms(r.map(mapRoom));
+      if (b?.length) setBooks(b.map(mapBook));
+      if (e?.length) setExps(e.map(mapExp));
+      if (s?.length) setStaff(s.map(mapStaff));
+    } catch {
+      // DB not configured yet — app still works with empty data
+      console.warn("DB not reachable — running in demo mode");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loginTenant = async (email, password) => {
-    const t = await api.tenantLogin({ email, password });
-    setTenant(t);
-    sessionStorage.setItem("tenant", JSON.stringify(t));
-    setPage("app");
-  };
+  // Load public data (locations + rooms) for booking portal
+  const loadPublic = useCallback(async () => {
+    try {
+      const [l, r, pm] = await Promise.all([api.getLocations(), api.getRooms(), api.getPayMethods()]);
+      setLocs(l.map(mapLoc));
+      setRooms(r.map(mapRoom));
+      if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
+    } catch (err) {
+      pop("Could not load locations. Check your connection.", "err");
+    }
+  }, []);
 
-  const registerTenant = async (form) => {
-    const t = await api.tenantRegister(form);
-    setTenant(t);
-    sessionStorage.setItem("tenant", JSON.stringify(t));
-    setPage("app");
-    pop("Welcome! Your account is ready.");
-  };
+  useEffect(() => { loadPublic(); }, [loadPublic]);
 
-  const logoutTenant = () => {
-    setTenant(null);
-    sessionStorage.removeItem("tenant");
-    setPage("land");
-  };
-
-  const loginSuper = async (email, password) => {
-    const u = await api.superLogin({ email, password });
-    setSuperUser(u);
-    sessionStorage.setItem("superUser", JSON.stringify(u));
-    setPage("super");
-  };
-
-  // If tenant is logged in → show lodge app
-  if (page === "app" && tenant) {
-    return <LodgeApp tenant={tenant} onLogout={logoutTenant} />;
-  }
-
-  // Super admin portal
-  if (page === "super" && superUser) {
-    return <SuperPortal superUser={superUser} onLogout={()=>{ setSuperUser(null); sessionStorage.removeItem("superUser"); setPage("land"); }} plans={plans} pop={pop} toast={toast} />;
-  }
-
-  return (
-    <div style={{fontFamily:"'DM Sans',sans-serif",minHeight:"100vh",background:WH}}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-
-      {/* ── NAV ── */}
-      <nav style={{background:BK,height:64,display:"flex",alignItems:"center",padding:"0 40px",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setPage("land")}>
-          <div style={{width:36,height:36,background:M,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <span style={{color:WH,fontWeight:900,fontSize:13,fontFamily:"'Playfair Display',serif"}}>L</span>
-          </div>
-          <span style={{color:WH,fontWeight:700,fontSize:17,fontFamily:"'Playfair Display',serif"}}>LodgeOS</span>
-        </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setPage("land")} style={{background:"none",border:"none",color:G4,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Home</button>
-          <button onClick={()=>document.getElementById("pricing")?.scrollIntoView({behavior:"smooth"})} style={{background:"none",border:"none",color:G4,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Pricing</button>
-          <button onClick={()=>setPage("login")} style={{background:"transparent",color:WH,border:"1px solid rgba(255,255,255,.25)",borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Sign In</button>
-          <button onClick={()=>setPage("register")} style={{background:M,color:WH,border:"none",borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>Start Free Trial</button>
-        </div>
-      </nav>
-
-      {/* ── PAGES ── */}
-      {page === "land"     && <LandingPage plans={plans} billing={billing} setBilling={setBilling} onRegister={()=>setPage("register")} onLogin={()=>setPage("login")} />}
-      {page === "register" && <RegisterPage plans={plans} billing={billing} onSubmit={registerTenant} onLogin={()=>setPage("login")} pop={pop} />}
-      {page === "login"    && <LoginPage onSubmit={loginTenant} onRegister={()=>setPage("register")} onSuper={()=>setPage("superlogin")} pop={pop} />}
-      {page === "superlogin" && <SuperLoginPage onSubmit={loginSuper} onBack={()=>setPage("login")} pop={pop}/>}
-
-      {toast && <div style={{position:"fixed",bottom:24,right:24,background:toast.t==="ok"?OK:ER,color:WH,padding:"11px 20px",borderRadius:10,fontSize:14,fontWeight:700,zIndex:9999,boxShadow:"0 8px 24px rgba(0,0,0,.2)"}}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
-    </div>
-  );
-}
-
-/* ─── LANDING PAGE ─────────────────────────────────────── */
-function LandingPage({ plans, billing, setBilling, onRegister, onLogin }) {
-  const features = [
-    ["🏨","Multi-location management","Run all your properties from one dashboard — Dar es Salaam, Zanzibar, anywhere."],
-    ["📋","Smart booking system","Full lifecycle: pending → confirmed → check-in → check-out. Extend stays in one click."],
-    ["💳","Payments & reports","Track revenue, expenses, outstanding balances. Financial reports from every angle."],
-    ["👥","Staff & access control","Create staff accounts with PIN login. Role-based access — receptionists see only their branch."],
-    ["🛏️","Room photo gallery","Upload photos per room. Customers browse your property before booking."],
-    ["👤","Customer portal","Guests create accounts, track their bookings, cancel if needed — all self-service."],
-    ["📊","Real-time analytics","Occupancy rates, revenue by location, payment method breakdown — always live."],
-    ["🔒","Secure multi-tenant","Every business's data is completely isolated. Bank-grade separation."],
+  /* ── AUTH ── */
+  /* Local fallback credentials — work even before Neon is set up */
+  const LOCAL_USERS = [
+    { id: "ADMIN", name: "BNC Admin",    email: "admin@bnc.co.tz",  pin: "0000", role: "Admin",        locId: null },
+    { id: "S1",    name: "Jane Mwangi",  email: "jane@bnc.co.tz",   pin: "1234", role: "Manager",      locId: "L1" },
+    { id: "S2",    name: "Peter Salum",  email: "peter@bnc.co.tz",  pin: "5678", role: "Receptionist", locId: "L3" },
   ];
-  return (
-    <div>
-      {/* Hero */}
-      <div style={{background:`linear-gradient(135deg,${BK} 0%,${MD} 55%,${M} 100%)`,padding:"100px 40px",textAlign:"center"}}>
-        <div style={{color:GOLD,fontSize:13,letterSpacing:".18em",textTransform:"uppercase",marginBottom:16,fontWeight:700}}>✦ The all-in-one platform for East African hospitality ✦</div>
-        <h1 style={{color:WH,fontSize:58,fontWeight:900,margin:"0 0 18px",fontFamily:"'Playfair Display',serif",lineHeight:1.1}}>
-          Manage Your Properties<br/><span style={{color:GOLD}}>Like a Pro</span>
+
+  const doLogin = async () => {
+    setLoginErr("");
+    const email = loginF.email.trim().toLowerCase();
+    const pin   = loginF.pin.trim();
+
+    // 1. Try local hardcoded credentials first (always works)
+    const local = LOCAL_USERS.find(u => u.email === email && u.pin === pin);
+    if (local) {
+      setUser(local);
+      setView("admin");
+      setATab("dash");
+      setModal(null);
+      await loadAll(local);
+      return;
+    }
+
+    // 2. Try Neon DB (works once DATABASE_URL is configured)
+    try {
+      const u = await api.login(email, pin);
+      setUser(u);
+      setView("admin");
+      setATab("dash");
+      setModal(null);
+      await loadAll(u);
+    } catch {
+      setLoginErr("Invalid email or PIN");
+    }
+  };
+
+  /* ── BOOKING HELPERS ── */
+  // Fetch booked date ranges when a location is chosen
+  useEffect(() => {
+    if (bD.locId && bStep >= 2) {
+      setAvailLoading(true);
+      api.getBookedDates(bD.locId)
+        .then(data => setBookedDates(data || {}))
+        .catch(() => setBookedDates({}))
+        .finally(() => setAvailLoading(false));
+    }
+  }, [bD.locId, bStep]);
+
+  // Check if a room is available for the selected dates
+  const isRoomAvailableForDates = (roomId) => {
+    if (!bD.ci || !bD.co) return true; // no dates selected yet
+    const bookings = bookedDates[roomId] || [];
+    return !bookings.some(b => b.ci < bD.co && b.co > bD.ci);
+  };
+
+  const selRoom = rooms.find(r => r.id === bD.roomId);
+  const bBase = selRoom ? selRoom.price * bD.nights : 0;
+  const bDiscAmt = bD.discT === "pct" ? bBase * bD.disc / 100 : Number(bD.disc);
+  const bTotal = bBase - bDiscAmt;
+
+  // Set default method from payMethods when they load
+  useEffect(() => {
+    if (payMethods?.length && !bD.method) setBD(d => ({ ...d, method: payMethods[0] }));
+  }, [payMethods]);
+
+  const confirmBook = async () => {
+    try {
+      const created = await api.createBooking({
+        room_id: bD.roomId, location_id: bD.locId,
+        guest_name: bD.name, guest_phone: bD.phone, guest_email: bD.email, guest_nationality: bD.nat,
+        check_in: bD.ci, check_out: bD.co, nights: bD.nights,
+        base_amount: bBase, discount: bD.disc, discount_type: bD.discT,
+        total_amount: bTotal, payment_method: bD.method, notes: bD.notes,
+        customer_id: customer?.id || null,
+      });
+      setBooks(p => [...p, mapBook(created)]);
+      pop("Booking confirmed! ID: " + created.id);
+      setBStep(5);
+    } catch (err) {
+      pop("Booking failed: " + err.message, "err");
+    }
+  };
+
+  /* ── ADMIN ACTIONS ── */
+  const deleteBooking = async (id, guestName) => {
+    if (!window.confirm(`Permanently delete booking for "${guestName}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteBooking(id);
+      setBooks(p => p.filter(b => b.id !== id));
+      pop(`Booking deleted`);
+    } catch (err) { pop(err.message || 'Delete failed', 'err'); }
+  };
+
+  const extendBooking = async (id, extraNights, extraAmount, newCheckout) => {
+    try {
+      const updated = await api.extendBooking(id, {
+        extra_nights: extraNights,
+        extra_amount: extraAmount,
+        new_checkout: newCheckout,
+      });
+      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
+      pop(`Stay extended by ${extraNights} night${extraNights > 1 ? "s" : ""} — new checkout: ${newCheckout}`);
+    } catch (err) { pop(err.message || "Extension failed", "err"); }
+  };
+
+  const updBook = async (id, status) => {
+    try {
+      const updated = await api.updateBooking(id, { status });
+      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
+      // Also refresh room status
+      const b = books.find(b => b.id === id);
+      if (b) {
+        if (status === "checkedIn") setRooms(p => p.map(r => r.id === b.roomId ? { ...r, status: "occupied" } : r));
+        if (status === "checkedOut" || status === "cancelled") setRooms(p => p.map(r => r.id === b.roomId ? { ...r, status: "available" } : r));
+      }
+      pop("Status updated");
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const recPay = async (id, amount, method) => {
+    try {
+      const updated = await api.recordPayment(id, Number(amount), method);
+      setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
+      pop("Payment recorded");
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const saveRoom = async (form, isEdit, statusOverride) => {
+    try {
+      const amen = typeof form.amen === "string" ? form.amen.split(",").map(a=>a.trim()).filter(Boolean) : form.amen;
+      const payload = {
+        location_id: form.locId, name: form.name, type: form.type,
+        beds: Number(form.beds), max_guests: Number(form.guests),
+        price_per_night: Number(form.price),
+        status: statusOverride || form.status,
+        amenities: amen,
+        photos: form.photos || [],
+      };
+      if (isEdit) {
+        const updated = await api.updateRoom(form.id, payload);
+        setRooms(p => p.map(r => r.id === form.id ? mapRoom(updated) : r));
+        pop(statusOverride ? "Status updated" : "Room updated");
+      } else {
+        const created = await api.createRoom(payload);
+        setRooms(p => [...p, mapRoom(created)]);
+        pop("Room created");
+      }
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const deleteRoom = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteRoom(id);
+      setRooms(p => p.filter(r => r.id !== id));
+      pop(`"${name}" deleted`);
+    } catch (err) { pop(err.message || 'Delete failed', "err"); }
+  };
+
+  const saveExp = async (form) => {
+    try {
+      const created = await api.createExpense({
+        location_id: form.locId, category: form.cat,
+        description: form.desc, amount: Number(form.amt), expense_date: form.date,
+        staff_id: user?.id,
+      });
+      setExps(p => [...p, mapExp(created)]);
+      pop("Expense recorded");
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const saveStaff = async (form, isEdit) => {
+    try {
+      const payload = { name: form.name, email: form.email, phone: form.phone, role: form.role, location_id: form.locId || null, pin: form.pin };
+      if (isEdit) {
+        const updated = await api.updateStaff(form.id, payload);
+        setStaff(p => p.map(s => s.id === form.id ? mapStaff(updated) : s));
+        pop("Staff updated");
+      } else {
+        const created = await api.createStaff(payload);
+        setStaff(p => [...p, mapStaff(created)]);
+        pop("Account created");
+      }
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const toggleStaff = async (s) => {
+    try {
+      const updated = await api.updateStaff(s.id, { active: !s.active });
+      setStaff(p => p.map(st => st.id === s.id ? mapStaff(updated) : st));
+      pop(!s.active ? "Activated" : "Deactivated");
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const deleteLoc = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This hides it from the app. Rooms and bookings are kept.`)) return;
+    try {
+      await api.deleteLocation(id);
+      setLocs(p => p.filter(l => l.id !== id));
+      pop(`"${name}" deleted`);
+    } catch (err) { pop(err.message || 'Delete failed', 'err'); }
+  };
+
+  const saveLoc = async (form, isEdit) => {
+    try {
+      if (isEdit) {
+        const updated = await api.updateLocation(form.id, { name: form.name, city: form.city, address: form.addr, icon: form.icon, description: form.desc });
+        setLocs(p => p.map(l => l.id === form.id ? mapLoc(updated) : l));
+        pop("Location updated");
+      } else {
+        const created = await api.createLocation({ name: form.name, city: form.city, address: form.addr || '', icon: form.icon, description: form.desc || '' });
+        setLocs(p => [...p, mapLoc(created)]);
+        pop("Location added");
+      }
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('schema.sql') || msg.includes('does not exist') || msg.includes('Table not found')) {
+        pop("⚠ DB not set up. Visit /api/setup for details.", "err");
+      } else {
+        pop(msg || "Failed to save location", "err");
+      }
+    }
+  };
+
+  const updateProfile = async (form) => {
+    try {
+      const updated = await api.updateProfile(form);
+      setUser(u => ({ ...u, name: updated.name, email: updated.email }));
+      pop('Profile updated');
+      return true;
+    } catch (err) {
+      pop(err.message || 'Update failed', 'err');
+      return false;
+    }
+  };
+
+  const createNewBooking = async (form, base, da, total) => {
+    try {
+      const created = await api.createBooking({
+        room_id: form.roomId, location_id: form.locId,
+        guest_name: form.name, guest_phone: form.phone, guest_email: form.email,
+        guest_nationality: form.nat, check_in: form.ci, check_out: form.co, nights: form.nights,
+        base_amount: base, discount: form.disc, discount_type: form.discT,
+        total_amount: total, paid_amount: Number(form.paid),
+        payment_method: form.method, notes: form.notes, staff_id: user?.id,
+      });
+      setBooks(p => [...p, mapBook(created)]);
+      setModal(null);
+      pop("Booking created: " + created.id);
+    } catch (err) { pop(err.message || 'Operation failed', "err"); }
+  };
+
+  const ATABS = [
+    { id:"dash",label:"Dashboard",icon:"📊" }, { id:"books",label:"Bookings",icon:"📋" },
+    { id:"rooms",label:"Rooms",icon:"🛏️" }, { id:"pays",label:"Payments",icon:"💳" },
+    { id:"exps",label:"Expenses",icon:"📤" }, { id:"reports",label:"Reports",icon:"📈" },
+    ...(user?.role === "Admin" ? [{ id:"locs",label:"Locations",icon:"📍" }, { id:"staff",label:"Staff",icon:"👥" }] : []),
+    { id:"profile",label:"My Profile",icon:"👤" },
+  ];
+
+  const NavBar = () => (
+    <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 28px", justifyContent:"space-between", flexShrink:0 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>setView("land")}>
+        <div style={{ width:36, height:36, background:M, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <span style={{ color:WH, fontWeight:900, fontSize:12, fontFamily:"'Playfair Display',serif" }}>BNC</span>
+        </div>
+        <div>
+          <div style={{ color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", lineHeight:1.2 }}>BNC Apartment</div>
+          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Serviced Apartments</div>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        {view !== "book" && view !== "customer" && <button onClick={()=>{setView("book");setBStep(1);}} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Book a Room</button>}
+        {customer && view !== "admin" ? (
+          <>
+            <button onClick={()=>setView("customer")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.2)", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{ width:22, height:22, background:"#C9A84C", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:BK, flexShrink:0 }}>
+                {(customer.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
+              </div>
+              <span>{customer.name}</span>
+            </button>
+            <button onClick={()=>{setCustomer(null);setView("land");}} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
+          </>
+        ) : !customer && view !== "admin" ? (
+          <>
+            <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>My Account</button>
+            <button onClick={()=>setModal("login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Staff</button>
+          </>
+        ) : user ? (
+          <>
+            <button onClick={()=>setATab("profile")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.2)", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{ width:22, height:22, background:M, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:WH, border:"1.5px solid rgba(255,255,255,.3)", flexShrink:0 }}>
+                {(user?.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
+              </div>
+              <span>{user?.name}</span> <span style={{ color:GOLD }}>· {user?.role}</span>
+            </button>
+            <button onClick={()=>{setUser(null);setView("land");}} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
+          </>
+        ) : <button onClick={()=>setModal("login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Staff Login</button>}
+      </div>
+    </nav>
+  );
+
+
+
+  /* ── LANDING ── */
+  if (view === "land") return (
+    <div style={{ minHeight:"100vh", background:WH, fontFamily:"'DM Sans',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      <NavBar/>
+      <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
+        <div style={{ color:GOLD, fontSize:12, letterSpacing:".2em", textTransform:"uppercase", marginBottom:14 }}>✦ Premium Serviced Apartments ✦</div>
+        <h1 style={{ color:WH, fontSize:52, fontWeight:900, margin:"0 0 14px", fontFamily:"'Playfair Display',serif", lineHeight:1.15 }}>
+          Your Home<br/><span style={{ color:GOLD }}>Away From Home</span>
         </h1>
-        <p style={{color:"rgba(255,255,255,.75)",fontSize:19,maxWidth:560,margin:"0 auto 40px",lineHeight:1.7}}>
-          Bookings, check-ins, payments, staff, reports — everything in one place. Built for hotels, guesthouses, and serviced apartments.
+        <p style={{ color:"rgba(255,255,255,.7)", fontSize:17, maxWidth:480, margin:"0 auto 32px", lineHeight:1.7 }}>
+          Luxury serviced apartments across Tanzania. Book direct for the best rates.
         </p>
-        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-          <button onClick={onRegister} style={{background:M,color:WH,border:`2px solid ${GOLD}`,borderRadius:10,padding:"14px 36px",fontSize:17,cursor:"pointer",fontWeight:700,fontFamily:"'Playfair Display',serif"}}>Start 14-Day Free Trial →</button>
-          <button onClick={onLogin} style={{background:"transparent",color:WH,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"14px 28px",fontSize:16,cursor:"pointer",fontFamily:"inherit"}}>Sign In</button>
-        </div>
-        <div style={{color:"rgba(255,255,255,.5)",fontSize:13,marginTop:16}}>No credit card required · Free plan available · Cancel anytime</div>
+        <button onClick={()=>setView("book")} style={{ background:M, color:WH, border:`2px solid ${GOLD}`, borderRadius:10, padding:"13px 34px", fontSize:16, cursor:"pointer", fontWeight:700, fontFamily:"'Playfair Display',serif" }}>
+          Explore & Book →
+        </button>
       </div>
-
-      {/* Features */}
-      <div style={{padding:"80px 40px",maxWidth:1100,margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:52}}>
-          <div style={{color:M,fontSize:12,letterSpacing:".18em",textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Everything You Need</div>
-          <h2 style={{fontSize:38,fontWeight:700,color:BK,fontFamily:"'Playfair Display',serif",margin:0}}>Built for the hospitality business</h2>
+      <div style={{ padding:"56px 28px", maxWidth:1060, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:36 }}>
+          <div style={{ color:M, fontSize:12, letterSpacing:".18em", textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>Our Properties</div>
+          <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Choose Your Location</h2>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:22}}>
-          {features.map(([icon,title,desc]) => (
-            <div key={title} style={{background:G1,borderRadius:14,padding:"24px 22px"}}>
-              <div style={{fontSize:32,marginBottom:12}}>{icon}</div>
-              <div style={{fontWeight:700,fontSize:16,color:BK,fontFamily:"'Playfair Display',serif",marginBottom:8}}>{title}</div>
-              <div style={{fontSize:14,color:G6,lineHeight:1.6}}>{desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Pricing */}
-      <div id="pricing" style={{padding:"80px 40px",background:G1}}>
-        <div style={{textAlign:"center",marginBottom:44}}>
-          <div style={{color:M,fontSize:12,letterSpacing:".18em",textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Simple Pricing</div>
-          <h2 style={{fontSize:38,fontWeight:700,color:BK,fontFamily:"'Playfair Display',serif",margin:"0 0 20px"}}>Choose your plan</h2>
-          {/* Billing toggle */}
-          <div style={{display:"inline-flex",border:`1px solid ${G2}`,borderRadius:99,overflow:"hidden",background:WH}}>
-            {["monthly","yearly"].map(b => (
-              <button key={b} onClick={()=>setBilling(b)} style={{padding:"8px 22px",border:"none",background:billing===b?M:WH,color:billing===b?WH:G6,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",textTransform:"capitalize"}}>
-                {b}{b==="yearly" && <span style={{marginLeft:6,fontSize:11,color:billing==="yearly"?GOLD:OK,fontWeight:700}}>Save 17%</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18,maxWidth:960,margin:"0 auto"}}>
-          {plans.map((p,i) => {
-            const price = billing==="yearly" ? p.price_yearly : p.price_monthly;
-            const isPro = p.id === "pro";
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:22 }}>
+          {locs.map(loc => {
+            const avail = rooms.filter(r=>r.locId===loc.id&&r.status==="available").length;
             return (
-              <div key={p.id} style={{background:WH,borderRadius:16,padding:26,border:isPro?`2px solid ${M}`:`1px solid ${G2}`,position:"relative"}}>
-                {isPro && <div style={{position:"absolute",top:-13,left:"50%",transform:"translateX(-50%)",background:M,color:WH,fontSize:11,fontWeight:700,padding:"4px 16px",borderRadius:99,whiteSpace:"nowrap"}}>Most Popular</div>}
-                <div style={{fontWeight:700,fontSize:17,fontFamily:"'Playfair Display',serif",marginBottom:6}}>{p.name}</div>
-                <div style={{marginBottom:16}}>
-                  <span style={{fontSize:30,fontWeight:900,color:M,fontFamily:"'Playfair Display',serif"}}>{price===0?"Free":fmt(price)}</span>
-                  {price>0 && <span style={{fontSize:13,color:G6}}>/{billing==="yearly"?"year":"month"}</span>}
+              <div key={loc.id}
+                onClick={()=>{setBD(d=>({...d,locId:loc.id}));setView("book");setBStep(2);}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow=`0 14px 36px rgba(107,27,42,.16)`;}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
+                style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .2s,box-shadow .2s" }}>
+                <div style={{ background:`linear-gradient(135deg,${MD},${M})`, height:140, display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{loc.icon}</div>
+                <div style={{ padding:20 }}>
+                  <div style={{ fontSize:11, color:M, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em", marginBottom:6 }}>{loc.city}</div>
+                  <h3 style={{ margin:"0 0 8px", fontSize:20, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif" }}>{loc.name}</h3>
+                  <p style={{ margin:"0 0 14px", fontSize:14, color:G6, lineHeight:1.6 }}>{loc.desc}</p>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <span style={{ fontSize:12, color:avail>0?OK:ER, fontWeight:700 }}>{avail>0?`✓ ${avail} rooms available`:"No availability"}</span>
+                    <span style={{ fontSize:12, color:M, fontWeight:700 }}>View →</span>
+                  </div>
                 </div>
-                <div style={{fontSize:12,color:G6,marginBottom:18}}>
-                  Up to {p.max_locations} location{p.max_locations>1?"s":""} · {p.max_rooms} rooms · {p.max_staff} staff
-                </div>
-                <div style={{marginBottom:22}}>
-                  {(p.features||[]).map((f,j) => <div key={j} style={{fontSize:13,color:G8,padding:"4px 0",display:"flex",gap:7,alignItems:"center"}}><span style={{color:OK,fontWeight:700}}>✓</span>{f}</div>)}
-                </div>
-                <button onClick={onRegister} style={{width:"100%",padding:"10px",border:"none",borderRadius:8,background:isPro?M:WH,color:isPro?WH:M,border:`1px solid ${M}`,cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
-                  {p.id==="free"?"Get Started Free":"Start Free Trial"}
-                </button>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* CTA footer */}
-      <div style={{background:BK,padding:"70px 40px",textAlign:"center"}}>
-        <h2 style={{color:WH,fontSize:36,fontFamily:"'Playfair Display',serif",marginBottom:14}}>Ready to streamline your business?</h2>
-        <p style={{color:"rgba(255,255,255,.65)",fontSize:17,marginBottom:32}}>Join hundreds of properties across Tanzania already using LodgeOS.</p>
-        <button onClick={onRegister} style={{background:M,color:WH,border:`2px solid ${GOLD}`,borderRadius:10,padding:"14px 36px",fontSize:16,cursor:"pointer",fontWeight:700,fontFamily:"'Playfair Display',serif"}}>Start Your Free Trial →</button>
-        <div style={{color:"rgba(255,255,255,.4)",fontSize:12,marginTop:24}}>
-          Questions? Email <span style={{color:GOLD}}>hello@lodgeos.com</span> · Super admin? <button onClick={()=>document.dispatchEvent(new CustomEvent("gotosuper"))} style={{background:"none",border:"none",color:"rgba(255,255,255,.3)",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>Login here</button>
-        </div>
-      </div>
+      {modal==="login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
+      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
     </div>
   );
-}
 
-/* ─── REGISTER PAGE ─────────────────────────────────────── */
-function RegisterPage({ plans, billing, onSubmit, onLogin, pop }) {
-  const [step, setStep]   = useState(1); // 1=details, 2=plan, 3=payment
-  const [form, setForm]   = useState({ business_name:"", owner_name:"", email:"", phone:"", city:"", country:"Tanzania", password:"", confirm:"", plan_id:"free", cycle:"monthly", payment_method:"Mobile Money", payment_ref:"" });
-  const [err, setErr]     = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const selPlan = plans.find(p=>p.id===form.plan_id);
-
-  const next = () => {
-    setErr("");
-    if (step===1) {
-      if (!form.business_name||!form.owner_name||!form.email||!form.password) return setErr("All fields required");
-      if (form.password.length<6) return setErr("Password must be at least 6 characters");
-      if (form.password!==form.confirm) return setErr("Passwords do not match");
-      setStep(2);
-    } else if (step===2) {
-      if (form.plan_id==="free") { doRegister(); } else setStep(3);
-    } else {
-      doRegister();
-    }
-  };
-
-  const doRegister = async () => {
-    setLoading(true); setErr("");
-    try {
-      const price = billing==="yearly" ? selPlan?.price_yearly : selPlan?.price_monthly;
-      await onSubmit({ ...form, cycle: billing, amount: price });
-    } catch(e) { setErr(e.message); }
-    setLoading(false);
-  };
-
-  const inpStyle = {width:"100%",padding:"10px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",marginBottom:14};
-
-  return (
-    <div style={{minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 16px",background:G1}}>
-      <div style={{width:"100%",maxWidth:520}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,color:BK,margin:"0 0 8px"}}>Create your account</h2>
-          <p style={{color:G6,fontSize:15}}>Start your 14-day free trial. No credit card required.</p>
-        </div>
-
-        {/* Step indicators */}
-        <div style={{display:"flex",gap:0,marginBottom:28,borderRadius:10,overflow:"hidden",border:`1px solid ${G2}`}}>
-          {["Your Details","Choose Plan","Payment"].map((s,i)=>(
-            <div key={i} style={{flex:1,padding:"10px",textAlign:"center",background:step===i+1?M:step>i+1?OKB:WH,color:step===i+1?WH:step>i+1?OK:G4,fontSize:12,fontWeight:700,borderRight:i<2?`1px solid ${G2}`:"none"}}>
-              {step>i+1?"✓ ":""}{s}
-            </div>
-          ))}
-        </div>
-
-        <Card>
-          {step===1 && (
-            <>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Business Name</label>
-              <input style={inpStyle} value={form.business_name} onChange={e=>setForm(f=>({...f,business_name:e.target.value}))} placeholder="BNC Apartment" />
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Your Full Name</label>
-              <input style={inpStyle} value={form.owner_name} onChange={e=>setForm(f=>({...f,owner_name:e.target.value}))} placeholder="John Doe" />
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Email</label>
-                  <input type="email" style={inpStyle} value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="you@business.com" />
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Phone</label>
-                  <input style={inpStyle} value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="+255 7XX..." />
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>City</label>
-                  <input style={inpStyle} value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))} placeholder="Dar es Salaam" />
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Country</label>
-                  <input style={inpStyle} value={form.country} onChange={e=>setForm(f=>({...f,country:e.target.value}))} placeholder="Tanzania" />
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Password</label>
-                  <input type="password" style={inpStyle} value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))} placeholder="Min 6 characters" />
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Confirm Password</label>
-                  <input type="password" style={inpStyle} value={form.confirm} onChange={e=>setForm(f=>({...f,confirm:e.target.value}))} placeholder="Re-enter" />
-                </div>
+  if (view === "book") return (
+    <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+      <NavBar />
+      {/* Step progress */}
+      {bStep < 5 && (
+        <div style={{ background: WH, borderBottom: `1px solid ${G2}` }}>
+          <div style={{ display: "flex", maxWidth: 780, margin: "0 auto" }}>
+            {["Location", "Room", "Dates", "Details", "Confirm"].map((s, i) => (
+              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: `3px solid ${bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent"}`, color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: "50%", background: bStep > i + 1 ? OK : bStep === i + 1 ? M : G2, color: bStep >= i + 1 ? WH : G4, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                    {bStep > i + 1 ? "✓" : i + 1}
+                  </span>{s}
+                </span>
               </div>
-            </>
-          )}
-
-          {step===2 && (
-            <div>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:16,color:BK}}>Choose your plan</div>
-              <div style={{display:"flex",gap:0,marginBottom:16,borderRadius:8,overflow:"hidden",border:`1px solid ${G2}`}}>
-                {["monthly","yearly"].map(b=>(
-                  <button key={b} onClick={()=>setForm(f=>({...f,cycle:b}))} style={{flex:1,padding:"8px",border:"none",background:form.cycle===b?M:WH,color:form.cycle===b?WH:G6,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",textTransform:"capitalize"}}>{b}</button>
-                ))}
-              </div>
-              {plans.map(p => {
-                const price = form.cycle==="yearly"?p.price_yearly:p.price_monthly;
-                const sel = form.plan_id===p.id;
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ maxWidth: 780, margin: "0 auto", padding: "28px 16px" }}>
+        {/* Step 1 */}
+        {bStep === 1 && (
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 22, color: BK }}>Choose a Location</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+              {locs.map(loc => {
+                const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
                 return (
-                  <div key={p.id} onClick={()=>setForm(f=>({...f,plan_id:p.id}))}
-                    style={{border:`2px solid ${sel?M:G2}`,borderRadius:10,padding:"14px 16px",marginBottom:10,cursor:"pointer",background:sel?MF:WH,transition:"border-color .15s"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div>
-                        <div style={{fontWeight:700,color:sel?M:BK}}>{p.name}</div>
-                        <div style={{fontSize:12,color:G6}}>{p.max_locations} loc · {p.max_rooms} rooms · {p.max_staff} staff</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:700,fontSize:16,color:M,fontFamily:"'Playfair Display',serif"}}>{price===0?"Free":fmt(price)}</div>
-                        {price>0&&<div style={{fontSize:11,color:G4}}>/{form.cycle==="yearly"?"yr":"mo"}</div>}
-                      </div>
+                  <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); setBStep(2); }}
+                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: `2px solid ${bD.locId === loc.id ? M : G2}`, transition: "border-color .15s" }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = M}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = bD.locId === loc.id ? M : G2}>
+                    <div style={{ background: `linear-gradient(135deg,${MD},${M})`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>{loc.icon}</div>
+                    <div style={{ padding: 14 }}>
+                      <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
+                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} rooms available</div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
-
-          {step===3 && (
-            <div>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:14,color:BK}}>Payment Details</div>
-              <div style={{background:MF,borderRadius:8,padding:"12px 14px",marginBottom:18,fontSize:14}}>
-                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:G6}}>Plan</span><strong>{selPlan?.name}</strong></div>
-                <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}><span style={{color:G6}}>Amount</span><strong style={{color:M}}>{fmt(form.cycle==="yearly"?selPlan?.price_yearly:selPlan?.price_monthly)} / {form.cycle==="yearly"?"year":"month"}</strong></div>
-              </div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Payment Method</label>
-              <select style={{...inpStyle}} value={form.payment_method} onChange={e=>setForm(f=>({...f,payment_method:e.target.value}))}>
-                <option>Mobile Money</option><option>Bank Transfer</option><option>Cash</option>
-              </select>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Payment Reference / Transaction ID</label>
-              <input style={inpStyle} value={form.payment_ref} onChange={e=>setForm(f=>({...f,payment_ref:e.target.value}))} placeholder="e.g. M-PESA ref, bank ref..." />
-              <div style={{background:G1,borderRadius:8,padding:"10px 13px",fontSize:12,color:G6}}>
-                Your account will be activated once payment is confirmed. For immediate access, choose the Free plan.
-              </div>
+          </div>
+        )}
+        {/* Step 2 */}
+        {bStep === 2 && (
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select a Room</h2>
+            <p style={{ color: G6, marginBottom: 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            {availLoading && <div style={{ padding: "12px 0", fontSize: 13, color: G6 }}>Checking availability…</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {rooms.filter(r => r.locId === bD.locId).map(rm => {
+                const physicallyOccupied = rm.status !== "available";
+                const dateUnavailable = !isRoomAvailableForDates(rm.id);
+                const unavailable = physicallyOccupied || dateUnavailable;
+                const unavailReason = physicallyOccupied ? rm.status : dateUnavailable && bD.ci && bD.co ? "dates taken" : null;
+                return (
+                <div key={rm.id}
+                  onClick={() => !unavailable && setBD(d => ({ ...d, roomId: rm.id }))}
+                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : G2}`, cursor: unavailable ? "not-allowed" : "pointer", opacity: unavailable ? .55 : 1, overflow: "hidden", transition: "border-color .15s" }}>
+                  {rm.photos && rm.photos.length > 0 && (
+                    <div style={{ position: "relative", height: 160 }}>
+                      <img src={rm.photos[0]} alt={rm.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      {rm.photos.length > 1 && <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>{rm.photos.length} photos</div>}
+                    </div>
+                  )}
+                  <div style={{ padding: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif" }}>{rm.name}</span>
+                        {unavailReason === "dates taken"
+                          ? <span style={{ background: WAB, color: WA, padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Dates Unavailable</span>
+                          : <Badge s={rm.status} />}
+                      </div>
+                      <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 8px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(rm.price)}</div>
+                      <div style={{ fontSize: 11, color: G4 }}>per night</div>
+                    </div>
+                  </div>
+                </div>
+              );
+              })}
             </div>
-          )}
-
-          {err && <div style={{background:ERB,color:ER,borderRadius:8,padding:"10px 13px",fontSize:13,marginBottom:14,marginTop:8}}>{err}</div>}
-
-          <div style={{display:"flex",gap:10,marginTop:16}}>
-            {step>1 && <Btn v="ghost" onClick={()=>setStep(s=>s-1)} style={{flex:1,justifyContent:"center"}}>← Back</Btn>}
-            <Btn onClick={next} disabled={loading} style={{flex:2,justifyContent:"center"}}>
-              {loading?"Creating account…":step===2&&form.plan_id==="free"?"Create Free Account":step===3?"Activate Account →":"Continue →"}
-            </Btn>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <Btn v="ghost" onClick={() => setBStep(1)}>← Back</Btn>
+              <Btn onClick={() => setBStep(3)} disabled={!bD.roomId}>Continue →</Btn>
+            </div>
           </div>
-          <div style={{textAlign:"center",marginTop:14,fontSize:13,color:G6}}>
-            Already have an account? <button onClick={onLogin} style={{background:"none",border:"none",color:M,fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Sign in</button>
+        )}
+        {/* Step 3 */}
+        {bStep === 3 && (
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 20, color: BK }}>Select Dates</h2>
+            <Card>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <Inp label="Check-in Date" type="date" value={bD.ci} min={td()}
+                  onChange={e => { const ci = e.target.value; const n = bD.co ? dd(ci, bD.co) : 1; setBD(d => ({ ...d, ci, nights: n })); }} />
+                <Inp label="Check-out Date" type="date" value={bD.co} min={bD.ci || td()}
+                  onChange={e => { const co = e.target.value; const n = bD.ci ? dd(bD.ci, co) : 1; setBD(d => ({ ...d, co, nights: n })); }} />
+              </div>
+              {bD.ci && bD.co && (
+                <div style={{ background: MF, borderRadius: 8, padding: 13, marginTop: 4, fontSize: 14, color: M, fontWeight: 700 }}>
+                  {bD.nights} night{bD.nights > 1 ? "s" : ""} · {fmt(selRoom?.price * bD.nights)}
+                </div>
+              )}
+            </Card>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <Btn v="ghost" onClick={() => setBStep(2)}>← Back</Btn>
+              <Btn onClick={() => {
+                if (bD.roomId && !isRoomAvailableForDates(bD.roomId)) {
+                  setBD(d => ({...d, roomId: ""}));
+                  pop("Your selected room is not available for those dates. Please select another room.", "err");
+                  setBStep(2);
+                } else {
+                  setBStep(4);
+                }
+              }} disabled={!bD.ci || !bD.co}>Continue →</Btn>
+            </div>
           </div>
-        </Card>
+        )}
+        {/* Step 4 */}
+        {bStep === 4 && (
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 20, color: BK }}>Your Details</h2>
+            <Card style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14 }}>Guest Information</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
+                <Inp label="Full Name *" value={bD.name} onChange={e => setBD(d => ({ ...d, name: e.target.value }))} placeholder="John Doe" />
+                <Inp label="Phone *" value={bD.phone} onChange={e => setBD(d => ({ ...d, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
+                <Inp label="Email" type="email" value={bD.email} onChange={e => setBD(d => ({ ...d, email: e.target.value }))} placeholder="your@email.com" />
+                <Inp label="Nationality" value={bD.nat} onChange={e => setBD(d => ({ ...d, nat: e.target.value }))} placeholder="Tanzanian" />
+                <Sel label="Guests" value={bD.guests} onChange={e => setBD(d => ({ ...d, guests: e.target.value }))}>{[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} guest{n > 1 ? "s" : ""}</option>)}</Sel>
+                <Sel label="Payment Method" value={bD.method} onChange={e => setBD(d => ({ ...d, method: e.target.value }))}>
+                  {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => <option key={pm}>{pm}</option>)}
+                </Sel>
+              </div>
+              <Inp label="Special Requests" value={bD.notes} onChange={e => setBD(d => ({ ...d, notes: e.target.value }))} placeholder="Early check-in, extra towels…" />
+            </Card>
+            {/* Summary */}
+            <Card style={{ background: BK, border: "none" }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: GOLD, fontFamily: "'Playfair Display',serif", marginBottom: 12 }}>Booking Summary</div>
+              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [bD.nights + " nights", "Duration"], [fmt(selRoom?.price), "Rate/Night"], [fmt(bBase), "Base Total"], bDiscAmt > 0 && [`- ${fmt(bDiscAmt)}`, "Discount"]].filter(Boolean).map(([v, k], i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,.65)", padding: "4px 0" }}>
+                  <span>{k}</span><span style={{ color: WH, fontWeight: 600 }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid rgba(255,255,255,.15)", paddingTop: 10, marginTop: 6, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: GOLD, fontWeight: 700, fontSize: 14 }}>Total</span>
+                <span style={{ color: GOLD, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif" }}>{fmt(bTotal)}</span>
+              </div>
+            </Card>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <Btn v="ghost" onClick={() => setBStep(3)}>← Back</Btn>
+              <Btn onClick={confirmBook} disabled={!bD.name || !bD.phone}>Confirm Booking →</Btn>
+            </div>
+          </div>
+        )}
+        {/* Step 5 confirmed */}
+        {bStep === 5 && (
+          <div style={{ textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ fontSize: 62, marginBottom: 18 }}>🎉</div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 30, color: BK, marginBottom: 12 }}>Booking Confirmed!</h2>
+            <p style={{ color: G6, fontSize: 15, maxWidth: 400, margin: "0 auto 28px", lineHeight: 1.7 }}>
+              Thank you, <strong>{bD.name}</strong>! Your booking is confirmed. Our team will contact you shortly.
+            </p>
+            <Card style={{ maxWidth: 380, margin: "0 auto 28px", background: MF, border: `1px solid ${M}30`, textAlign: "left" }}>
+              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [fmt(bTotal), "Total"], [bD.method, "Payment"]].map(([v, k]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${M}15` }}>
+                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
+                </div>
+              ))}
+            </Card>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <Btn v="out" onClick={() => { setView("land"); setBStep(1); setBD({ locId: "", roomId: "", ci: "", co: "", nights: 1, name: "", phone: "", email: "", nat: "", guests: 1, notes: "", disc: 0, discT: "pct", method: "Cash" }); }}>← Back to Home</Btn>
+              {customer
+                ? <Btn onClick={() => { setView("customer"); setCustTab("bookings"); loadCustBooks(customer.id); }}>View My Bookings</Btn>
+                : <Btn onClick={() => setCustModal("register")}>Create Account to Track Bookings</Btn>
+              }
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-/* ─── LOGIN PAGE ────────────────────────────────────────── */
-function LoginPage({ onSubmit, onRegister, onSuper, pop }) {
-  const [email, setEmail]     = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr]         = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const doLogin = async () => {
-    setErr(""); setLoading(true);
-    try { await onSubmit(email.trim(), password); }
-    catch(e) { setErr(e.message); }
-    setLoading(false);
-  };
-
-  const inpStyle = {width:"100%",padding:"10px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",marginBottom:14};
-
-  return (
-    <div style={{minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 16px",background:G1}}>
-      <div style={{width:"100%",maxWidth:420}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{width:48,height:48,background:M,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}>
-            <span style={{color:WH,fontWeight:900,fontSize:20,fontFamily:"'Playfair Display',serif"}}>L</span>
-          </div>
-          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:BK,margin:"0 0 6px"}}>Sign in to LodgeOS</h2>
-          <p style={{color:G6,fontSize:14}}>Enter your business account credentials</p>
-        </div>
-        <Card>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Email Address</label>
-          <input type="email" style={inpStyle} value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@business.com" onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Password</label>
-          <input type="password" style={inpStyle} value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••" onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
-          {err && <div style={{background:ERB,color:ER,borderRadius:8,padding:"10px 13px",fontSize:13,marginBottom:14}}>{err}</div>}
-          <Btn onClick={doLogin} disabled={loading} style={{width:"100%",justifyContent:"center",padding:"11px"}}>
-            {loading?"Signing in…":"Sign In"}
-          </Btn>
-          <div style={{textAlign:"center",marginTop:14,fontSize:13,color:G6}}>
-            Don't have an account? <button onClick={onRegister} style={{background:"none",border:"none",color:M,fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Start free trial</button>
-          </div>
-        </Card>
-        <div style={{textAlign:"center",marginTop:16}}>
-          <button onClick={onSuper} style={{background:"none",border:"none",color:G4,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Platform administrator? Sign in here</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── SUPER LOGIN PAGE ──────────────────────────────────── */
-function SuperLoginPage({ onSubmit, onBack, pop }) {
-  const [email, setEmail]     = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr]         = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const doLogin = async () => {
-    setErr(""); setLoading(true);
-    try { await onSubmit(email, password); }
-    catch(e) { setErr(e.message); }
-    setLoading(false);
-  };
-
-  const inpStyle = {width:"100%",padding:"10px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:14,color:BK,outline:"none",boxSizing:"border-box",fontFamily:"inherit",marginBottom:14};
-
-  return (
-    <div style={{minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 16px",background:G1}}>
-      <div style={{width:"100%",maxWidth:380}}>
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{background:ERB,border:`1px solid ${ER}30`,borderRadius:10,padding:"10px 16px",fontSize:13,color:ER,marginBottom:20}}>
-            🔒 Platform Administrator Access Only
-          </div>
-          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:BK,margin:"0 0 6px"}}>Super Admin Login</h2>
-          <p style={{color:G6,fontSize:13}}>Default: super@lodgeos.com / super1234</p>
-        </div>
-        <Card>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Email</label>
-          <input type="email" style={inpStyle} value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Password</label>
-          <input type="password" style={inpStyle} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
-          {err && <div style={{background:ERB,color:ER,borderRadius:8,padding:"10px 13px",fontSize:13,marginBottom:14}}>{err}</div>}
-          <Btn onClick={doLogin} disabled={loading} style={{width:"100%",justifyContent:"center",marginBottom:10}}>
-            {loading?"Signing in…":"Sign In as Super Admin"}
-          </Btn>
-          <button onClick={onBack} style={{width:"100%",padding:"9px",border:"none",background:"none",color:G6,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>← Back to regular login</button>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-/* ─── SUPER ADMIN PORTAL ────────────────────────────────── */
-function SuperPortal({ superUser, onLogout, plans, pop, toast }) {
-  const [tab, setTab]         = useState("overview");
-  const [stats, setStats]     = useState(null);
-  const [tenants, setTenants] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch]   = useState("");
-  const [sel, setSel]         = useState(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [s, t] = await Promise.all([api.superStats(), api.superTenants()]);
-      setStats(s); setTenants(t);
-    } catch(e) { pop(e.message,"err"); }
-    setLoading(false);
-  };
-
-  useEffect(()=>{ load(); },[]);
-
-  const updateTenant = async (tid, body) => {
-    try {
-      await api.superUpdate(tid, body);
-      pop("Updated"); load();
-    } catch(e) { pop(e.message,"err"); }
-  };
-
-  const deleteTenant = async (tid, name) => {
-    if (!window.confirm(`Permanently delete "${name}" and ALL their data? This cannot be undone.`)) return;
-    try { await api.superDelete(tid); pop("Deleted"); load(); setSel(null); }
-    catch(e) { pop(e.message,"err"); }
-  };
-
-  const filtered = tenants.filter(t => !search || t.business_name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase()));
-
-  const planColor = { free:"#888",starter:IN,pro:M,enterprise:OK };
-
-  const KPI = ({label,value,sub,color}) => (
-    <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,padding:"16px 18px"}}>
-      <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>{label}</div>
-      <div style={{fontSize:28,fontWeight:700,color:color||BK,fontFamily:"'Playfair Display',serif"}}>{value}</div>
-      {sub&&<div style={{fontSize:12,color:G6,marginTop:3}}>{sub}</div>}
+      {modal === "login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
+      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
     </div>
   );
 
-  const selTenant = tenants.find(t=>t.id===sel);
-
-  return (
-    <div style={{minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",background:G1}}>
+  // ── CUSTOMER PORTAL ──
+  if (view === "customer" && customer) return (
+    <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      {/* Nav */}
-      <nav style={{background:BK,height:56,display:"flex",alignItems:"center",padding:"0 24px",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{background:ER,borderRadius:6,padding:"4px 8px",fontSize:11,fontWeight:700,color:WH}}>SUPER ADMIN</div>
-          <span style={{color:WH,fontWeight:700,fontSize:15,fontFamily:"'Playfair Display',serif"}}>LodgeOS Platform</span>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{color:G4,fontSize:13}}>{superUser?.name}</span>
-          <button onClick={onLogout} style={{background:"transparent",color:G4,border:"1px solid rgba(255,255,255,.15)",borderRadius:7,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Logout</button>
-        </div>
-      </nav>
-
-      {/* Tab bar */}
-      <div style={{background:WH,borderBottom:`1px solid ${G2}`,display:"flex"}}>
-        {[["overview","📊 Overview"],["tenants","🏢 Tenants"],["plans","📋 Plans"]].map(([id,label])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{padding:"12px 20px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:tab===id?M:G6,borderBottom:`3px solid ${tab===id?M:"transparent"}`,fontFamily:"inherit"}}>
-            {label}
+      <NavBar/>
+      <div style={{ background: WH, borderBottom: `1px solid ${G2}`, display: "flex" }}>
+        {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
+          <button key={id} onClick={() => { if(id==="newbooking"){setView("book");setBStep(1);}else setCustTab(id); }}
+            style={{ padding: "12px 18px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: `3px solid ${custTab === id ? M : "transparent"}`, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+            {icon} {label}
           </button>
         ))}
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",padding:"0 16px",gap:8}}>
-          <button onClick={load} style={{background:"none",border:`1px solid ${G2}`,borderRadius:7,padding:"6px 12px",fontSize:12,cursor:"pointer",color:G6,fontFamily:"inherit"}}>↻ Refresh</button>
+      </div>
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>
+        {custTab === "bookings" && <CustomerBookingsTab customer={customer} custBooks={custBooks} custLoading={custLoading} onCancel={custCancelBooking} onRefresh={() => loadCustBooks(customer.id)} locs={locs} rooms={rooms}/>}
+        {custTab === "profile" && <CustomerProfileTab customer={customer} onUpdate={custUpdateProfile}/>}
+      </div>
+      {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => setCustModal(null)} pop={pop}/>}
+    </div>
+  );
+
+  /* ── ADMIN DASHBOARD ── */
+  const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
+  const totExp = exps.reduce((s,e)=>s+e.amt,0);
+  const netPro = totRev - totExp;
+  const pending = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
+  const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      <NavBar/>
+      <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
+        {ATABS.map(t=>(
+          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 16px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:`3px solid ${aTab===t.id?M:"transparent"}`, display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", padding:"0 14px", gap:8 }}>
+          <button onClick={()=>loadAll(user)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>↻ Refresh</button>
+          <Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn>
         </div>
       </div>
+      <div style={{ flex:1, overflow:"auto", padding:22 }}>
+        {loading && <Spinner/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
+        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods}/>}
+        {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
+        {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user}/>}
+        {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
+        {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} locs={locs} pop={pop} payMethods={payMethods} setPayMethods={setPayMethods}/>}
+        {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
+      </div>
+      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+      {modal==="login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
+      {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+    </div>
+  );
+}
 
-      <div style={{padding:24,maxWidth:1200,margin:"0 auto"}}>
-        {loading && <div style={{textAlign:"center",padding:60,color:G4}}>Loading platform data…</div>}
+/* ─── LOGIN MODAL (top-level component — inputs work correctly) ── */
+function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
+  return (
+    <Modal title="Staff Login" onClose={onClose}>
+      <div style={{ background: MF, border: `1px solid ${M}30`, borderRadius: 8, padding: "12px 14px", marginBottom: 18, fontSize: 13 }}>
+        <div style={{ fontWeight: 700, color: M, marginBottom: 6 }}>Demo credentials</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+          {[["Admin", "admin@bnc.co.tz", "0000"], ["Manager", "jane@bnc.co.tz", "1234"], ["Receptionist", "peter@bnc.co.tz", "5678"]].map(([role, email, pin]) => (
+            <button key={role} onClick={() => { setLoginF({ email, pin }); }}
+              style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 6, padding: "6px 8px", cursor: "pointer", fontSize: 11, textAlign: "left", fontFamily: "inherit" }}>
+              <div style={{ fontWeight: 700, color: M, marginBottom: 2 }}>{role}</div>
+              <div style={{ color: G6, fontSize: 10 }}>{email}</div>
+              <div style={{ color: G6, fontSize: 10 }}>PIN: {pin}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Email</label>
+        <input
+          type="email"
+          value={loginF.email}
+          onChange={e => setLoginF(f => ({ ...f, email: e.target.value }))}
+          onKeyDown={e => e.key === "Enter" && doLogin()}
+          placeholder="your@email.com"
+          autoComplete="email"
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+        />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>PIN</label>
+        <input
+          type="password"
+          value={loginF.pin}
+          onChange={e => setLoginF(f => ({ ...f, pin: e.target.value }))}
+          onKeyDown={e => e.key === "Enter" && doLogin()}
+          placeholder="••••"
+          maxLength={6}
+          autoComplete="current-password"
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+        />
+      </div>
+      {loginErr && <div style={{ color: ER, fontSize: 13, marginBottom: 14, padding: "8px 12px", background: ERB, borderRadius: 6 }}>{loginErr}</div>}
+      <Btn onClick={doLogin} style={{ width: "100%", justifyContent: "center", padding: "11px" }}>Login to Dashboard</Btn>
+    </Modal>
+  );
+}
 
-        {/* ── OVERVIEW ── */}
-        {!loading && tab==="overview" && stats && (
-          <div>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 20px"}}>Platform Overview</h2>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:24}}>
-              <KPI label="Total Tenants" value={stats.tenants?.total||0} icon="🏢"/>
-              <KPI label="Active Tenants" value={stats.tenants?.active||0} color={OK}/>
-              <KPI label="New This Month" value={stats.tenants?.new_this_month||0} color={IN}/>
-              <KPI label="Suspended" value={stats.tenants?.suspended||0} color={ER}/>
-              <KPI label="Active Subscriptions" value={stats.subscriptions?.active||0} color={M}/>
-              <KPI label="Total Revenue" value={fmt(stats.revenue?.total_revenue||0)} color={M}/>
-              <KPI label="Monthly Revenue" value={fmt(stats.revenue?.monthly_revenue||0)} sub="This month" color={OK}/>
-            </div>
-
-            {/* Plan breakdown */}
-            <Card style={{marginBottom:20}}>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:"'Playfair Display',serif",marginBottom:16}}>Tenants by Plan</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
-                {(stats.plans||[]).map(p=>(
-                  <div key={p.id} style={{background:G1,borderRadius:10,padding:"14px 16px",borderLeft:`4px solid ${planColor[p.id]||G4}`}}>
-                    <div style={{fontSize:13,color:G6,marginBottom:4}}>{p.name}</div>
-                    <div style={{fontSize:26,fontWeight:700,color:planColor[p.id]||BK,fontFamily:"'Playfair Display',serif"}}>{p.tenant_count}</div>
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab }) {
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Overview</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
+        <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
+        <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
+        <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={`${rooms.filter(r => r.status === "occupied").length}/${rooms.length} rooms`} />
+        <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
+        <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
+        <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
+      </div>
+      <Card style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <SecTitle>Recent Bookings</SecTitle>
+          <button onClick={() => setATab("books")} style={{ background: "none", border: "none", color: M, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>View all →</button>
+        </div>
+        <Tbl hdr={["ID", "Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
+          rows={books.slice(-5).reverse().map(b => {
+            const rm = allRooms.find(r => r.id === b.roomId);
+            return [<span style={{ color: M, fontWeight: 700, fontSize: 12 }}>{b.id}</span>, b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
+          })} />
+      </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+        {locs.map(loc => {
+          const lr = allRooms.filter(r => r.locId === loc.id);
+          const lb = books.filter(b => b.locId === loc.id);
+          const lrev = lb.reduce((s, b) => s + b.paid, 0);
+          const lexp = exps.filter(e => e.locId === loc.id).reduce((s, e) => s + e.amt, 0);
+          return (
+            <Card key={loc.id}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                <span style={{ fontSize: 22 }}>{loc.icon}</span>
+                <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[["Revenue", fmt(lrev), M], ["Expenses", fmt(lexp), ER], ["Rooms", `${lr.filter(r => r.status === "available").length}/${lr.length} avail`, OK], ["Bookings", lb.length, IN]].map(([k, v, c], i) => (
+                  <div key={i} style={{ background: G1, borderRadius: 8, padding: "9px 11px" }}>
+                    <div style={{ fontSize: 11, color: G6 }}>{k}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: c, marginTop: 2 }}>{v}</div>
                   </div>
                 ))}
               </div>
             </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-            {/* Recent signups */}
-            <Card>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:"'Playfair Display',serif",marginBottom:16}}>Recent Signups</div>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead><tr style={{borderBottom:`2px solid ${G2}`}}>{["Business","Email","Plan","Status","Joined"].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em"}}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {tenants.slice(0,8).map(t=>(
-                    <tr key={t.id} style={{borderBottom:`1px solid ${G1}`,cursor:"pointer"}} onClick={()=>{setSel(t.id);setTab("tenants");}}>
-                      <td style={{padding:"10px"}}><div style={{fontWeight:700}}>{t.business_name}</div><div style={{fontSize:11,color:G6}}>{t.city||t.country}</div></td>
-                      <td style={{padding:"10px",color:G6}}>{t.email}</td>
-                      <td style={{padding:"10px"}}><span style={{background:G1,color:planColor[t.plan_id]||G6,padding:"2px 9px",borderRadius:99,fontSize:11,fontWeight:700,textTransform:"uppercase"}}>{t.plan_name}</span></td>
-                      <td style={{padding:"10px"}}><span style={{background:t.status==="active"?OKB:ERB,color:t.status==="active"?OK:ER,padding:"2px 9px",borderRadius:99,fontSize:11,fontWeight:700}}>{t.status}</span></td>
-                      <td style={{padding:"10px",color:G6}}>{new Date(t.created_at).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-        )}
+/* ─── BOOKINGS TAB ───────────────────────────────────────── */
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sel, setSel] = useState(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payMethod, setPayMethod] = useState("");
+  // checkout / extend modal
+  const [coModal, setCoModal] = useState(null); // booking id
+  // extend form
+  const [extNights, setExtNights] = useState(1);
 
-        {/* ── TENANTS LIST ── */}
-        {!loading && tab==="tenants" && (
-          <div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
-              <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:0}}>All Tenants ({filtered.length})</h2>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or email…" style={{padding:"8px 13px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,outline:"none",fontFamily:"inherit",minWidth:240}}/>
+  const todayDate = td();
+
+  const filtered = books
+    .filter(b => (filter === "all" || b.status === filter) &&
+      (!search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase())))
+    .sort((a, b) => b.id.localeCompare(a.id));
+
+  const selB = books.find(b => b.id === sel);
+  const selR = rooms.find(r => r.id === selB?.roomId);
+  // auto-set method to booking's method when opening detail
+  useEffect(() => { if (selB) setPayMethod(selB.method || (payMethods?.[0] || "Cash")); }, [sel]);
+
+  // bookings due for checkout today (checkedIn and checkout date = today)
+  const dueToday = books.filter(b => b.status === "checkedIn" && b.co === todayDate);
+
+  // For extend modal
+  const coBook = books.find(b => b.id === coModal);
+  const coRoom = rooms.find(r => r.id === coBook?.roomId);
+  const extExtra = coRoom ? coRoom.price * extNights : 0;
+  const newCheckout = coBook ? (() => {
+    const d = new Date(coBook.co);
+    d.setDate(d.getDate() + extNights);
+    return d.toISOString().split("T")[0];
+  })() : "";
+
+  const doExtend = () => {
+    if (!coBook || extNights < 1) return;
+    extendBooking(coBook.id, extNights, extExtra, newCheckout);
+    setCoModal(null); setExtNights(1);
+  };
+
+  const doCheckout = () => {
+    updBook(coBook.id, "checkedOut");
+    setCoModal(null);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Bookings</h2>
+        <Btn onClick={onNew}>+ New Booking</Btn>
+      </div>
+
+      {/* ── DUE TODAY ALERT ── */}
+      {dueToday.length > 0 && (
+        <div style={{ background: "#FFF8E1", border: `1px solid #F9A825`, borderRadius: 10, padding: "13px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 22 }}>⏰</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#5D4037", marginBottom: 4 }}>
+              {dueToday.length} guest{dueToday.length > 1 ? "s" : ""} checking out today
             </div>
-            <Card>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead><tr style={{borderBottom:`2px solid ${G2}`}}>{["Business","Contact","Plan","Usage","Status","Joined","Actions"].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {filtered.map(t=>(
-                    <tr key={t.id} style={{borderBottom:`1px solid ${G1}`,background:sel===t.id?MF:""}}>
-                      <td style={{padding:"10px"}}><div style={{fontWeight:700,cursor:"pointer",color:M}} onClick={()=>setSel(sel===t.id?null:t.id)}>{t.business_name}</div><div style={{fontSize:11,color:G6}}>{t.slug}</div></td>
-                      <td style={{padding:"10px"}}><div>{t.owner_name}</div><div style={{fontSize:11,color:G6}}>{t.email}</div></td>
-                      <td style={{padding:"10px"}}><span style={{background:G1,color:planColor[t.plan_id]||G6,padding:"2px 9px",borderRadius:99,fontSize:11,fontWeight:700,textTransform:"uppercase"}}>{t.plan_name}</span></td>
-                      <td style={{padding:"10px",fontSize:12,color:G6}}>{t.location_count}L · {t.room_count}R · {t.booking_count}B</td>
-                      <td style={{padding:"10px"}}><span style={{background:t.status==="active"?OKB:ERB,color:t.status==="active"?OK:ER,padding:"2px 9px",borderRadius:99,fontSize:11,fontWeight:700}}>{t.status}</span></td>
-                      <td style={{padding:"10px",color:G6,fontSize:12}}>{new Date(t.created_at).toLocaleDateString()}</td>
-                      <td style={{padding:"10px"}}>
-                        <div style={{display:"flex",gap:4}}>
-                          {t.status==="active" ? <button onClick={()=>updateTenant(t.id,{status:"suspended"})} style={{padding:"3px 8px",fontSize:11,borderRadius:6,border:`1px solid ${ER}`,color:ER,background:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Suspend</button>
-                            : <button onClick={()=>updateTenant(t.id,{status:"active"})} style={{padding:"3px 8px",fontSize:11,borderRadius:6,border:`1px solid ${OK}`,color:OK,background:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Activate</button>}
-                          <button onClick={()=>deleteTenant(t.id,t.business_name)} style={{padding:"3px 8px",fontSize:11,borderRadius:6,border:`1px solid ${ER}`,color:WH,background:ER,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {!filtered.length && <tr><td colSpan={7} style={{padding:30,textAlign:"center",color:G4}}>No tenants found</td></tr>}
-                </tbody>
-              </table>
-            </Card>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {dueToday.map(b => {
+                const rm = rooms.find(r => r.id === b.roomId);
+                return (
+                  <button key={b.id} onClick={() => setCoModal(b.id)}
+                    style={{ background: WH, border: `1px solid #F9A825`, borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700, color: "#5D4037", fontFamily: "inherit" }}>
+                    {b.gName} · {rm?.name || b.id} →
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Tenant detail panel */}
-            {sel && selTenant && (
-              <Card style={{marginTop:16,borderLeft:`4px solid ${M}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
-                  <div>
-                    <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,margin:"0 0 4px"}}>{selTenant.business_name}</h3>
-                    <div style={{fontSize:13,color:G6}}>{selTenant.owner_name} · {selTenant.email} · {selTenant.phone}</div>
+      {/* ── FILTERS ── */}
+      <div style={{ display: "flex", gap: 7, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        {["all", "pending", "confirmed", "checkedIn", "checkedOut", "cancelled"].map(s => (
+          <button key={s} onClick={() => setFilter(s)} style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: `1px solid ${filter === s ? M : G2}`, background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
+            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+            {s === "checkedIn" && dueToday.length > 0 && <span style={{ marginLeft: 5, background: "#F9A825", color: WH, borderRadius: 99, padding: "0 5px", fontSize: 10 }}>{dueToday.length}</span>}
+          </button>
+        ))}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guest or ID…"
+          style={{ marginLeft: "auto", padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", minWidth: 190, fontFamily: "inherit" }} />
+      </div>
+
+      {/* ── TABLE ── */}
+      <Card>
+        <Tbl hdr={["ID", "Guest", "Location / Room", "Dates", "Amount", "Paid", "Status", "Actions"]}
+          rows={filtered.map(b => {
+            const rm  = rooms.find(r => r.id === b.roomId);
+            const loc = locs.find(l => l.id === b.locId);
+            const bal = b.total - b.paid;
+            const isDueToday = b.status === "checkedIn" && b.co === todayDate;
+            return [
+              <span style={{ color: M, fontWeight: 700, fontSize: 12, cursor: "pointer" }} onClick={() => setSel(b.id)}>{b.id}</span>,
+              <div>
+                <div style={{ fontWeight: 700 }}>{b.gName}</div>
+                <div style={{ fontSize: 11, color: G6 }}>{b.gPhone}</div>
+              </div>,
+              <div>
+                <div style={{ fontSize: 12 }}>{loc?.name}</div>
+                <div style={{ fontSize: 11, color: G6 }}>{rm?.name}</div>
+              </div>,
+              <div style={{ fontSize: 12 }}>
+                <div>{b.ci}</div>
+                <div style={{ color: isDueToday ? "#F9A825" : G6, fontWeight: isDueToday ? 700 : 400 }}>
+                  {b.co} ({b.nights}n){isDueToday ? " ⏰ Today" : ""}
+                </div>
+              </div>,
+              <div>
+                <div style={{ fontWeight: 700 }}>{fmt(b.total)}</div>
+                {b.disc > 0 && <div style={{ fontSize: 11, color: OK }}>Disc: {b.discT === "pct" ? b.disc + "%" : fmt(b.disc)}</div>}
+              </div>,
+              <div>
+                <div style={{ color: bal > 0 ? ER : OK, fontWeight: 700 }}>{fmt(b.paid)}</div>
+                {bal > 0 && <div style={{ fontSize: 11, color: ER }}>Bal: {fmt(bal)}</div>}
+              </div>,
+              <Badge s={b.status} />,
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {b.status === "pending"   && <button onClick={() => updBook(b.id, "confirmed")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${OK}`, color: OK, background: "none", cursor: "pointer", fontWeight: 700 }}>Confirm</button>}
+                {b.status === "confirmed" && <button onClick={() => updBook(b.id, "checkedIn")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${M}`, color: M, background: "none", cursor: "pointer", fontWeight: 700 }}>Check In</button>}
+                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${isDueToday ? "#F9A825" : G6}`, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
+                {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${IN}`, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
+                {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
+                {b.status === "cancelled" && user?.role === "Admin" && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
+              </div>
+            ];
+          })} />
+      </Card>
+
+      {/* ── CHECKOUT / EXTEND MODAL ── */}
+      {coModal && coBook && (
+        <Modal title={`${coBook.gName} — Checking Out Today`} onClose={() => { setCoModal(null); setExtNights(1); }} wide>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+            {[["Guest", coBook.gName], ["Room", coRoom?.name], ["Check-in", coBook.ci], ["Original Checkout", coBook.co], ["Total Nights", coBook.nights], ["Amount Due", fmt(coBook.total - coBook.paid)]].map(([k, v]) => (
+              <div key={k} style={{ fontSize: 13 }}>
+                <span style={{ color: G6 }}>{k}: </span>
+                <span style={{ fontWeight: 700 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Two action panels */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+            {/* CHECK OUT */}
+            <div style={{ border: `2px solid ${G2}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: BK, fontFamily: "'Playfair Display',serif" }}>✓ Check Out</div>
+              <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>End the stay today. The room will be marked as available.</div>
+              {(coBook.total - coBook.paid) > 0 && (
+                <div style={{ background: ERB, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: ER, fontWeight: 700 }}>
+                  ⚠ Outstanding balance: {fmt(coBook.total - coBook.paid)}<br/>
+                  <span style={{ fontWeight: 400, color: G6 }}>Collect payment before checking out.</span>
+                </div>
+              )}
+              <Btn v="ghost" onClick={doCheckout} style={{ width: "100%", justifyContent: "center", marginTop: "auto" }}>
+                Confirm Check Out
+              </Btn>
+            </div>
+
+            {/* EXTEND STAY */}
+            <div style={{ border: `2px solid ${M}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: M, fontFamily: "'Playfair Display',serif" }}>📅 Extend Stay</div>
+              <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>Guest wants to stay longer. Add extra nights at the same nightly rate.</div>
+
+              {/* Extra nights picker */}
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Extra Nights</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button onClick={() => setExtNights(n => Math.max(1, n - 1))}
+                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${G2}`, background: WH, cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                  <span style={{ fontSize: 20, fontWeight: 700, minWidth: 28, textAlign: "center", fontFamily: "'Playfair Display',serif" }}>{extNights}</span>
+                  <button onClick={() => setExtNights(n => n + 1)}
+                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${M}`, background: M, cursor: "pointer", fontSize: 16, fontWeight: 700, color: WH, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  <input type="number" min={1} value={extNights} onChange={e => setExtNights(Math.max(1, Number(e.target.value)))}
+                    style={{ width: 60, padding: "6px 10px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, fontFamily: "inherit", textAlign: "center", outline: "none" }} />
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div style={{ background: MF, borderRadius: 8, padding: "11px 13px" }}>
+                {[
+                  ["Rate / night", fmt(coRoom?.price)],
+                  ["Extra charge", fmt(extExtra)],
+                  ["New checkout", newCheckout],
+                  ["Total nights", coBook.nights + extNights],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", borderBottom: `1px solid ${M}15` }}>
+                    <span style={{ color: G6 }}>{k}</span>
+                    <span style={{ fontWeight: 700, color: M }}>{v}</span>
                   </div>
-                  <button onClick={()=>setSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:G4}}>×</button>
+                ))}
+              </div>
+              <Btn onClick={doExtend} style={{ width: "100%", justifyContent: "center", marginTop: "auto" }}>
+                Extend by {extNights} Night{extNights > 1 ? "s" : ""}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── BOOKING DETAIL MODAL ── */}
+      {sel && selB && (
+        <Modal title={`Booking ${selB.id}`} onClose={() => { setSel(null); setPayAmt(""); }} wide>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div>
+              <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Guest Info</div>
+              {[["Name", selB.gName], ["Phone", selB.gPhone], ["Email", selB.gEmail], ["Nationality", selB.gNat]].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
+                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v || "—"}</span>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:16}}>
-                  {[["Locations",selTenant.location_count],["Rooms",selTenant.room_count],["Bookings",selTenant.booking_count],["Staff",selTenant.staff_count]].map(([k,v])=>(
-                    <div key={k} style={{background:G1,borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:11,color:G6}}>{k}</div><div style={{fontSize:18,fontWeight:700,color:M,fontFamily:"'Playfair Display',serif"}}>{v}</div></div>
-                  ))}
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Stay Details</div>
+              {[["Room", selR?.name], ["Check-in", selB.ci], ["Check-out", selB.co], ["Nights", selB.nights], ["Base Amount", fmt(selB.base)], ["Discount", selB.disc > 0 ? (selB.discT === "pct" ? selB.disc + "%" : fmt(selB.disc)) : "None"], ["Total", fmt(selB.total)], ["Paid", fmt(selB.paid)], ["Balance", fmt(selB.total - selB.paid)]].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
+                  <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
                 </div>
-                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{fontSize:13,color:G6}}>Change plan:</span>
-                  {plans.map(p=>(
-                    <button key={p.id} onClick={()=>updateTenant(sel,{plan_id:p.id})} style={{padding:"5px 12px",fontSize:12,borderRadius:7,border:`1px solid ${selTenant.plan_id===p.id?M:G2}`,background:selTenant.plan_id===p.id?M:WH,color:selTenant.plan_id===p.id?WH:G6,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>
-                      {p.name}
+              ))}
+            </div>
+          </div>
+          {selB.status === "checkedIn" && (
+            <div style={{ marginTop: 16, padding: "11px 14px", background: MF, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>Guest is currently checked in</span>
+              <Btn onClick={() => { setSel(null); setCoModal(selB.id); }} style={{ fontSize: 12, padding: "6px 14px" }}>Check Out / Extend →</Btn>
+            </div>
+          )}
+          {(selB.total - selB.paid) > 0 && selB.status !== "cancelled" && (
+            <div style={{ marginTop: 18, padding: 14, background: G1, borderRadius: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Record Payment</div>
+              <Inp label={`Amount (max ${fmt(selB.total - selB.paid)})`} type="number" value={payAmt} onChange={e => setPayAmt(e.target.value)} placeholder="Enter amount" />
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Payment Method</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => (
+                    <button key={pm} onClick={() => setPayMethod(pm)}
+                      style={{ padding: "6px 13px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${payMethod === pm ? M : G2}`, background: payMethod === pm ? MF : WH, color: payMethod === pm ? M : G6 }}>
+                      {pm}
                     </button>
                   ))}
                 </div>
-              </Card>
-            )}
-          </div>
-        )}
+              </div>
+              <Btn v="ok" onClick={() => { recPay(selB.id, payAmt, payMethod); setPayAmt(""); setSel(null); }}>Record Payment</Btn>
+            </div>
+          )}
+          {selB.status === "cancelled" && (
+            <div style={{ marginTop: 18, padding: 14, background: ERB, borderRadius: 10, fontSize: 13, color: ER }}>
+              ✗ This booking is cancelled — no outstanding balance.{selB.paid > 0 ? ` ${fmt(selB.paid)} already collected is retained.` : ""}
+            </div>
+          )}
+          {selB.notes && <div style={{ marginTop: 14, fontSize: 13, color: G6 }}>📝 {selB.notes}</div>}
+          <div style={{ marginTop: 12 }}><Badge s={selB.status} /></div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
-        {/* ── PLANS ── */}
-        {!loading && tab==="plans" && (
-          <div>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 20px"}}>Plan Configuration</h2>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16}}>
-              {plans.map(p=>(
-                <Card key={p.id} style={{borderTop:`4px solid ${planColor[p.id]||G4}`}}>
-                  <div style={{fontWeight:700,fontSize:18,fontFamily:"'Playfair Display',serif",marginBottom:4}}>{p.name}</div>
-                  <div style={{fontSize:13,color:G6,marginBottom:12}}>
-                    Monthly: {fmt(p.price_monthly)} · Yearly: {fmt(p.price_yearly)}
-                  </div>
-                  <div style={{fontSize:13,marginBottom:12}}>
-                    <div>📍 Max locations: <strong>{p.max_locations===999?"Unlimited":p.max_locations}</strong></div>
-                    <div>🛏️ Max rooms: <strong>{p.max_rooms===999?"Unlimited":p.max_rooms}</strong></div>
-                    <div>👥 Max staff: <strong>{p.max_staff===999?"Unlimited":p.max_staff}</strong></div>
-                  </div>
-                  <div>
-                    {(p.features||[]).map((f,i)=><div key={i} style={{fontSize:12,color:G6,padding:"2px 0"}}>✓ {f}</div>)}
-                  </div>
-                  <div style={{marginTop:12,fontSize:12,color:M,fontWeight:700}}>
-                    {stats?.plans?.find(sp=>sp.id===p.id)?.tenant_count||0} tenants on this plan
+/* ─── ROOMS TAB ──────────────────────────────────────────── */
+function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
+  const [modal, setModal] = useState(null);
+  const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const [form, setForm] = useState({ id: null, locId: "", name: "", type: "Standard", beds: 1, guests: 2, price: 100000, status: "available", amen: "", photos: [] });
+  const [uploading, setUploading] = useState(false);
+
+  const openNew = () => { setForm({ id: null, locId: locs[0]?.id || "", name: "", type: "Standard", beds: 1, guests: 2, price: 100000, status: "available", amen: "", photos: [] }); setModal("f"); };
+  const openEdit = r => { setForm({ ...r, amen: r.amen.join(", "), photos: r.photos || [] }); setModal("f"); };
+  const save = () => { saveRoom(form, !!form.id); setModal(null); };
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    let done = 0;
+    files.forEach(file => {
+      if (!file.type.startsWith("image/")) { done++; if (done === files.length) setUploading(false); return; }
+      // Resize & compress before storing
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 900;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL("image/jpeg", 0.75);
+          setForm(f => ({ ...f, photos: [...(f.photos || []), compressed] }));
+          done++;
+          if (done === files.length) setUploading(false);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (idx) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
+
+  const viewerRoom = rooms.find(r => r.id === photoModal);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Rooms & Units</h2>
+        <Btn onClick={openNew}>+ Add Room</Btn>
+      </div>
+
+      {locs.map(loc => {
+        const lr = rooms.filter(r => r.locId === loc.id);
+        return (
+          <div key={loc.id} style={{ marginBottom: 28 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", color: M, fontFamily: "'Playfair Display',serif" }}>{loc.icon} {loc.name}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
+              {lr.map(rm => (
+                <Card key={rm.id} style={{ borderLeft: `4px solid ${sC(rm.status)}`, padding: 0, overflow: "hidden" }}>
+                  {/* Photo strip */}
+                  {rm.photos && rm.photos.length > 0 ? (
+                    <div style={{ position: "relative", height: 150, cursor: "pointer", background: G1 }}
+                      onClick={() => { setPhotoModal(rm.id); setPhotoIdx(0); }}>
+                      <img src={rm.photos[0]} alt={rm.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      {rm.photos.length > 1 && (
+                        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>
+                          +{rm.photos.length - 1} more
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ height: 90, background: `linear-gradient(135deg,${MD},${M})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, cursor: "pointer" }}
+                      onClick={() => openEdit(rm)}>
+                      🛏️
+                    </div>
+                  )}
+                  {/* Card body */}
+                  <div style={{ padding: "12px 14px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Playfair Display',serif" }}>{rm.name}</div>
+                        <div style={{ fontSize: 11, color: G6 }}>{rm.type} · {rm.beds} bed · {rm.guests} guests max</div>
+                      </div>
+                      <Badge s={rm.status} />
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif", marginBottom: 7 }}>{fmt(rm.price)}<span style={{ fontSize: 11, color: G4, fontWeight: 400 }}>/night</span></div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 7px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                      <select value={rm.status} onChange={e => saveRoom({...rm, amen: rm.amen.join(", ")}, true, e.target.value)}
+                        style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
+                        <option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option>
+                      </select>
+                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 10px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
+                    </div>
                   </div>
                 </Card>
               ))}
+              {lr.length === 0 && <div style={{ color: G4, fontSize: 14, padding: 16 }}>No rooms at this location</div>}
             </div>
-            <Card style={{marginTop:20,background:MF,border:`1px solid ${M}30`}}>
-              <div style={{fontSize:13,color:M,fontWeight:700,marginBottom:6}}>To modify plans or prices</div>
-              <div style={{fontSize:13,color:G6}}>Run an UPDATE query directly in your Neon SQL Editor:<br/>
-                <code style={{background:WH,padding:"4px 8px",borderRadius:6,fontSize:12,display:"inline-block",marginTop:6}}>UPDATE plans SET price_monthly = 59000 WHERE id = 'starter';</code>
+          </div>
+        );
+      })}
+
+      {/* ── EDIT / ADD MODAL ── */}
+      {modal === "f" && (
+        <Modal title={form.id ? "Edit Room" : "Add Room"} onClose={() => setModal(null)} wide>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Deluxe Suite" />
+            </div>
+            <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
+            <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
+            <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
+            <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
+            </div>
+          </div>
+
+          {/* ── PHOTO UPLOAD ── */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>Room Photos</label>
+
+            {/* Preview grid */}
+            {form.photos && form.photos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 8, marginBottom: 10 }}>
+                {form.photos.map((src, i) => (
+                  <div key={i} style={{ position: "relative", borderRadius: 8, overflow: "hidden", height: 90 }}>
+                    <img src={src} alt={`Room photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button onClick={() => removePhoto(i)} style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,0.65)", border: "none", color: WH, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>✕</button>
+                    {i === 0 && <div style={{ position: "absolute", bottom: 4, left: 4, background: M, color: WH, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99 }}>COVER</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload button */}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: `2px dashed ${G2}`, borderRadius: 8, cursor: "pointer", fontSize: 13, color: G6, background: G1, transition: "border-color 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = M}
+              onMouseLeave={e => e.currentTarget.style.borderColor = G2}>
+              <span style={{ fontSize: 20 }}>📷</span>
+              <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
+              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: "none" }} />
+            </label>
+            <div style={{ fontSize: 11, color: G4, marginTop: 5 }}>First photo is used as the cover. Photos are compressed automatically. Max ~5 photos recommended.</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <Btn v="ghost" onClick={() => setModal(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+            <Btn onClick={save} style={{ flex: 1, justifyContent: "center" }}>Save Room</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── PHOTO VIEWER MODAL ── */}
+      {photoModal && viewerRoom && (
+        <Modal title={viewerRoom.name} onClose={() => setPhotoModal(null)} wide>
+          <div style={{ position: "relative", background: BK, borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+            <img
+              src={viewerRoom.photos[photoIdx]}
+              alt={`${viewerRoom.name} photo ${photoIdx + 1}`}
+              style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }}
+            />
+            {viewerRoom.photos.length > 1 && (
+              <>
+                <button onClick={() => setPhotoIdx(i => (i - 1 + viewerRoom.photos.length) % viewerRoom.photos.length)}
+                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", color: WH, fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer" }}>‹</button>
+                <button onClick={() => setPhotoIdx(i => (i + 1) % viewerRoom.photos.length)}
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", color: WH, fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer" }}>›</button>
+                <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
+                  {viewerRoom.photos.map((_, i) => (
+                    <div key={i} onClick={() => setPhotoIdx(i)} style={{ width: 8, height: 8, borderRadius: "50%", background: i === photoIdx ? WH : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "background 0.2s" }} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(70px,1fr))", gap: 6 }}>
+            {viewerRoom.photos.map((src, i) => (
+              <img key={i} src={src} alt={`thumb ${i+1}`} onClick={() => setPhotoIdx(i)}
+                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: `2px solid ${i === photoIdx ? M : "transparent"}`, transition: "border-color 0.15s" }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <Btn v="ghost" onClick={() => setPhotoModal(null)} style={{ flex: 1, justifyContent: "center" }}>Close</Btn>
+            <Btn onClick={() => { const r = rooms.find(r => r.id === photoModal); if (r) { openEdit(r); setPhotoModal(null); } }} style={{ flex: 1, justifyContent: "center" }}>Edit Photos</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─── PAYMENTS TAB ───────────────────────────────────────── */
+function PaysTab({ books, rooms, recPay, payMethods }) {
+  const [sel, setSel] = useState(null);
+  const [amt, setAmt] = useState("");
+  const [method, setMethod] = useState("");
+  const selB = books.find(b => b.id === sel);
+  const totColl = books.reduce((s, b) => s + b.paid, 0);
+  const totPend = books.filter(b => b.status !== "cancelled").reduce((s, b) => s + (b.total - b.paid), 0);
+  const totDisc = books.reduce((s, b) => s + (b.base - b.total), 0);
+
+  const openRecord = (id) => {
+    const b = books.find(b => b.id === id);
+    setSel(id);
+    setAmt("");
+    setMethod(b?.method || (payMethods?.[0] || "Cash"));
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Payments</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
+        <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅" />
+        <KPI label="Outstanding" value={fmt(totPend)} color={ER} icon="⚠️" />
+        <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️" />
+        <KPI label="Total Bookings" value={books.length} icon="📋" />
+      </div>
+      <Card>
+        <Tbl hdr={["Booking", "Guest", "Total", "Paid", "Balance", "Method", "Action"]}
+          rows={books.sort((a, b) => b.id.localeCompare(a.id)).map(b => {
+            const bal = b.total - b.paid;
+            return [
+              <span style={{ color: M, fontWeight: 700, fontSize: 12 }}>{b.id}</span>, b.gName, fmt(b.total),
+              <span style={{ color: OK, fontWeight: 700 }}>{fmt(b.paid)}</span>,
+              <span style={{ color: bal > 0 ? ER : OK, fontWeight: 700 }}>{fmt(bal)}</span>,
+              b.method,
+              b.status === "cancelled"
+                ? <span style={{ color: ER, fontSize: 12, fontWeight: 700 }}>✗ Cancelled</span>
+                : bal > 0
+                  ? <button onClick={() => openRecord(b.id)} style={{ padding: "4px 10px", fontSize: 12, borderRadius: 6, background: M, color: WH, border: "none", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>Record</button>
+                  : <span style={{ color: OK, fontSize: 12, fontWeight: 700 }}>✓ Settled</span>
+            ];
+          })} />
+      </Card>
+      {sel && selB && (
+        <Modal title={`Record Payment — ${selB.id}`} onClose={() => setSel(null)}>
+          <div style={{ marginBottom: 16, padding: 13, background: G1, borderRadius: 8, fontSize: 13 }}>
+            {[["Guest", selB.gName], ["Room", rooms.find(r => r.id === selB.roomId)?.name || "—"], ["Total Due", fmt(selB.total)], ["Already Paid", fmt(selB.paid)], ["Balance", fmt(selB.total - selB.paid)]].map(([k, v], i) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, color: i === 4 ? ER : BK }}>
+                <span style={{ color: G6 }}>{k}</span><strong>{v}</strong>
+              </div>
+            ))}
+          </div>
+          <Inp label="Payment Amount (TZS)" type="number" value={amt} onChange={e => setAmt(e.target.value)} placeholder={`Max: ${fmt(selB.total - selB.paid)}`} />
+          <div style={{ marginBottom: 13 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Payment Method</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => (
+                <button key={pm} onClick={() => setMethod(pm)}
+                  style={{ padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${method === pm ? M : G2}`, background: method === pm ? MF : WH, color: method === pm ? M : G6, transition: "all .15s" }}>
+                  {pm}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn v="ghost" onClick={() => setSel(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+            <Btn v="ok" onClick={() => { recPay(selB.id, amt, method); setSel(null); }} disabled={!amt || !method} style={{ flex: 1, justifyContent: "center" }}>Confirm Payment</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─── EXPENSES TAB ───────────────────────────────────────── */
+function ExpsTab({ exps, locs, user, saveExp, pop }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ locId: locs[0]?.id || "", cat: "Utilities", desc: "", amt: "", date: td() });
+  const save = () => { saveExp(form); setModal(false); setForm(f => ({ ...f, desc: "", amt: "" })); };
+  const byCat = exps.reduce((a, e) => { a[e.cat] = (a[e.cat] || 0) + e.amt; return a; }, {});
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Expenses</h2>
+        <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
+        {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
+      </div>
+      <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
+      <Card style={{ marginTop: 14 }}>
+        <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
+          rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
+            e.date, locs.find(l => l.id === e.locId)?.name || "-",
+            <span style={{ background: G1, padding: "2px 8px", borderRadius: 99, fontSize: 11, color: G6 }}>{e.cat}</span>,
+            e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
+          ])} />
+      </Card>
+      {modal && (
+        <Modal title="Add Expense" onClose={() => setModal(false)}>
+          {user?.role === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
+          <Sel label="Category" value={form.cat} onChange={e => setForm(f => ({ ...f, cat: e.target.value }))}>{["Utilities", "Maintenance", "Supplies", "Staff", "Marketing", "Rent", "Other"].map(c => <option key={c}>{c}</option>)}</Sel>
+          <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Electricity bill" />
+          <Inp label="Amount (TZS)" type="number" value={form.amt} onChange={e => setForm(f => ({ ...f, amt: e.target.value }))} />
+          <Inp label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+            <Btn onClick={save} disabled={!form.desc || !form.amt} style={{ flex: 1, justifyContent: "center" }}>Save</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─── REPORTS TAB ────────────────────────────────────────── */
+function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods }) {
+  const [rt, setRt] = useState("financial");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [reportData, setReportData] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  // Quick presets
+  const applyPreset = (preset) => {
+    const now = new Date();
+    const fmt = d => d.toISOString().split("T")[0];
+    if (preset === "today") {
+      const t = fmt(now); setDateFrom(t); setDateTo(t);
+    } else if (preset === "week") {
+      const start = new Date(now); start.setDate(now.getDate() - 7);
+      setDateFrom(fmt(start)); setDateTo(fmt(now));
+    } else if (preset === "month") {
+      setDateFrom(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`);
+      setDateTo(fmt(now));
+    } else if (preset === "lastmonth") {
+      const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      setDateFrom(fmt(lm)); setDateTo(fmt(lmEnd));
+    } else if (preset === "year") {
+      setDateFrom(`${now.getFullYear()}-01-01`); setDateTo(fmt(now));
+    } else {
+      setDateFrom(""); setDateTo("");
+    }
+  };
+
+  const fetchReport = async () => {
+    setReportLoading(true);
+    try {
+      const data = await api.getReports(null, dateFrom || undefined, dateTo || undefined);
+      setReportData(data);
+    } catch(e) { /* fallback to local */ }
+    setReportLoading(false);
+  };
+
+  useEffect(() => { if (dateFrom || dateTo) fetchReport(); else setReportData(null); }, [dateFrom, dateTo]);
+
+  // Use server data if date filter active, else compute locally from in-memory books/exps
+  const filteredBooks = reportData
+    ? null // use reportData directly
+    : (dateFrom || dateTo)
+      ? books.filter(b => { const d = b.ci; return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo); })
+      : books;
+  const filteredExps = reportData
+    ? null
+    : (dateFrom || dateTo)
+      ? exps.filter(e => { const d = e.date; return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo); })
+      : exps;
+
+  const src = reportData ? {
+    totRev: reportData.revenue.collected,
+    totExp: reportData.expenses.total,
+    net:    reportData.revenue.net_profit,
+    totDisc: reportData.revenue.discounts,
+    pending: reportData.revenue.pending,
+    bStats:  reportData.bookings,
+    byLoc:   reportData.by_location.map(l => ({ ...l, rev: l.revenue, exp: l.expenses, cnt: l.bookings })),
+    byMethod: reportData.by_method.map(m => ({ method: m.method, total: m.total })),
+    byCat:   Object.fromEntries(reportData.expenses.by_category.map(e => [e.category, e.total])),
+  } : {
+    totRev: (filteredBooks||books).filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0),
+    totExp: (filteredExps||exps).reduce((s,e)=>s+e.amt,0),
+    net:    0,
+    totDisc: (filteredBooks||books).reduce((s,b)=>s+(b.base-b.total),0),
+    pending: (filteredBooks||books).filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0),
+    byLoc: locs.map(loc=>({ id:loc.id, name:loc.name, icon:loc.icon, city:loc.city, rev:(filteredBooks||books).filter(b=>b.locId===loc.id&&b.status!=="cancelled").reduce((s,b)=>s+b.paid,0), exp:(filteredExps||exps).filter(e=>e.locId===loc.id).reduce((s,e)=>s+e.amt,0), cnt:(filteredBooks||books).filter(b=>b.locId===loc.id).length })),
+    byMethod: Object.entries((filteredBooks||books).reduce((a,b)=>{a[b.method]=(a[b.method]||0)+b.paid;return a;},{})).map(([method,total])=>({method,total})),
+    byCat: (filteredExps||exps).reduce((a,e)=>{a[e.cat]=(a[e.cat]||0)+e.amt;return a;},{}),
+    bStats: {
+      total: (filteredBooks||books).length,
+      active: (filteredBooks||books).filter(b=>b.status==="checkedIn").length,
+      completed: (filteredBooks||books).filter(b=>b.status==="checkedOut").length,
+      cancelled: (filteredBooks||books).filter(b=>b.status==="cancelled").length,
+    },
+  };
+  src.net = src.totRev - src.totExp;
+  src.margin = src.totRev > 0 ? Math.round(src.net / src.totRev * 100) : 0;
+  const { totRev, totExp, net, totDisc, pending, margin, byLoc: byLocRaw, byMethod: byMethodRaw, byCat, bStats } = src;
+  // Occupancy still from live room data (not date-filtered)
+  const occ = rooms.length ? Math.round(rooms.filter(r => r.status === "occupied").length / rooms.length * 100) : 0;
+  const avgRate = rooms.length ? Math.round(rooms.reduce((s, r) => s + r.price, 0) / rooms.length) : 0;
+  const byLoc = byLocRaw || locs.map(loc => ({
+    ...loc,
+    rev: books.filter(b => b.locId === loc.id && b.status !== "cancelled").reduce((s, b) => s + b.paid, 0),
+    exp: exps.filter(e => e.locId === loc.id).reduce((s, e) => s + e.amt, 0),
+    cnt: books.filter(b => b.locId === loc.id).length,
+  }));
+  const byMethod = byMethodRaw || Object.entries(books.reduce((a,b)=>{a[b.method]=(a[b.method]||0)+b.paid;return a;},{})).map(([method,total])=>({method,total}));
+  // byStat as object for the booking status breakdown  
+  const byStatObj = Array.isArray(byStat) ? byStat : byStat;
+  const byStat = bStats || books.reduce((a, b) => { a[b.status] = (a[b.status] || 0) + 1; return a; }, {});
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Reports & Analytics</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+          {/* Quick presets */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[["All Time","all"],["Today","today"],["This Week","week"],["This Month","month"],["Last Month","lastmonth"],["This Year","year"]].map(([label, preset]) => {
+              const isActive = preset === "all" ? !dateFrom && !dateTo : (() => {
+                // rough active check
+                const now = new Date(); const fmt = d => d.toISOString().split("T")[0];
+                if (preset==="today") return dateFrom === fmt(now);
+                if (preset==="month") return dateFrom === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
+                if (preset==="year") return dateFrom === `${now.getFullYear()}-01-01`;
+                return false;
+              })();
+              return (
+                <button key={preset} onClick={() => applyPreset(preset)}
+                  style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `1px solid ${isActive ? M : G2}`, background: isActive ? M : WH, color: isActive ? WH : G6 }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {/* Custom date range */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 13, fontFamily: "inherit", color: BK, outline: "none" }} />
+            <span style={{ color: G6, fontSize: 13 }}>to</span>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 13, fontFamily: "inherit", color: BK, outline: "none" }} />
+            {(dateFrom || dateTo) && (
+              <button onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ padding: "5px 10px", border: `1px solid ${G2}`, borderRadius: 7, fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit", background: WH }}>✕ Clear</button>
+            )}
+          </div>
+          {(dateFrom || dateTo) && (
+            <div style={{ fontSize: 12, color: M, fontWeight: 700 }}>
+              {reportLoading ? "Loading…" : `Showing: ${dateFrom || "start"} → ${dateTo || "today"}`}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${G2}` }}>
+        {["financial", "occupancy", "location", "expenses", "bookings"].map(t => (
+          <button key={t} onClick={() => setRt(t)} style={{ padding: "10px 15px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: rt === t ? M : G6, borderBottom: `3px solid ${rt === t ? M : "transparent"}`, textTransform: "capitalize", fontFamily: "inherit" }}>{t}</button>
+        ))}
+      </div>
+
+      {rt === "financial" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
+            <KPI label="Gross Revenue" value={fmt(totRev)} color={M} icon="💰" />
+            <KPI label="Total Expenses" value={fmt(totExp)} color={ER} icon="📤" />
+            <KPI label="Net Profit" value={fmt(net)} color={net >= 0 ? OK : ER} icon="📈" sub={net >= 0 ? "Profitable" : "Loss"} />
+            <KPI label="Pending Revenue" value={fmt(pending)} color={WA} icon="⏳" />
+            <KPI label="Discounts Given" value={fmt(totDisc)} color={IN} icon="🏷️" />
+            <KPI label="Profit Margin" value={margin + "%"} color={net >= 0 ? OK : ER} icon="%" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <Card>
+              <SecTitle>Revenue vs Expenses by Location</SecTitle>
+              {byLoc.map(loc => (
+                <div key={loc.id} style={{ marginBottom: 15 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 13 }}>
+                    <strong>{loc.name}</strong>
+                    <span style={{ color: loc.rev - loc.exp >= 0 ? OK : ER, fontWeight: 700 }}>Net: {fmt(loc.rev - loc.exp)}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: G6, marginBottom: 5 }}>Rev: {fmt(loc.rev)} · Exp: {fmt(loc.exp)}</div>
+                  <div style={{ height: 6, background: G1, borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: totRev > 0 ? Math.round(loc.rev / totRev * 100) + "%" : "0%", background: M, borderRadius: 99 }} />
+                  </div>
+                </div>
+              ))}
+            </Card>
+            <Card>
+              <SecTitle>Payment Methods</SecTitle>
+              {byMethod.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
+                  <span style={{ color: G6 }}>{m.method}</span><span style={{ fontWeight: 700 }}>{fmt(m.total)}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 11, padding: "9px 0", borderTop: `2px solid ${G2}`, display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}>
+                <span>Total</span><span style={{ color: M }}>{fmt(totRev)}</span>
               </div>
             </Card>
+          </div>
+        </div>
+      )}
+
+      {rt === "occupancy" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 20 }}>
+            <KPI label="Overall Occupancy" value={occ + "%"} icon="🛏️" />
+            <KPI label="Occupied Rooms" value={rooms.filter(r => r.status === "occupied").length} color={M} sub={`of ${rooms.length} total`} />
+            <KPI label="Available Rooms" value={rooms.filter(r => r.status === "available").length} color={OK} />
+            <KPI label="Maintenance" value={rooms.filter(r => r.status === "maintenance").length} color={WA} />
+            <KPI label="Avg Nightly Rate" value={fmt(avgRate)} color={M} />
+            <KPI label="Total Rooms" value={rooms.length} />
+          </div>
+          <Card>
+            <SecTitle>Occupancy by Location</SecTitle>
+            {locs.map(loc => {
+              const lr = allRooms.filter(r => r.locId === loc.id);
+              const o = lr.filter(r => r.status === "occupied").length;
+              const pct = lr.length ? Math.round(o / lr.length * 100) : 0;
+              return (
+                <div key={loc.id} style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 14 }}>
+                    <strong style={{ fontFamily: "'Playfair Display',serif" }}>{loc.name}</strong>
+                    <span style={{ color: M, fontWeight: 700 }}>{pct}% ({o}/{lr.length})</span>
+                  </div>
+                  <div style={{ height: 10, background: G1, borderRadius: 99, overflow: "hidden", marginBottom: 5 }}>
+                    <div style={{ height: "100%", width: pct + "%", background: `linear-gradient(90deg,${M},${ML})`, borderRadius: 99 }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+                    {["available", "occupied", "maintenance"].map(s => <span key={s} style={{ color: sC(s) }}>{lr.filter(r => r.status === s).length} {s}</span>)}
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+      )}
+
+      {rt === "location" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
+          {byLoc.map(loc => {
+            const lb = books.filter(b => b.locId === loc.id);
+            const act = lb.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length;
+            const done = lb.filter(b => b.status === "checkedOut").length;
+            return (
+              <Card key={loc.id}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${G1}` }}>
+                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
+                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 15 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
+                </div>
+                {[["Total Revenue", fmt(loc.rev), OK], ["Total Expenses", fmt(loc.exp), ER], ["Net Profit", fmt(loc.rev - loc.exp), loc.rev - loc.exp >= 0 ? OK : ER], ["Total Bookings", loc.cnt, BK], ["Active Stays", act, M], ["Completed Stays", done, G6]].map(([k, v, c]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${G1}` }}>
+                    <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700, color: c }}>{v}</span>
+                  </div>
+                ))}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {rt === "expenses" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 16 }}>
+            {Object.entries(byCat).map(([c, a]) => <KPI key={c} label={c} value={fmt(a)} />)}
+          </div>
+          <Card><SecTitle>All Expenses</SecTitle>
+            <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
+              rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
+                e.date, locs.find(l => l.id === e.locId)?.name || "-", e.cat, e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
+              ])} />
+          </Card>
+        </div>
+      )}
+
+      {rt === "bookings" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 11, marginBottom: 18 }}>
+            {[["pending",(bsSrc=>bsSrc?.pending||(books.filter(b=>b.status==="pending").length))(bStats)],["confirmed",(bsSrc=>bsSrc?.confirmed||(books.filter(b=>b.status==="confirmed").length))(bStats)],["checkedIn",bStats?.active||(books.filter(b=>b.status==="checkedIn").length)],["checkedOut",bStats?.completed||(books.filter(b=>b.status==="checkedOut").length)],["cancelled",bStats?.cancelled||(books.filter(b=>b.status==="cancelled").length)]].map(([s, c]) => (
+              <div key={s} style={{ background: sB(s), border: `1px solid ${sC(s)}30`, borderRadius: 12, padding: "13px 15px" }}>
+                <div style={{ fontSize: 11, color: sC(s), fontWeight: 700, textTransform: "uppercase", marginBottom: 5 }}>{s}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: sC(s), fontFamily: "'Playfair Display',serif" }}>{c}</div>
+              </div>
+            ))}
+          </div>
+          <Card><SecTitle>Booking Revenue Analysis</SecTitle>
+            <Tbl hdr={["Booking", "Guest", "Base", "Discount", "Total", "Paid", "Balance", "Status"]}
+              rows={books.sort((a, b) => b.id.localeCompare(a.id)).map(b => {
+                const bal = b.total - b.paid;
+                return [
+                  <span style={{ color: M, fontWeight: 700, fontSize: 11 }}>{b.id}</span>, b.gName, fmt(b.base),
+                  b.disc > 0 ? <span style={{ color: OK, fontSize: 12 }}>{b.discT === "pct" ? b.disc + "%" : fmt(b.disc)}</span> : "—",
+                  fmt(b.total), <span style={{ color: OK }}>{fmt(b.paid)}</span>,
+                  <span style={{ color: bal > 0 ? ER : OK }}>{fmt(bal)}</span>, <Badge s={b.status} />
+                ];
+              })} />
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── LOCATIONS TAB ──────────────────────────────────────── */
+function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ id: null, name: "", city: "", addr: "", icon: "🏙️", desc: "" });
+  const save = () => { saveLoc(form, !!form.id); setModal(false); };
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
+        <Btn onClick={() => { setForm({ id: null, name: "", city: "", addr: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+        {locs.map(loc => {
+          const lr = rooms.filter(r => r.locId === loc.id);
+          const lb = books.filter(b => b.locId === loc.id);
+          const rev = lb.reduce((s, b) => s + b.paid, 0);
+          return (
+            <Card key={loc.id}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
+                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
+                </div>
+                <div style={{ display:"flex", gap:5 }}>
+                <button onClick={() => { setForm({ ...loc }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
+              </div>
+              </div>
+              <div style={{ fontSize: 12, color: G6, marginBottom: 8 }}>{loc.addr}</div>
+              <div style={{ fontSize: 12, color: G6, marginBottom: 12, fontStyle: "italic" }}>{loc.desc}</div>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                <span style={{ background: G1, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lr.length} rooms</span>
+                <span style={{ background: MF, color: M, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lb.length} bookings</span>
+                <span style={{ background: OKB, color: OK, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{fmt(rev)}</span>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      {modal && (
+        <Modal title={form.id ? "Edit Location" : "Add Location"} onClose={() => setModal(false)}>
+          <Inp label="Location Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="BNC Masaki" />
+          <Inp label="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Dar es Salaam" />
+          <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="Masaki, DSM" />
+          <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
+          <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+            <Btn onClick={save} disabled={!form.name || !form.city} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─── STAFF TAB ──────────────────────────────────────────── */
+function StaffTab({ staff, saveStaff, toggleStaff, locs, pop, payMethods, setPayMethods }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: "", pin: "", active: true });
+  const [newPM, setNewPM] = useState(false);
+  const [newPMName, setNewPMName] = useState("");
+  const save = () => { if(!form.name||!form.email||!form.pin)return; saveStaff(form,!!form.id); setModal(false); };
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Staff Accounts</h2>
+        <Btn onClick={() => { setForm({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: locs[0]?.id || "", pin: "", active: true }); setModal(true); }}>+ Create Account</Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 13 }}>
+        {staff.map(s => (
+          <Card key={s.id}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
+              <div style={{ width: 42, height: 42, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 15, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
+                {s.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Playfair Display',serif" }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: M, fontWeight: 700 }}>{s.role}</div>
+              </div>
+              <span style={{ background: s.active ? OKB : G1, color: s.active ? OK : G6, padding: "3px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{s.active ? "Active" : "Inactive"}</span>
+            </div>
+            {[["Email", s.email], ["Phone", s.phone], ["Location", locs.find(l => l.id === s.locId)?.name || "All Locations"], ["Joined", s.created]].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${G1}`, fontSize: 12 }}>
+                <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 600 }}>{v}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 7, marginTop: 11 }}>
+              <button onClick={() => { setForm({ ...s }); setModal(true); }} style={{ flex: 1, padding: "7px", fontSize: 12, borderRadius: 7, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontWeight: 700, fontFamily: "inherit" }}>Edit</button>
+              <button onClick={() => toggleStaff(s)} style={{ flex: 1, padding: "7px", fontSize: 12, borderRadius: 7, border: `1px solid ${s.active ? ER : OK}`, background: "none", cursor: "pointer", color: s.active ? ER : OK, fontWeight: 700, fontFamily: "inherit" }}>
+                {s.active ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {/* ── PAYMENT METHODS ── */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, margin: 0 }}>Payment Methods</h3>
+          <Btn onClick={() => setNewPM(true)} style={{ fontSize: 12, padding: "6px 13px" }}>+ Add Method</Btn>
+        </div>
+        <Card>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(payMethods || []).map((pm, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: G1, border: `1px solid ${G2}`, borderRadius: 8, padding: "7px 12px" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: BK }}>{pm}</span>
+                <button onClick={async () => {
+                    if (!window.confirm(`Remove "${pm}" as a payment method?`)) return;
+                    try {
+                      // Get full list from DB to find id
+                      const full = await api.getPayMethods();
+                      const found = full.find(p => p.name === pm);
+                      if (found) {
+                        await api.deletePayMethod(found.id);
+                        setPayMethods(prev => prev.filter(p => p !== pm));
+                        pop("Payment method removed");
+                      }
+                    } catch(e) { pop(e.message, "err"); }
+                  }}
+                  style={{ background: "none", border: "none", color: ER, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>
+              </div>
+            ))}
+            {(!payMethods || payMethods.length === 0) && <div style={{ color: G4, fontSize: 13 }}>No payment methods configured</div>}
+          </div>
+        </Card>
+        {newPM && (
+          <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "flex-end" }}>
+            <Inp label="New Payment Method Name" value={newPMName} onChange={e => setNewPMName(e.target.value)} placeholder="e.g. Cheque, Crypto..." style={{ marginBottom: 0 }} />
+            <Btn onClick={async () => {
+                if (!newPMName.trim()) return;
+                try {
+                  await api.createPayMethod(newPMName.trim());
+                  setPayMethods(prev => [...prev, newPMName.trim()]);
+                  setNewPMName(""); setNewPM(false);
+                  pop("Payment method added");
+                } catch(e) { pop(e.message, "err"); }
+              }}>Add</Btn>
+            <Btn v="ghost" onClick={() => { setNewPM(false); setNewPMName(""); }}>Cancel</Btn>
           </div>
         )}
       </div>
 
-      {toast && <div style={{position:"fixed",bottom:24,right:24,background:toast.t==="ok"?OK:ER,color:WH,padding:"11px 20px",borderRadius:10,fontSize:14,fontWeight:700,zIndex:9999}}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+      {modal && (
+        <Modal title={form.id ? "Edit Staff" : "Create Staff Account"} onClose={() => setModal(false)}>
+          <Inp label="Full Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Jane Mwangi" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
+            <Inp label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@bnc.co.tz" />
+            <Inp label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
+            <Sel label="Role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}><option>Manager</option><option>Receptionist</option><option>Housekeeping</option><option>Accountant</option></Sel>
+            <Sel label="Assigned Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}><option value="">All Locations</option>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+          </div>
+          <Inp label="Login PIN (4–6 digits)" type="password" value={form.pin} onChange={e => setForm(f => ({ ...f, pin: e.target.value }))} placeholder="••••" maxLength={6} />
+          <div style={{ background: MF, borderRadius: 8, padding: "9px 13px", fontSize: 12, color: M, marginBottom: 13 }}>
+            Staff log in with their <strong>email</strong> and this <strong>PIN</strong>.
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+            <Btn onClick={save} disabled={!form.name || !form.email || !form.pin} style={{ flex: 1, justifyContent: "center" }}>Save Account</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+
+/* ─── PROFILE TAB ────────────────────────────────────────── */
+function ProfileTab({ user, updateProfile }) {
+  const [form, setForm]     = useState({ name: user?.name || "", email: user?.email || "", phone: user?.phone || "" });
+  const [pinForm, setPinForm] = useState({ current_pin: "", new_pin: "", confirm_pin: "" });
+  const [saving, setSaving] = useState(false);
+  const [pinErr, setPinErr] = useState("");
+  const [section, setSection] = useState("details"); // details | pin
+
+  const saveDetails = async () => {
+    if (!form.name || !form.email) return;
+    setSaving(true);
+    await updateProfile({ id: user.id, name: form.name, email: form.email, phone: form.phone });
+    setSaving(false);
+  };
+
+  const savePin = async () => {
+    setPinErr("");
+    if (!pinForm.current_pin) return setPinErr("Enter your current PIN");
+    if (!pinForm.new_pin || pinForm.new_pin.length < 4) return setPinErr("New PIN must be at least 4 digits");
+    if (pinForm.new_pin !== pinForm.confirm_pin) return setPinErr("New PINs do not match");
+    setSaving(true);
+    const ok = await updateProfile({ id: user.id, current_pin: pinForm.current_pin, new_pin: pinForm.new_pin });
+    setSaving(false);
+    if (ok) setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
+  };
+
+  const initials = (user?.name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 22px" }}>My Profile</h2>
+
+      {/* Avatar + role card */}
+      <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <div style={{ width: 56, height: 56, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 20, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{user?.name}</div>
+          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{user?.role}</div>
+          <div style={{ fontSize: 12, color: G6, marginTop: 2 }}>{user?.email}</div>
+        </div>
+      </Card>
+
+      {/* Section tabs */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
+        {[["details", "Personal Details"], ["pin", "Change PIN"]].map(([id, label]) => (
+          <button key={id} onClick={() => { setSection(id); setPinErr(""); }}
+            style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Personal details */}
+      {section === "details" && (
+        <Card>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, color: BK }}>Personal Details</div>
+          <Inp label="Full Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" />
+          <Inp label="Email Address" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="your@email.com" />
+          <Inp label="Phone Number" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
+          <div style={{ background: G1, borderRadius: 8, padding: "10px 13px", fontSize: 12, color: G6, marginBottom: 16 }}>
+            Role and location assignment can only be changed by an Admin.
+          </div>
+          <Btn onClick={saveDetails} disabled={saving || !form.name || !form.email} style={{ width: "100%", justifyContent: "center" }}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Btn>
+        </Card>
+      )}
+
+      {/* Change PIN */}
+      {section === "pin" && (
+        <Card>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, color: BK }}>Change PIN</div>
+          <div style={{ marginBottom: 13 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Current PIN</label>
+            <input type="password" value={pinForm.current_pin} onChange={e => setPinForm(f => ({ ...f, current_pin: e.target.value }))}
+              placeholder="Enter current PIN" maxLength={6}
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+          <div style={{ height: 1, background: G2, margin: "16px 0" }} />
+          <div style={{ marginBottom: 13 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>New PIN</label>
+            <input type="password" value={pinForm.new_pin} onChange={e => setPinForm(f => ({ ...f, new_pin: e.target.value }))}
+              placeholder="4–6 digits" maxLength={6}
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Confirm New PIN</label>
+            <input type="password" value={pinForm.confirm_pin} onChange={e => setPinForm(f => ({ ...f, confirm_pin: e.target.value }))}
+              placeholder="Re-enter new PIN" maxLength={6}
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+          </div>
+          {pinErr && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{pinErr}</div>}
+          <Btn onClick={savePin} disabled={saving} style={{ width: "100%", justifyContent: "center" }}>
+            {saving ? "Updating…" : "Update PIN"}
+          </Btn>
+          <div style={{ marginTop: 12, fontSize: 12, color: G6, textAlign: "center" }}>
+            After changing your PIN, use the new PIN at your next login.
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ─── NEW BOOKING MODAL ──────────────────────────────────── */
+function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods }) {
+  const [form, setForm] = useState({ locId: locs[0]?.id || "", roomId: "", name: "", phone: "", email: "", nat: "", ci: td(), co: "", nights: 1, disc: 0, discT: "pct", method: payMethods?.[0] || "Cash", notes: "", paid: 0 });
+  const lr = rooms.filter(r => r.locId === form.locId && r.status === "available");
+  const sr = rooms.find(r => r.id === form.roomId);
+  const base = sr ? sr.price * form.nights : 0;
+  const da = form.discT === "pct" ? base * form.disc / 100 : Number(form.disc);
+  const total = base - da;
+  useEffect(() => {
+    if (form.ci && form.co) { const n = dd(form.ci, form.co); if (n > 0) setForm(f => ({ ...f, nights: n })); }
+  }, [form.ci, form.co]);
+  const save = () => {
+    if (!form.roomId || !form.name || !form.phone || !form.ci || !form.co) return;
+    onSave(form, base, da, total);
+  };
+  return (
+    <Modal title="New Booking" onClose={onClose} wide>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value, roomId: "" }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+        <Sel label="Room" value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}><option value="">Select room…</option>{lr.map(r => <option key={r.id} value={r.id}>{r.name} — {fmt(r.price)}/night</option>)}</Sel>
+        <Inp label="Check-in" type="date" value={form.ci} min={td()} onChange={e => setForm(f => ({ ...f, ci: e.target.value }))} />
+        <Inp label="Check-out" type="date" value={form.co} min={form.ci} onChange={e => setForm(f => ({ ...f, co: e.target.value }))} />
+        <Inp label="Guest Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
+        <Inp label="Phone *" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
+        <Inp label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+        <Inp label="Nationality" value={form.nat} onChange={e => setForm(f => ({ ...f, nat: e.target.value }))} />
+        <Sel label="Discount Type" value={form.discT} onChange={e => setForm(f => ({ ...f, discT: e.target.value }))}><option value="pct">Percentage (%)</option><option value="fix">Fixed Amount (TZS)</option></Sel>
+        <Inp label={form.discT === "pct" ? "Discount %" : "Discount (TZS)"} type="number" value={form.disc} onChange={e => setForm(f => ({ ...f, disc: e.target.value }))} min={0} />
+        <Sel label="Payment Method" value={form.method} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>{(payMethods || ["Cash","Mobile Money","Bank Transfer","Card"]).map(pm => <option key={pm}>{pm}</option>)}</Sel>
+        <Inp label="Initial Payment (TZS)" type="number" value={form.paid} onChange={e => setForm(f => ({ ...f, paid: e.target.value }))} placeholder="0" />
+      </div>
+      <Inp label="Notes / Special Requests" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Special requests…" />
+      {sr && form.nights > 0 && (
+        <div style={{ background: BK, borderRadius: 10, padding: 13, marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[["Nights × Rate", `${form.nights} × ${fmt(sr.price)}`], ["Discount", da > 0 ? `- ${fmt(da)}` : "None"], ["TOTAL", fmt(total)]].map(([k, v], i) => (
+            <div key={i} style={{ textAlign: i === 2 ? "right" : "left" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,.45)", marginBottom: 2 }}>{k}</div>
+              <div style={{ fontSize: i === 2 ? 17 : 13, fontWeight: 700, color: i === 2 ? GOLD : WH, fontFamily: i === 2 ? "'Playfair Display',serif" : "inherit" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+        <Btn v="ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+        <Btn onClick={save} disabled={!form.roomId || !form.name || !form.phone || !form.ci || !form.co} style={{ flex: 1, justifyContent: "center" }}>Create Booking</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+/* ─── CUSTOMER AUTH MODAL ────────────────────────────────── */
+function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop }) {
+  const [form, setForm] = useState({ name: "", email: "", phone: "", nationality: "", password: "", confirm: "" });
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const doLogin = async () => {
+    setErr(""); setLoading(true);
+    try { await onLogin(form.email.trim(), form.password); }
+    catch (e) { setErr(e.message); }
+    setLoading(false);
+  };
+
+  const doRegister = async () => {
+    setErr("");
+    if (!form.name || !form.email || !form.password) return setErr("Name, email and password are required");
+    if (form.password.length < 6) return setErr("Password must be at least 6 characters");
+    if (form.password !== form.confirm) return setErr("Passwords do not match");
+    setLoading(true);
+    try { await onRegister({ name: form.name, email: form.email, phone: form.phone, nationality: form.nationality, password: form.password }); }
+    catch (e) { setErr(e.message); }
+    setLoading(false);
+  };
+
+  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
+  const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
+
+  return (
+    <Modal title={mode === "login" ? "Sign In to Your Account" : "Create Account"} onClose={onClose}>
+      {mode === "register" && (
+        <>
+          <label style={lblStyle}>Full Name</label>
+          <input style={inpStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <div>
+              <label style={lblStyle}>Phone</label>
+              <input style={inpStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
+            </div>
+            <div>
+              <label style={lblStyle}>Nationality</label>
+              <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
+            </div>
+          </div>
+        </>
+      )}
+      <label style={lblStyle}>Email Address</label>
+      <input type="email" style={inpStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="your@email.com"
+        onKeyDown={e => e.key === "Enter" && mode === "login" && doLogin()} />
+      <label style={lblStyle}>Password</label>
+      <input type="password" style={inpStyle} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={mode === "register" ? "Min 6 characters" : "••••••"}
+        onKeyDown={e => e.key === "Enter" && mode === "login" && doLogin()} />
+      {mode === "register" && (
+        <>
+          <label style={lblStyle}>Confirm Password</label>
+          <input type="password" style={inpStyle} value={form.confirm} onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Re-enter password" />
+        </>
+      )}
+      {err && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <Btn onClick={mode === "login" ? doLogin : doRegister} disabled={loading} style={{ width: "100%", justifyContent: "center", padding: "11px", marginBottom: 14 }}>
+        {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+      </Btn>
+      <div style={{ textAlign: "center", fontSize: 13, color: G6 }}>
+        {mode === "login" ? (
+          <>Don't have an account? <button onClick={() => { setMode("register"); setErr(""); }} style={{ background: "none", border: "none", color: M, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Create one</button></>
+        ) : (
+          <>Already have an account? <button onClick={() => { setMode("login"); setErr(""); }} style={{ background: "none", border: "none", color: M, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Sign in</button></>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/* ─── CUSTOMER BOOKINGS TAB ──────────────────────────────── */
+function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRefresh }) {
+  const [sel, setSel] = useState(null);
+  const selB = custBooks.find(b => b.id === sel);
+
+  const statusLabel = { pending: "Awaiting Confirmation", confirmed: "Confirmed", checkedIn: "Checked In", checkedOut: "Completed", cancelled: "Cancelled" };
+  const upcoming = custBooks.filter(b => ["pending","confirmed"].includes(b.status));
+  const active   = custBooks.filter(b => b.status === "checkedIn");
+  const past     = custBooks.filter(b => ["checkedOut","cancelled"].includes(b.status));
+
+  if (custLoading) return <div style={{ textAlign: "center", padding: 60, color: G4 }}>Loading your bookings…</div>;
+
+  if (!custBooks.length) return (
+    <div style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ fontSize: 52, marginBottom: 16 }}>🛏️</div>
+      <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, color: BK, marginBottom: 10 }}>No bookings yet</h3>
+      <p style={{ color: G6, fontSize: 15, marginBottom: 24 }}>Browse our properties and make your first booking.</p>
+    </div>
+  );
+
+  const BookingCard = ({ b }) => {
+    const bal = Number(b.total_amount) - Number(b.paid_amount);
+    const photos = b.room_photos || [];
+    return (
+      <Card style={{ marginBottom: 14, overflow: "hidden", padding: 0 }}>
+        <div style={{ display: "flex" }}>
+          {photos.length > 0 ? (
+            <div style={{ width: 110, flexShrink: 0, background: G2 }}>
+              <img src={photos[0]} alt={b.room_name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
+          ) : (
+            <div style={{ width: 110, flexShrink: 0, background: `linear-gradient(135deg,${MD},${M})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🛏️</div>
+          )}
+          <div style={{ flex: 1, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, fontFamily: "'Playfair Display',serif", color: BK }}>{b.room_name || "Room"}</div>
+                <div style={{ fontSize: 12, color: G6 }}>{b.location_icon} {b.location_name} · {b.location_city}</div>
+              </div>
+              <Badge s={b.status} label={statusLabel[b.status] || b.status} />
+            </div>
+            <div style={{ display: "flex", gap: 16, fontSize: 13, color: G6, marginBottom: 10 }}>
+              <span>📅 {b.check_in} → {b.check_out}</span>
+              <span>🌙 {b.nights} night{b.nights > 1 ? "s" : ""}</span>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <span style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(b.total_amount)}</span>
+                {bal > 0 && b.status !== "cancelled" && <span style={{ fontSize: 12, color: ER, marginLeft: 8 }}>Balance: {fmt(bal)}</span>}
+                {bal === 0 && b.status !== "cancelled" && <span style={{ fontSize: 12, color: OK, marginLeft: 8 }}>✓ Paid in full</span>}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setSel(b.id)} style={{ padding: "5px 12px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit", fontWeight: 600 }}>Details</button>
+                {["pending","confirmed"].includes(b.status) && (
+                  <button onClick={() => onCancel(b.id)} style={{ padding: "5px 12px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 600 }}>Cancel</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>My Bookings</h2>
+        <button onClick={onRefresh} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>↻ Refresh</button>
+      </div>
+
+      {/* Summary strip */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10, marginBottom: 22 }}>
+        {[["Total", custBooks.length, BK],["Active", active.length, M],["Upcoming", upcoming.length, IN],["Completed", custBooks.filter(b=>b.status==="checkedOut").length, OK]].map(([l,v,c]) => (
+          <div key={l} style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontSize: 11, color: G6, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700, marginBottom: 4 }}>{l}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: "'Playfair Display',serif" }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {active.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Currently Staying</div>{active.map(b => <BookingCard key={b.id} b={b}/>)}</>}
+      {upcoming.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: IN, textTransform: "uppercase", letterSpacing: ".08em", margin: "16px 0 10px" }}>Upcoming</div>{upcoming.map(b => <BookingCard key={b.id} b={b}/>)}</>}
+      {past.length > 0 && <><div style={{ fontSize: 12, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".08em", margin: "16px 0 10px" }}>Past & Cancelled</div>{past.map(b => <BookingCard key={b.id} b={b}/>)}</>}
+
+      {/* Detail modal */}
+      {sel && selB && (
+        <Modal title={`Booking ${selB.id}`} onClose={() => setSel(null)}>
+          {selB.room_photos?.length > 0 && (
+            <img src={selB.room_photos[0]} alt={selB.room_name} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, marginBottom: 16 }} />
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{selB.room_name}</div>
+              <div style={{ fontSize: 13, color: G6 }}>{selB.location_icon} {selB.location_name}, {selB.location_city}</div>
+            </div>
+            <Badge s={selB.status} label={statusLabel[selB.status]} />
+          </div>
+          {[["Booking ID", selB.id],["Check-in", selB.check_in],["Check-out", selB.check_out],["Nights", selB.nights],["Guests", selB.guests || 1],["Payment Method", selB.payment_method],["Base Amount", fmt(selB.base_amount)],selB.discount > 0 && ["Discount", selB.discount_type === "pct" ? selB.discount + "%" : fmt(selB.discount)],["Total", fmt(selB.total_amount)],["Paid", fmt(selB.paid_amount)],selB.status !== "cancelled" && ["Balance", fmt(selB.total_amount - selB.paid_amount)]].filter(Boolean).map(([k,v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
+              <span style={{ color: G6 }}>{k}</span>
+              <span style={{ fontWeight: 700 }}>{v}</span>
+            </div>
+          ))}
+          {selB.notes && <div style={{ marginTop: 12, padding: "10px 12px", background: G1, borderRadius: 8, fontSize: 13, color: G6 }}>📝 {selB.notes}</div>}
+          {["pending","confirmed"].includes(selB.status) && (
+            <div style={{ marginTop: 16 }}>
+              <Btn v="danger" onClick={() => { onCancel(selB.id); setSel(null); }} style={{ width: "100%", justifyContent: "center" }}>Cancel This Booking</Btn>
+              <div style={{ fontSize: 12, color: G4, textAlign: "center", marginTop: 8 }}>Cancellation is immediate and cannot be undone.</div>
+            </div>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─── CUSTOMER PROFILE TAB ───────────────────────────────── */
+function CustomerProfileTab({ customer, onUpdate }) {
+  const [form, setForm] = useState({ name: customer?.name || "", phone: customer?.phone || "", nationality: customer?.nationality || "" });
+  const [pwForm, setPwForm] = useState({ current_password: "", new_password: "", confirm: "" });
+  const [section, setSection] = useState("details");
+  const [pwErr, setPwErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const saveDetails = async () => {
+    setSaving(true);
+    await onUpdate({ name: form.name, phone: form.phone, nationality: form.nationality });
+    setSaving(false);
+  };
+
+  const savePassword = async () => {
+    setPwErr("");
+    if (!pwForm.current_password) return setPwErr("Enter your current password");
+    if (pwForm.new_password.length < 6) return setPwErr("New password must be at least 6 characters");
+    if (pwForm.new_password !== pwForm.confirm) return setPwErr("Passwords do not match");
+    setSaving(true);
+    const ok = await onUpdate({ current_password: pwForm.current_password, new_password: pwForm.new_password });
+    setSaving(false);
+    if (ok) setPwForm({ current_password: "", new_password: "", confirm: "" });
+  };
+
+  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
+  const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
+  const initials = (customer?.name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 22px" }}>My Profile</h2>
+      <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <div style={{ width: 52, height: 52, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>{initials}</div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{customer?.name}</div>
+          <div style={{ fontSize: 13, color: G6, marginTop: 2 }}>{customer?.email}</div>
+          <div style={{ fontSize: 12, color: G4, marginTop: 2 }}>Member since {customer?.created_at ? new Date(customer.created_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : ""}</div>
+        </div>
+      </Card>
+
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
+        {[["details","Personal Details"],["password","Change Password"]].map(([id,label]) => (
+          <button key={id} onClick={() => { setSection(id); setPwErr(""); }}
+            style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+        ))}
+      </div>
+
+      {section === "details" && (
+        <Card>
+          <label style={lblStyle}>Full Name</label>
+          <input style={inpStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <label style={lblStyle}>Phone Number</label>
+          <input style={inpStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
+          <label style={lblStyle}>Nationality</label>
+          <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
+          <div style={{ background: G1, borderRadius: 8, padding: "9px 13px", fontSize: 12, color: G6, marginBottom: 14 }}>Email address cannot be changed. Contact us if needed.</div>
+          <Btn onClick={saveDetails} disabled={saving || !form.name} style={{ width: "100%", justifyContent: "center" }}>{saving ? "Saving…" : "Save Changes"}</Btn>
+        </Card>
+      )}
+
+      {section === "password" && (
+        <Card>
+          <label style={lblStyle}>Current Password</label>
+          <input type="password" style={inpStyle} value={pwForm.current_password} onChange={e => setPwForm(f => ({ ...f, current_password: e.target.value }))} placeholder="Enter current password" />
+          <div style={{ height: 1, background: G2, margin: "4px 0 16px" }} />
+          <label style={lblStyle}>New Password</label>
+          <input type="password" style={inpStyle} value={pwForm.new_password} onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))} placeholder="Min 6 characters" />
+          <label style={lblStyle}>Confirm New Password</label>
+          <input type="password" style={inpStyle} value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Re-enter new password" />
+          {pwErr && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{pwErr}</div>}
+          <Btn onClick={savePassword} disabled={saving} style={{ width: "100%", justifyContent: "center" }}>{saving ? "Updating…" : "Update Password"}</Btn>
+        </Card>
+      )}
     </div>
   );
 }

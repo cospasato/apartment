@@ -1,75 +1,87 @@
 // src/api.js
+const BASE = ''
+
 async function req(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } }
   if (body) opts.body = JSON.stringify(body)
-  const res = await fetch(`/api${path}`, opts)
+
+  const res = await fetch(`${BASE}/api${path}`, opts)
   const text = await res.text()
-  if (!text?.trim()) { if (!res.ok) throw new Error(`Request failed (${res.status})`); return {} }
+
+  if (!text || text.trim() === '') {
+    if (!res.ok) throw new Error(`Request failed (${res.status}) — empty response`)
+    return {}
+  }
+
   let data
-  try { data = JSON.parse(text) } catch { throw new Error(`Server error (${res.status})`) }
+  try {
+    data = JSON.parse(text)
+  } catch {
+    console.error('Non-JSON response:', text.slice(0, 200))
+    throw new Error(`Server error (${res.status}). Check Vercel function logs.`)
+  }
+
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
   return data
 }
-const get  = p       => req('GET',    p)
-const post = (p, b)  => req('POST',   p, b)
-const put  = (p, b)  => req('PUT',    p, b)
-const del  = p       => req('DELETE', p)
 
-const d = (tid, resource, params = '') => `/data?tenant_id=${tid}&resource=${resource}${params}`
+const get  = path       => req('GET',    path)
+const post = (path, b)  => req('POST',   path, b)
+const put  = (path, b)  => req('PUT',    path, b)
+const del  = path       => req('DELETE', path)
 
 export const api = {
-  // Plans (public)
-  getPlans: () => get('/plans'),
+  // Staff auth
+  login:           (email, pin) => post('/auth', { email, pin }),
 
-  // Tenant auth
-  tenantRegister: b         => post('/tenants?action=register', b),
-  tenantLogin:    b         => post('/tenants?action=login', b),
-  getTenant:      tid       => get(`/tenants?tenant_id=${tid}`),
-  updateTenant:   (tid, b)  => put(`/tenants?tenant_id=${tid}`, b),
+  // Locations
+  getLocations:    ()           => get('/locations'),
+  createLocation:  d            => post('/locations', d),
+  updateLocation:  (id, d)      => put(`/locations?id=${id}`, d),
+  deleteLocation:  id           => del(`/locations?id=${id}`),
 
-  // Subscriptions
-  getSubscriptions: tid     => get(`/subscriptions?tenant_id=${tid}`),
-  subscribe:        b       => post('/subscriptions', b),
+  // Rooms
+  getRooms:        locId        => get('/rooms' + (locId ? `?location_id=${locId}` : '')),
+  createRoom:      d            => post('/rooms', d),
+  updateRoom:      (id, d)      => put(`/rooms?id=${id}`, d),
+  deleteRoom:      id           => del(`/rooms?id=${id}`),
 
-  // Super admin
-  superLogin:     b         => post('/super?action=login', b),
-  superStats:     ()        => get('/super?action=stats'),
-  superTenants:   ()        => get('/super?action=tenants'),
-  superUpdate:    (tid, b)  => put(`/super?tenant_id=${tid}`, b),
-  superDelete:    tid       => del(`/super?tenant_id=${tid}`),
+  // Bookings
+  getBookings:     locId        => get('/bookings' + (locId ? `?location_id=${locId}` : '')),
+  createBooking:   d            => post('/bookings', d),
+  updateBooking:   (id, d)      => put(`/bookings?id=${id}`, d),
+  recordPayment:   (id, amount) => put(`/bookings?id=${id}`, { add_payment: amount }),
+  extendBooking:   (id, d)      => put(`/bookings?id=${id}&action=extend`, d),
+  deleteBooking:   id           => del(`/bookings?id=${id}`),
 
-  // Lodge data (all scoped to tenant)
-  getLocations:   tid       => get(d(tid, 'locations')),
-  createLocation: (tid, b)  => post(d(tid, 'locations'), b),
-  updateLocation: (tid, id, b) => put(d(tid, 'locations', `&id=${id}`), b),
-  deleteLocation: (tid, id)    => del(d(tid, 'locations', `&id=${id}`)),
+  // Expenses
+  getExpenses:     locId        => get('/expenses' + (locId ? `?location_id=${locId}` : '')),
+  createExpense:   d            => post('/expenses', d),
 
-  getRooms:       (tid, lid) => get(d(tid, 'rooms', lid ? `&location_id=${lid}` : '')),
-  createRoom:     (tid, b)   => post(d(tid, 'rooms'), b),
-  updateRoom:     (tid, id, b) => put(d(tid, 'rooms', `&id=${id}`), b),
-  deleteRoom:     (tid, id)    => del(d(tid, 'rooms', `&id=${id}`)),
+  // Staff
+  getStaff:        ()           => get('/staff'),
+  createStaff:     d            => post('/staff', d),
+  updateStaff:     (id, d)      => put(`/staff?id=${id}`, d),
+  updateProfile:   d            => put('/staff?me=1', d),
 
-  getBookings:    (tid, lid) => get(d(tid, 'bookings', lid ? `&location_id=${lid}` : '')),
-  createBooking:  (tid, b)   => post(d(tid, 'bookings'), b),
-  updateBooking:  (tid, id, b) => put(d(tid, 'bookings', `&id=${id}`), b),
-  recordPayment:  (tid, id, amt) => put(d(tid, 'bookings', `&id=${id}`), { add_payment: amt }),
-  extendBooking:  (tid, id, b)   => put(d(tid, 'bookings', `&id=${id}`), b),
-  deleteBooking:  (tid, id)      => del(d(tid, 'bookings', `&id=${id}`)),
+  // Reports
+  getReports:      locId        => get('/reports' + (locId ? `?location_id=${locId}` : '')),
 
-  getExpenses:    (tid, lid) => get(d(tid, 'expenses', lid ? `&location_id=${lid}` : '')),
-  createExpense:  (tid, b)   => post(d(tid, 'expenses'), b),
-
-  getStaff:       tid        => get(d(tid, 'staff')),
-  staffLogin:     (tid, b)   => post(d(tid, 'staff', '&action=login'), b),
-  createStaff:    (tid, b)   => post(d(tid, 'staff'), b),
-  updateStaff:    (tid, id, b) => put(d(tid, 'staff', `&id=${id}`), b),
-  updateProfile:  (tid, b)   => put(d(tid, 'staff', '&me=1'), b),
-
-  getReports:     (tid, lid) => get(d(tid, 'reports', lid ? `&location_id=${lid}` : '')),
-
-  custRegister:   (tid, b)   => post(d(tid, 'customers', '&action=register'), b),
-  custLogin:      (tid, b)   => post(d(tid, 'customers', '&action=login'), b),
-  custBookings:   (tid, cid) => get(d(tid, 'customers', `&customer_id=${cid}`)),
-  custUpdate:     (tid, cid, b) => put(d(tid, 'customers', `&customer_id=${cid}`), b),
-  custCancel:     (tid, id, cid) => put(d(tid, 'bookings', `&id=${id}`), { customer_cancel: true, customer_id: cid }),
+  // Customers
+  customerRegister: d           => post('/customers?action=register', d),
+  customerLogin:    d           => post('/customers?action=login', d),
+  customerBookings: id          => get(`/customers?customer_id=${id}`),
+  customerUpdate:   (id, d)     => put(`/customers?customer_id=${id}`, d),
+  customerCancel:   (id, cid)   => put(`/bookings?id=${id}&customer_cancel=1`, { customer_id: cid }),
 }
+
+// Payment methods + availability (appended)
+Object.assign(api, {
+  getPayMethods:     ()           => get('/staff?resource=payment_methods'),
+  createPayMethod:   name         => post('/staff?resource=payment_methods', { name }),
+  updatePayMethod:   (pmId, d)    => put('/staff?resource=payment_methods', { ...d, pmId }),
+  deletePayMethod:   pmId         => req('DELETE', '/staff?resource=payment_methods', { pmId }),
+  getBookedDates:    locId        => get(`/bookings?get_booked_dates=${locId}`),
+  checkAvailability: (roomId, ci, co) => get(`/bookings?check_room=${roomId}&ci=${ci}&co=${co}`),
+  getReports:        (locId, df, dt) => get('/reports' + [locId?`location_id=${locId}`:'', df?`date_from=${df}`:'', dt?`date_to=${dt}`:''].filter(Boolean).reduce((s,p,i)=>s+(i===0?'?':'&')+p, '')),
+})
