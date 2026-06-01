@@ -1209,9 +1209,6 @@ export default function App() {
   );
 }
 
-
-}
-
 function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   return (
     <Modal title="Staff Login" onClose={onClose}>
