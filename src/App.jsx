@@ -476,13 +476,13 @@ export default function App() {
     const sid = storeId || user?.storeId;
     try {
       const payload = { store_id: sid, name: form.name, email: form.email, phone: form.phone, role: form.role, location_id: form.locId || null };
-      if (form.pin) payload.pin_hash = form.pin;
+      if (form.pin) payload.pin = form.pin;
       if (isEdit) {
         const updated = await api.updateStaff(form.id, payload);
         setStaff(p => p.map(s => s.id === form.id ? mapStaff(updated) : s));
         pop("Staff account updated");
       } else {
-        const created = await api.createStaff({ ...payload, pin_hash: form.pin });
+        const created = await api.createStaff(payload);
         setStaff(p => [...p, mapStaff(created)]);
         pop(`Account created for ${form.name}`);
       }
