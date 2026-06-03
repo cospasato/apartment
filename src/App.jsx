@@ -1704,12 +1704,16 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
                 <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[["Revenue", fmt(lrev), M], ["Expenses", fmt(lexp), ER], ["Rooms", `${lr.filter(r => r.status === "available").length}/${lr.length} avail`, OK], ["Bookings", lb.length, IN]].map(([k, v, clr], i) => (
-                  <div key={i} style={{ background: G1, borderRadius: 8, padding: "9px 11px" }}>
-                    <div style={{ fontSize: 11, color: G6 }}>{k}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: clr, marginTop: 2 }}>{v}</div>
-                  </div>
-                ))}
+                {(()=>{
+                  const avail = lr.filter(r => r.status === "available").length;
+                  const items = [["Revenue", fmt(lrev), M], ["Expenses", fmt(lexp), ER], ["Rooms", avail + "/" + lr.length + " avail", OK], ["Bookings", lb.length, IN]];
+                  return items.map(([k, v, clr], i) => (
+                    <div key={i} style={{ background: G1, borderRadius: 8, padding: "9px 11px" }}>
+                      <div style={{ fontSize: 11, color: G6 }}>{k}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: clr, marginTop: 2 }}>{v}</div>
+                    </div>
+                  ));
+                })()}
               </div>
             </Card>
           );
