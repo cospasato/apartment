@@ -42,8 +42,9 @@ CREATE TABLE IF NOT EXISTS stores (
   plan_id     TEXT        REFERENCES subscription_plans(id),
   status      TEXT        NOT NULL DEFAULT 'trial'
                           CHECK (status IN ('trial','active','suspended','terminated','pending')),
-  logo_url    TEXT,
-  description TEXT        NOT NULL DEFAULT '',
+  logo_url       TEXT,
+  featured_image TEXT,
+  description    TEXT        NOT NULL DEFAULT '',
   country     TEXT        NOT NULL DEFAULT 'TZ',
   city        TEXT        NOT NULL DEFAULT '',
   phone       TEXT,
@@ -249,3 +250,9 @@ ON CONFLICT (key) DO NOTHING;
 INSERT INTO super_admins (id, name, email, password_hash) VALUES
   ('SADMIN', 'BNBMIS Admin', 'admin@bnbmis.com', 'Admin@2024!')
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- MIGRATION: Run this if you already have the database set up
+-- (safe to run multiple times — uses IF NOT EXISTS)
+-- ============================================================
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;

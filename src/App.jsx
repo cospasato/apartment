@@ -1322,14 +1322,15 @@ export default function App() {
   if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
-      {id:"dash",   icon:"📊", l:"Dashboard"},
-      {id:"books",  icon:"📋", l:"Bookings"},
-      {id:"rooms",  icon:"🛏️",  l:"Rooms"},
-      {id:"pays",   icon:"💳", l:"Payments"},
-      {id:"exps",   icon:"📤", l:"Expenses"},
-      {id:"reports",icon:"📈", l:"Reports"},
-      {id:"locs",   icon:"📍", l:"Locations"},
-      {id:"staff",  icon:"👥", l:"Staff"},
+      {id:"dash",    icon:"📊", l:"Dashboard"},
+      {id:"books",   icon:"📋", l:"Bookings"},
+      {id:"rooms",   icon:"🛏️",  l:"Rooms"},
+      {id:"pays",    icon:"💳", l:"Payments"},
+      {id:"exps",    icon:"📤", l:"Expenses"},
+      {id:"reports", icon:"📈", l:"Reports"},
+      {id:"locs",    icon:"📍", l:"Locations"},
+      {id:"staff",   icon:"👥", l:"Staff"},
+      {id:"settings",icon:"⚙️",  l:"Settings"},
     ];
     const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
     const totExp2   = exps.reduce((s,e)=>s+e.amt,0);
@@ -1351,6 +1352,7 @@ export default function App() {
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
+        {!loading && aTab==="settings" && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
       </>
     );
 
@@ -1359,7 +1361,7 @@ export default function App() {
       <div style={{ minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         {/* Top bar */}
-        <div style={{ background:M, color:WH, height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ background:M, color:WH, minHeight:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"env(safe-area-inset-top) 14px 0", paddingTop:"max(env(safe-area-inset-top),12px)", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
           <div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>{owner.store.name}</div>
             <div style={{ fontSize:10, color:"rgba(255,255,255,.5)" }}>Store Owner</div>
@@ -1372,7 +1374,7 @@ export default function App() {
           </div>
         </div>
         {/* Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:"14px 14px 90px" }}>
+        <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(80px + env(safe-area-inset-bottom))" }}>
           {content}
         </div>
         {/* Bottom nav */}
@@ -1462,7 +1464,7 @@ export default function App() {
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       {/* Top bar */}
-      <div style={{ background:G8, color:WH, height:52, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
+      <div style={{ background:G8, color:WH, minHeight:52, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),10px)", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
         <div>
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>
             {ATABS.find(t=>t.id===aTab)?.icon} {ATABS.find(t=>t.id===aTab)?.label}
@@ -1475,7 +1477,7 @@ export default function App() {
         </div>
       </div>
       {/* Content */}
-      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px 80px" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(72px + env(safe-area-inset-bottom))" }}>
         {adminContent}
       </div>
       {/* Bottom nav — show all ATABS, 2 rows if needed */}
@@ -4176,5 +4178,252 @@ function SuperLoginModal({ onLogin, onClose, pop }) {
         {busy ? "Signing in…" : "Sign In"}
       </button>
     </Modal>
+  );
+}
+
+/* ─── OWNER SETTINGS TAB ────────────────────────────────── */
+function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",WH2="#FFF",G12="#F5F5F5";
+  const [storeData, setStoreData] = useState(null);
+  const [saving, setSaving]       = useState(false);
+  const [section, setSection]     = useState("store"); // store | domain | image | password
+  const [form, setForm] = useState({
+    name:"", description:"", city:"", phone:"", email:"", website:"",
+    featured_image:"", slug:""
+  });
+  const [pw, setPw] = useState({ current:"", newp:"", confirm:"" });
+  const [slugStatus, setSlugStatus] = useState(null); // null | "checking" | "available" | "taken"
+
+  useEffect(()=>{
+    api.getStore(storeId).then(s=>{
+      setStoreData(s);
+      setForm({
+        name:        s.name||"",
+        description: s.description||"",
+        city:        s.city||"",
+        phone:       s.phone||"",
+        email:       s.email||"",
+        website:     s.website||"",
+        featured_image: s.featured_image||"",
+        slug:        s.slug||"",
+      });
+    }).catch(()=>{});
+  },[storeId]);
+
+  const save = async(fields) => {
+    setSaving(true);
+    try { await onStoreUpdate(fields); }
+    catch(e) { pop(e.message,"err"); }
+    setSaving(false);
+  };
+
+  const checkSlug = async(slug) => {
+    if (!slug || slug === storeData?.slug) { setSlugStatus(null); return; }
+    setSlugStatus("checking");
+    try {
+      const res = await api.getStoreBySlug(slug);
+      setSlugStatus(res?.id && res.id !== storeId ? "taken" : "available");
+    } catch { setSlugStatus("available"); }
+  };
+
+  // Room photos for featured image picker
+  const roomPhotos = rooms.flatMap(r=>(r.photos||[]).map(p=>({photo:p, roomName:r.name})));
+
+  const inp = (label, key, type="text", ph="") => (
+    <div style={{ marginBottom:14 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+      <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+    </div>
+  );
+
+  const sectionBtns = [
+    {id:"store",  label:"Store Info",  icon:"🏪"},
+    {id:"image",  label:"Featured Image", icon:"🖼️"},
+    {id:"domain", label:"Subdomain",   icon:"🌐"},
+    {id:"password",label:"Password",  icon:"🔐"},
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom:20 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 4px" }}>Store Settings</h2>
+        <div style={{ fontSize:13, color:G62 }}>Manage your store profile and subdomain</div>
+      </div>
+
+      {/* Section tabs */}
+      <div style={{ display:"flex", gap:8, marginBottom:22, flexWrap:"wrap" }}>
+        {sectionBtns.map(s=>(
+          <button key={s.id} onClick={()=>setSection(s.id)}
+            style={{ padding:"8px 16px", borderRadius:99, border:`1px solid ${section===s.id?M2:G22}`, background:section===s.id?M2:WH2, color:section===s.id?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── STORE INFO ── */}
+      {section==="store" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:560 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Store Information</h3>
+          {inp("Store / Property Name","name","text","e.g. Sunrise Lodge")}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
+            <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+          </div>
+          {inp("City","city","text","e.g. Nairobi")}
+          {inp("Phone","phone","tel","e.g. +254 7XX XXX XXX")}
+          {inp("Email","email","email","contact@yourstore.com")}
+          {inp("Website","website","url","https://yourwebsite.com")}
+          <button onClick={()=>save({name:form.name,description:form.description,city:form.city,phone:form.phone,email:form.email,website:form.website})} disabled={saving}
+            style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
+            {saving?"Saving…":"Save Changes"}
+          </button>
+        </div>
+      )}
+
+      {/* ── FEATURED IMAGE ── */}
+      {section==="image" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:620 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Featured Image</h3>
+          <p style={{ fontSize:13, color:G62, marginBottom:18 }}>This image shows on the marketplace homepage card for your store.</p>
+
+          {/* Current featured image */}
+          {form.featured_image && (
+            <div style={{ marginBottom:18, position:"relative", display:"inline-block" }}>
+              <img src={form.featured_image} alt="Featured" style={{ width:"100%", maxWidth:400, height:180, objectFit:"cover", borderRadius:10, border:`2px solid ${M2}`, display:"block" }}/>
+              <button onClick={()=>setForm(f=>({...f,featured_image:""}))}
+                style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,.6)", color:WH2, border:"none", borderRadius:99, width:28, height:28, cursor:"pointer", fontSize:16, lineHeight:1 }}>×</button>
+              <div style={{ fontSize:11, color:M2, fontWeight:700, marginTop:6 }}>✓ Current featured image</div>
+            </div>
+          )}
+
+          {/* URL input */}
+          <div style={{ marginBottom:18 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Image URL</label>
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={form.featured_image} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="https://example.com/image.jpg"
+                style={{ flex:1, padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }}/>
+              <button onClick={()=>save({featured_image:form.featured_image})} disabled={saving}
+                style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                {saving?"…":"Set Image"}
+              </button>
+            </div>
+            <div style={{ fontSize:11, color:G62, marginTop:4 }}>Paste any image URL, or pick from your room photos below</div>
+          </div>
+
+          {/* Pick from room photos */}
+          {roomPhotos.length > 0 && (
+            <>
+              <div style={{ fontSize:12, fontWeight:700, color:G82, marginBottom:10, textTransform:"uppercase", letterSpacing:".05em" }}>Pick from room photos</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
+                {roomPhotos.map((p,i)=>(
+                  <div key={i} onClick={()=>{ setForm(f=>({...f,featured_image:p.photo})); save({featured_image:p.photo}); }}
+                    style={{ position:"relative", height:90, borderRadius:8, overflow:"hidden", cursor:"pointer", border:`3px solid ${form.featured_image===p.photo?M2:"transparent"}`, transition:"border-color .15s" }}>
+                    <img src={p.photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                    <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,.5)", color:WH2, fontSize:9, padding:"3px 6px", fontWeight:600 }}>{p.roomName}</div>
+                    {form.featured_image===p.photo && <div style={{ position:"absolute", top:4, right:4, background:M2, color:WH2, borderRadius:99, width:18, height:18, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700 }}>✓</div>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {roomPhotos.length === 0 && (
+            <div style={{ background:G12, borderRadius:8, padding:20, textAlign:"center", color:G62, fontSize:13 }}>
+              No room photos yet. Add photos to your rooms first, then pick one as the featured image.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SUBDOMAIN ── */}
+      {section==="domain" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:560 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Your Subdomain</h3>
+          <p style={{ fontSize:13, color:G62, marginBottom:20, lineHeight:1.7 }}>
+            Your store has a unique subdomain on BNBMIS. Guests can book directly at your subdomain URL.
+          </p>
+
+          {/* Current subdomain display */}
+          <div style={{ background:INB2, borderRadius:10, padding:"14px 18px", marginBottom:20 }}>
+            <div style={{ fontSize:11, color:IN2, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>Your current URL</div>
+            <div style={{ fontFamily:"monospace", fontSize:16, fontWeight:700, color:IN2 }}>
+              {form.slug || storeData?.slug}.bnbmis.com
+            </div>
+            <div style={{ fontSize:12, color:IN2, marginTop:6, opacity:.8 }}>Share this link with your guests for direct booking</div>
+            <button onClick={()=>{ const url=`https://${form.slug||storeData?.slug}.bnbmis.com`; navigator.clipboard?.writeText(url).then(()=>pop("Link copied!")).catch(()=>pop(url)); }}
+              style={{ marginTop:10, background:IN2, color:WH2, border:"none", borderRadius:6, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              📋 Copy Link
+            </button>
+          </div>
+
+          {/* Change slug */}
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Change Subdomain</label>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+              <div style={{ display:"flex", alignItems:"center", border:`1px solid ${G22}`, borderRadius:8, overflow:"hidden", flex:1 }}>
+                <input value={form.slug} onChange={e=>{
+                  const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"").slice(0,40);
+                  setForm(f=>({...f,slug}));
+                  setSlugStatus(null);
+                }} onBlur={()=>checkSlug(form.slug)} placeholder="your-store-name"
+                  style={{ flex:1, padding:"9px 12px", border:"none", fontSize:14, outline:"none", fontFamily:"monospace" }}/>
+                <span style={{ padding:"9px 12px", background:G12, color:G62, fontSize:13, borderLeft:`1px solid ${G22}`, whiteSpace:"nowrap" }}>.bnbmis.com</span>
+              </div>
+            </div>
+            {slugStatus==="checking" && <div style={{ fontSize:12, color:G62, marginTop:5 }}>Checking availability…</div>}
+            {slugStatus==="available" && <div style={{ fontSize:12, color:OK2, fontWeight:700, marginTop:5 }}>✓ Available</div>}
+            {slugStatus==="taken" && <div style={{ fontSize:12, color:"#C62828", fontWeight:700, marginTop:5 }}>✗ Already taken — try another</div>}
+            <div style={{ fontSize:11, color:G62, marginTop:5 }}>Only letters, numbers and hyphens. No spaces.</div>
+          </div>
+
+          <button
+            disabled={saving || slugStatus==="taken" || slugStatus==="checking" || form.slug===storeData?.slug}
+            onClick={async()=>{
+              if (!form.slug) return pop("Enter a subdomain","err");
+              await save({slug:form.slug});
+              setSlugStatus(null);
+            }}
+            style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", opacity:(saving||slugStatus==="taken"||slugStatus==="checking")?.5:1 }}>
+            {saving?"Saving…":"Update Subdomain"}
+          </button>
+
+          <div style={{ marginTop:24, background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"12px 16px", fontSize:12, color:"#5D4037" }}>
+            <strong>Tip:</strong> You can also use a custom domain. Point a CNAME record from your domain to <code style={{ background:"rgba(0,0,0,.06)", padding:"1px 6px", borderRadius:4 }}>cname.vercel-dns.com</code> and contact BNBMIS support to link it.
+          </div>
+        </div>
+      )}
+
+      {/* ── PASSWORD ── */}
+      {section==="password" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:420 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Change Password</h3>
+          {["Current Password","New Password","Confirm New Password"].map((label,i)=>{
+            const keys=["current","newp","confirm"];
+            return (
+              <div key={i} style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+                <input type="password" value={pw[keys[i]]} onChange={e=>setPw(p=>({...p,[keys[i]]:e.target.value}))}
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+              </div>
+            );
+          })}
+          <button onClick={async()=>{
+            if(pw.newp!==pw.confirm){pop("Passwords don't match","err");return;}
+            if(pw.newp.length<6){pop("Password must be at least 6 characters","err");return;}
+            setSaving(true);
+            try {
+              await api.changeOwnerPassword({owner_id:owner.id, current_password:pw.current, new_password:pw.newp});
+              pop("Password changed successfully");
+              setPw({current:"",newp:"",confirm:""});
+            } catch(e){ pop(e.message,"err"); }
+            setSaving(false);
+          }} disabled={saving}
+            style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
+            {saving?"Saving…":"Change Password"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -142,7 +142,21 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    return res.status(400).json({ error: 'Invalid request. type must be: super | owner | staff | guest' });
+    // ── OWNER PASSWORD CHANGE ──────────────────────────────────
+    if (type === 'owner_password' && req.method === 'POST') {
+      const { owner_id, current_password, new_password } = req.body || {};
+      if (!owner_id || !current_password || !new_password)
+        return res.status(400).json({ error: 'owner_id, current_password, new_password required' });
+      if (new_password.length < 6)
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      const check = await sql`SELECT password_hash FROM store_owners WHERE id = ${owner_id}`;
+      if (!check.length || check[0].password_hash !== current_password)
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      await sql`UPDATE store_owners SET password_hash = ${new_password} WHERE id = ${owner_id}`;
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(400).json({ error: 'Invalid request. type must be: super | owner | staff | guest | owner_password' });
   } catch (err) {
     return res.status(500).json({ error: dbError(err) });
   }

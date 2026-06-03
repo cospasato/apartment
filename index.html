@@ -2,48 +2,57 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
-    <!-- Primary Meta -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>BNBMIS — BNB Management Information System</title>
     <meta name="description" content="Manage your hotel, lodge, BnB, apartment or guesthouse — bookings, staff and revenue all in one place. Available worldwide."/>
-    <meta name="keywords" content="BNB management, property management, hotel management, lodge booking, apartment rental, guesthouse management"/>
-    <meta name="author" content="BNBMIS"/>
-
-    <!-- PWA -->
     <meta name="theme-color" content="#6B1B2A"/>
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="application-name" content="BNBMIS"/>
     <link rel="manifest" href="/manifest.json"/>
-
-    <!-- Apple PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
     <meta name="apple-mobile-web-app-title" content="BNBMIS"/>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"/>
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png"/>
-    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png"/>
-
-    <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png"/>
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png"/>
-
-    <!-- Open Graph -->
     <meta property="og:type" content="website"/>
     <meta property="og:title" content="BNBMIS — BNB Management Information System"/>
-    <meta property="og:description" content="Manage your hotel, lodge, BnB, apartment or guesthouse worldwide. Bookings, staff and revenue in one place."/>
+    <meta property="og:description" content="Manage your hotel, lodge, BnB, apartment or guesthouse worldwide."/>
     <meta property="og:image" content="/icons/icon-512.png"/>
     <meta property="og:url" content="https://bnbmis.com"/>
-
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-
     <style>
-      * { box-sizing: border-box; }
-      body { margin: 0; background: #111; font-family: 'DM Sans', -apple-system, sans-serif; }
-      #root { padding-bottom: env(safe-area-inset-bottom); }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; max-width: 100%;
+        overflow-x: hidden;
+        background: #111;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      /* iPhone notch / Dynamic Island safe areas */
+      #root {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      /* Prevent tap highlight on iOS */
+      * { -webkit-tap-highlight-color: transparent; }
+      /* Smooth scrolling */
+      * { -webkit-overflow-scrolling: touch; }
+      /* Fix iOS button styling */
+      button, input, select, textarea {
+        -webkit-appearance: none;
+        border-radius: 0;
+      }
     </style>
   </head>
   <body>

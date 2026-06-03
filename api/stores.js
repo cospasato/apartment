@@ -184,7 +184,7 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'Access denied' });
 
       const { name, description, city, country, phone, email, website, logo_url,
-              status, plan_id, notes } = req.body || {};
+              featured_image, slug, status, plan_id, notes } = req.body || {};
 
       // Owners can't change status or plan themselves
       const statusToSet = token.type === 'super' ? status : undefined;
@@ -192,17 +192,19 @@ module.exports = async function handler(req, res) {
 
       const rows = await sql`
         UPDATE stores SET
-          name        = COALESCE(${name        ?? null}, name),
-          description = COALESCE(${description ?? null}, description),
-          city        = COALESCE(${city        ?? null}, city),
-          country     = COALESCE(${country     ?? null}, country),
-          phone       = COALESCE(${phone       ?? null}, phone),
-          email       = COALESCE(${email       ?? null}, email),
-          website     = COALESCE(${website     ?? null}, website),
-          logo_url    = COALESCE(${logo_url    ?? null}, logo_url),
-          status      = COALESCE(${statusToSet ?? null}, status),
-          plan_id     = COALESCE(${planToSet   ?? null}, plan_id),
-          notes       = COALESCE(${notes       ?? null}, notes)
+          name           = COALESCE(${name           ?? null}, name),
+          description    = COALESCE(${description    ?? null}, description),
+          city           = COALESCE(${city           ?? null}, city),
+          country        = COALESCE(${country        ?? null}, country),
+          phone          = COALESCE(${phone          ?? null}, phone),
+          email          = COALESCE(${email          ?? null}, email),
+          website        = COALESCE(${website        ?? null}, website),
+          logo_url       = COALESCE(${logo_url       ?? null}, logo_url),
+          featured_image = COALESCE(${featured_image ?? null}, featured_image),
+          slug           = COALESCE(${(token.type==="owner"?slug:null) ?? null}, slug),
+          status         = COALESCE(${statusToSet    ?? null}, status),
+          plan_id        = COALESCE(${planToSet      ?? null}, plan_id),
+          notes          = COALESCE(${notes          ?? null}, notes)
         WHERE id = ${id}
         RETURNING *
       `;

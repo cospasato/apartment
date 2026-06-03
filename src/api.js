@@ -50,14 +50,15 @@ export const api = {
   customerCancel:   (id,cid) => put(`/bookings?id=${id}&customer_cancel=1`, { customer_id: cid }),
 
   // ── Stores ──
-  registerStore:  d     => post('/stores?action=register', d),
-  getMarketplace: city  => get('/stores?action=marketplace' + (city ? `&city=${encodeURIComponent(city)}` : '')),
-  getStoreBySlug: slug  => get(`/stores?action=by_slug&slug=${slug}`),
-  getStores:      ()    => get('/stores'),
-  getStore:       id    => get(`/stores?id=${id}`),
-  updateStore:    (id,d)=> put(`/stores?id=${id}`, d),
-  platformStats:  ()    => get('/stores?action=platform_stats'),
-  setupCheck:     ()    => get('/stores?action=setup'),
+  registerStore:       d     => post('/stores?action=register', d),
+  getMarketplace:      city  => get('/stores?action=marketplace' + (city ? `&city=${encodeURIComponent(city)}` : '')),
+  getStoreBySlug:      slug  => get(`/stores?action=by_slug&slug=${slug}`),
+  getStores:           ()    => get('/stores'),
+  getStore:            id    => get(`/stores?id=${id}`),
+  updateStore:         (id,d)=> put(`/stores?id=${id}`, d),
+  platformStats:       ()    => get('/stores?action=platform_stats'),
+  setupCheck:          ()    => get('/stores?action=setup'),
+  changeOwnerPassword: d     => post('/auth?type=owner_password', d),
 
   // ── Platform settings (merged into stores.js) ──
   getPlatformSettings:  () => get('/stores?action=settings'),
