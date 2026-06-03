@@ -1,5 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
+
+/* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
+function PWAInstallBanner() {
+  const [prompt, setPrompt] = useState(null);
+  const [show, setShow]     = useState(false);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setPrompt(e);
+      const dismissed = localStorage.getItem("bnbms_pwa_dismissed");
+      if (!dismissed) setShow(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => { setInstalled(true); setShow(false); });
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const install = async () => {
+    if (!prompt) return;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === "accepted") setInstalled(true);
+    setShow(false);
+  };
+
+  const dismiss = () => { setShow(false); localStorage.setItem("bnbms_pwa_dismissed", "1"); };
+
+  if (!show || installed) return null;
+  return (
+    <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:9999, background:"#111", borderTop:"1px solid #333", padding:"14px 20px", display:"flex", alignItems:"center", gap:14, boxShadow:"0 -4px 24px rgba(0,0,0,.5)" }}>
+      <div style={{ width:44, height:44, background:"#6B1B2A", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        <span style={{ color:"#C9A84C", fontWeight:900, fontSize:13, fontFamily:"Georgia,serif" }}>BNB</span>
+      </div>
+      <div style={{ flex:1 }}>
+        <div style={{ color:"#fff", fontWeight:700, fontSize:14, marginBottom:2 }}>Install BNBMS App</div>
+        <div style={{ color:"#888", fontSize:12 }}>Add to home screen for quick access — works offline</div>
+      </div>
+      <button onClick={install} style={{ background:"#6B1B2A", color:"#fff", border:"none", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Install</button>
+      <button onClick={dismiss} style={{ background:"transparent", color:"#666", border:"none", fontSize:22, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>×</button>
+    </div>
+  );
+}
 
 /* ─── BRAND ─────────────────────────────────────────────── */
 const M = "#6B1B2A", MD = "#4A1019", ML = "#8B2D3E", MF = "#F9F0F2";
@@ -744,6 +788,7 @@ export default function App() {
       {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbms_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+      <PWAInstallBanner/>
     </div>
   );
 

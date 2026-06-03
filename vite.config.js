@@ -11,4 +11,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Generate source maps for debugging
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Split chunks for better caching
+        manualChunks: {
+          react: ['react', 'react-dom'],
+        }
+      }
+    }
+  }
 })
