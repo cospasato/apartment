@@ -213,6 +213,34 @@ const Spinner = () => (
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
+  // ── SUBDOMAIN DETECTION ──
+  // e.g. sunrise.bnbmis.com → slug="sunrise", admin.bnbmis.com → super admin portal
+  const [subdomainStoreId, setSubdomainStoreId] = useState(null);
+  const [subdomainSlug, setSubdomainSlug]       = useState(null);
+  const [subdomainStore, setSubdomainStore]     = useState(null);
+
+  useEffect(() => {
+    const host = window.location.hostname; // e.g. "sunrise.bnbmis.com" or "localhost"
+    const parts = host.split(".");
+    // Detect subdomain: X.bnbmis.com where X is not "www"
+    if (parts.length >= 3 && !["www","app","mail"].includes(parts[0])) {
+      const slug = parts[0].toLowerCase();
+      setSubdomainSlug(slug);
+      // Fetch the store by slug to get its ID
+      api.getStoreBySlug(slug)
+        .then(store => {
+          if (store?.id) {
+            setSubdomainStoreId(store.id);
+            setSubdomainStore(store);
+            // Auto-set view: if no session, show that store's booking portal
+            const hasSession = localStorage.getItem("bnbmis_staff") || localStorage.getItem("bnbmis_owner");
+            if (!hasSession) setView("book");
+          }
+        })
+        .catch(() => {}); // invalid slug — show normal landing
+    }
+  }, []);
+
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
@@ -400,9 +428,12 @@ export default function App() {
     if (view === "super")          loadSuperData();
     if (view === "owner_dash" && storeId) { loadAll(null, storeId); }
     if (view === "admin" && user)  loadAll(user, user.storeId);
-    if (view === "book" && mktSelStore) loadPublic(mktSelStore.id);
+    if (view === "book") {
+      const sid = mktSelStore?.id || subdomainStoreId;
+      if (sid) loadPublic(sid);
+    }
     if (view === "customer" && customer) loadCustBooks(customer.id);
-    if (view === "land")           loadMarketplace();
+    if (view === "land" && !subdomainStoreId) loadMarketplace();
   }, [view]);
 
   useEffect(() => { if (user) loadAll(user, user.storeId); if (customer) loadCustBooks(customer.id); }, []);
@@ -461,7 +492,7 @@ export default function App() {
 
   const confirmBook = async () => {
     try {
-      const sid = mktSelStore?.id || storeId;
+      const sid = mktSelStore?.id || subdomainStoreId || storeId;
       const created = await api.createBooking({
         store_id: sid,
         room_id: bD.roomId, location_id: bD.locId,
@@ -656,8 +687,11 @@ export default function App() {
     setLoginErr("");
     const email = loginF.email.trim().toLowerCase();
     const pin   = loginF.pin.trim();
-    const storeIdForLogin = user?.storeId || (owner?.store?.id);
-    if (!storeIdForLogin) { setLoginErr("No store selected. Please register or contact your store manager."); return; }
+    // Priority: form field > subdomain-detected store > already-logged-in owner
+    const storeIdForLogin = loginF.storeId?.trim() || subdomainStoreId || owner?.store?.id;
+    if (!storeIdForLogin) { setLoginErr("Please enter your Store ID. Ask your manager for it."); return; }
+    if (!email)           { setLoginErr("Please enter your email address."); return; }
+    if (!pin)             { setLoginErr("Please enter your PIN."); return; }
     try {
       const u = await api.loginStaff(email, pin, storeIdForLogin);
       setUser(u);
@@ -665,7 +699,7 @@ export default function App() {
       navTo("admin"); setATab("dash"); setModal(null);
       await loadAll(u, u.storeId);
     } catch {
-      setLoginErr("Invalid email or PIN");
+      setLoginErr("Invalid Store ID, email or PIN. Please check with your manager.");
     }
   };
 
@@ -725,6 +759,19 @@ export default function App() {
     </nav>
   );};
 
+
+  /* ══════════════════════════════════════════════════════
+     SUBDOMAIN STORE VIEW (sunrise.bnbmis.com)
+     When on a store subdomain, show that store directly
+  ══════════════════════════════════════════════════════ */
+  // If on a subdomain and no staff/owner session, auto-use that store
+  if (subdomainStore && !mktSelStore && view !== "admin" && view !== "owner_dash" && view !== "super" && view !== "customer") {
+    // Quietly set it — next render will route to book view
+    setTimeout(() => {
+      setMktSelStore(subdomainStore);
+      if (view !== "book") setView("book");
+    }, 0);
+  }
 
   /* ══════════════════════════════════════════════════════
      BNBMIS MARKETPLACE LANDING
@@ -829,6 +876,12 @@ export default function App() {
       {/* Footer */}
       <div style={{ background:BK, color:G4, padding:"20px 32px", textAlign:"center", fontSize:12 }}>
         <span style={{ color:WH, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>BNBMIS</span> — BNB Management Information System · &copy; {new Date().getFullYear()} · support@bnbmis.com
+        <br/>
+        <button
+          onClick={()=>setModal("super_login")}
+          style={{ marginTop:10, background:"none", border:"none", color:"rgba(255,255,255,.08)", fontSize:10, cursor:"pointer", fontFamily:"inherit", letterSpacing:".05em" }}>
+          ·
+        </button>
       </div>
 
       {/* BNBMIS Login Modal */}
@@ -836,6 +889,10 @@ export default function App() {
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
         onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
+        onClose={()=>setModal(null)} pop={pop}/>}
+      {modal==="super_login" && <SuperLoginModal
+        onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
@@ -1256,7 +1313,7 @@ export default function App() {
             {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
             {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
             {!loading && aTab==="locs"    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-            {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser}/>}
+            {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
           </div>
         </div>
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
@@ -1296,7 +1353,7 @@ export default function App() {
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
         {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-        {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user}/>}
+        {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
         {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
       </div>
       {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
@@ -1309,6 +1366,20 @@ export default function App() {
 function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   return (
     <Modal title="Staff Login" onClose={onClose}>
+      <div style={{ background: INB, borderRadius: 8, padding: "10px 13px", marginBottom: 16, fontSize: 12, color: IN }}>
+        💡 Ask your store manager for the <strong>Store ID</strong> — you need it to log in.
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Store ID</label>
+        <input
+          type="text"
+          value={loginF.storeId || ""}
+          onChange={e => setLoginF(f => ({ ...f, storeId: e.target.value.trim() }))}
+          placeholder="e.g. ST3A9F2B"
+          autoCapitalize="characters"
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", fontFamily: "monospace", letterSpacing: "1px" }}
+        />
+      </div>
       <div style={{ marginBottom: 13 }}>
         <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Email</label>
         <input
@@ -2529,7 +2600,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
 }
 
 /* ─── STAFF TAB ──────────────────────────────────────────── */
-function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser }) {
+function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser, storeId: tabStoreId }) {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: "", pin: "", active: true });
 
@@ -2551,13 +2622,37 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
         <div>
           <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 4px" }}>Staff Accounts</h2>
           <div style={{ fontSize:13, color:G6 }}>{staff.filter(s=>s.active).length} active · {staff.filter(s=>!s.active).length} inactive</div>
         </div>
         <Btn onClick={()=>{ openCreate(); setModal(true); }}>+ Add Staff</Btn>
       </div>
+
+      {/* Staff login info box */}
+      {currentUser?.storeId && (
+        <div style={{ background:INB, border:`1px solid ${IN}22`, borderRadius:10, padding:"14px 18px", marginBottom:20 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:IN, marginBottom:8 }}>📋 How staff log in to this store</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div>
+              <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Store ID</div>
+              <div style={{ fontFamily:"monospace", fontWeight:700, fontSize:15, color:BK, letterSpacing:"1px", background:WH, padding:"6px 10px", borderRadius:6, border:`1px solid ${G2}`, display:"inline-block" }}>
+                {currentUser.storeId}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Login URL</div>
+              <div style={{ fontSize:12, color:BK, background:WH, padding:"6px 10px", borderRadius:6, border:`1px solid ${G2}`, display:"inline-block", wordBreak:"break-all" }}>
+                bnbmis.com → Login → Staff Login
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop:10, fontSize:12, color:G6 }}>
+            Share the <strong>Store ID</strong> + their email + PIN with each staff member. They enter these at the staff login screen.
+          </div>
+        </div>
+      )}
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))", gap:14 }}>
         {staff.map(s => {
@@ -3376,7 +3471,7 @@ function CustomerProfileTab({ customer, onUpdate }) {
 }
 
 /* ─── BNBMIS LOGIN MODAL ──────────────────────────────────── */
-function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
+function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onStaffLogin, onClose, pop }) {
   const [tab, setTab] = useState("owner");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -3392,10 +3487,14 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
     if (next >= 5) { setShowSuper(true); setTab("super"); setSuperClick(0); }
   };
 
+  const [storeIdField, setStoreIdField] = useState("");
+  const [pinField, setPinField]         = useState("");
+
   const submit = async () => {
     setErr(""); setBusy(true);
     try {
-      if (tab === "super") await onSuperLogin(email, pw);
+      if (tab === "super")  await onSuperLogin(email, pw);
+      else if (tab === "staff") await onStaffLogin(email, pinField, storeIdField.trim());
       else await onOwnerLogin(email, pw);
     } catch(e) { setErr(e.message); }
     setBusy(false);
@@ -3412,17 +3511,26 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
           <div style={{ fontSize:11, color:G4 }}>BNB Management Information System</div>
         </div>
       </div>
-      {showSuper && (
-        <div style={{ display:"flex", gap:0, marginBottom:16, border:`1px solid ${G2}`, borderRadius:8, overflow:"hidden" }}>
-          {[["owner","Store Owner"],["super","Admin"]].map(([id,label])=>(
-            <button key={id} onClick={()=>{ setTab(id); setErr(""); }}
-              style={{ flex:1, padding:"9px", border:"none", background:tab===id?M:WH, color:tab===id?WH:G6, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
-          ))}
-        </div>
-      )}
+      <div style={{ display:"flex", gap:0, marginBottom:16, border:`1px solid ${G2}`, borderRadius:8, overflow:"hidden" }}>
+        {[["owner","🏪 Store Owner"],["staff","👤 Staff"],...(showSuper?[["super","⚙️ Admin"]]:[])].map(([id,label])=>(
+          <button key={id} onClick={()=>{ setTab(id); setErr(""); }}
+            style={{ flex:1, padding:"9px", border:"none", background:tab===id?M:WH, color:tab===id?WH:G6, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
+        ))}
+      </div>
       {tab === "super" && showSuper && (
         <div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"9px 13px", marginBottom:14, fontSize:12, color:"#5D4037" }}>
           👑 Platform administrator access
+        </div>
+      )}
+      {tab === "staff" && (
+        <div style={{ marginBottom:13 }}>
+          <div style={{ background:INB, borderRadius:8, padding:"9px 12px", marginBottom:12, fontSize:12, color:IN }}>
+            💡 Ask your manager for the <strong>Store ID</strong> to log in.
+          </div>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Store ID</label>
+          <input value={storeIdField} onChange={e=>setStoreIdField(e.target.value.trim())}
+            placeholder="e.g. ST3A9F2B" autoCapitalize="characters"
+            style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace", letterSpacing:"1px", marginBottom:13 }}/>
         </div>
       )}
       <div style={{ marginBottom:13 }}>
@@ -3432,9 +3540,13 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
           style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       <div style={{ marginBottom:16 }}>
-        <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Password</label>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}
-          placeholder="••••••••" autoComplete="current-password"
+        <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{tab==="staff"?"PIN":"Password"}</label>
+        <input type="password" value={tab==="staff"?pinField:pw}
+          onChange={e=>tab==="staff"?setPinField(e.target.value):setPw(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&submit()}
+          placeholder={tab==="staff"?"••••":"••••••••"}
+          maxLength={tab==="staff"?6:undefined}
+          autoComplete="current-password"
           style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       {err && <div style={{ color:ER, fontSize:13, marginBottom:14, padding:"8px 12px", background:ERB, borderRadius:6 }}>{err}</div>}
@@ -3863,3 +3975,40 @@ function SuperSettings({ superAdmin, api, pop }) {
   );
 }
 
+
+/* ─── SUPER ADMIN LOGIN MODAL (hidden) ───────────────────── */
+function SuperLoginModal({ onLogin, onClose, pop }) {
+  const [email, setEmail] = useState("");
+  const [pw, setPw]       = useState("");
+  const [err, setErr]     = useState("");
+  const [busy, setBusy]   = useState(false);
+
+  const submit = async () => {
+    setErr(""); setBusy(true);
+    try { await onLogin(email, pw); }
+    catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <Modal title="Administrator Login" onClose={onClose}>
+      <div style={{ marginBottom:13 }}>
+        <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Email</label>
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&submit()} autoComplete="email"
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+      </div>
+      <div style={{ marginBottom:16 }}>
+        <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Password</label>
+        <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&submit()} autoComplete="current-password"
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+      </div>
+      {err && <div style={{ color:ER, fontSize:13, marginBottom:14, padding:"8px 12px", background:ERB, borderRadius:6 }}>{err}</div>}
+      <button onClick={submit} disabled={busy}
+        style={{ width:"100%", padding:"11px", background:M, color:WH, border:"none", borderRadius:8, fontSize:14, fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:busy?.6:1 }}>
+        {busy ? "Signing in…" : "Sign In"}
+      </button>
+    </Modal>
+  );
+}
