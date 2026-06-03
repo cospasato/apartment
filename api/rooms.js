@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { name, type, beds, max_guests, price_per_night, status, amenities, photos, video_url } = req.body || {};
+      const { name, type, beds, max_guests, price_per_night, status, amenities, photos, video_url, location_id } = req.body || {};
       const rows = await sql`
         UPDATE rooms SET
           name            = COALESCE(${name            ?? null}, name),
@@ -45,7 +45,8 @@ module.exports = async function handler(req, res) {
           status          = COALESCE(${status          ?? null}, status),
           amenities       = COALESCE(${amenities       ?? null}, amenities),
           photos          = COALESCE(${photos          ?? null}, photos),
-          video_url       = COALESCE(${video_url       ?? null}, video_url)
+          video_url       = COALESCE(${video_url       ?? null}, video_url),
+          location_id     = COALESCE(${location_id     ?? null}, location_id)
         WHERE id = ${id} RETURNING *
       `;
       if (!rows.length) return res.status(404).json({ error: 'Room not found' });

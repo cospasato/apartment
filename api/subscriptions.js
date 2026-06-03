@@ -100,10 +100,13 @@ module.exports = async function handler(req, res) {
       return res.status(201).json(payment[0]);
     }
 
-    // ── SUPER ADMIN: Get payments for a store ──
+    // ── SUPER ADMIN or OWNER: Get payments for a store ──
     if (req.method === 'GET' && store_id) {
       const token = verifyToken(req);
-      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin required' });
+      // Allow super admin OR the store owner for their own store
+      if (!token) return res.status(401).json({ error: 'Authentication required' });
+      if (token.type !== 'super' && !(token.type === 'owner' && token.storeId === store_id))
+        return res.status(403).json({ error: 'Access denied' });
       const payments = await sql`
         SELECT sp.*, s.name AS store_name, p.name AS plan_name
         FROM subscription_payments sp

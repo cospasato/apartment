@@ -421,7 +421,9 @@ export default function App() {
     if (!storeIdToUse) return;
     setLoading(true);
     try {
-      const locFilter = u?.role === "Admin" || u?.role === "Manager" ? null : u?.locId;
+      // Staff with a specific location only see that location's data
+      const isAdminRole = !u || u?.role === "Admin" || u?.role === "Manager" || u?.role === "Accountant";
+      const locFilter = isAdminRole ? null : u?.locId;
       const [l, r, b, e, s, pm] = await Promise.all([
         api.getLocations(storeIdToUse),
         api.getRooms(storeIdToUse, locFilter),
@@ -488,7 +490,13 @@ export default function App() {
     if (view === "land" && !subdomainStoreId) loadMarketplace();
   }, [view]);
 
-  useEffect(() => { if (user) loadAll(user, user.storeId); if (customer) loadCustBooks(customer.id); }, []);
+  // On app start: reload data for whoever is already logged in (from localStorage)
+  useEffect(() => {
+    if (user)       { loadAll(user, user.storeId); }
+    if (owner)      { loadAll(null, owner.store?.id); }
+    if (superAdmin) { loadSuperData(); }
+    if (customer)   { loadCustBooks(customer.id); }
+  }, []);
 
   // Browser history
   const navTo = (newView, step = 1) => {
@@ -758,11 +766,28 @@ export default function App() {
     }
   };
 
+  // Role-based tab permissions
+  const isAdmin    = user?.role === "Admin";
+  const isManager  = user?.role === "Manager";
+  const isAcct     = user?.role === "Accountant";
+  const canDash    = isAdmin || isManager;
+  const canReports = isAdmin || isManager || isAcct;
+  const canStaff   = isAdmin || isManager;
+  const canLocs    = isAdmin || isManager;
+  const isRecept   = user?.role === "Receptionist";
+  const canCustomers = isAdmin || isManager || isAcct || isRecept;
+  const canDelete  = isAdmin; // only admin can delete bookings
+
   const ATABS = [
-    { id:"dash",label:"Dashboard",icon:"📊" }, { id:"books",label:"Bookings",icon:"📋" },
-    { id:"rooms",label:"Rooms",icon:"🛏️" }, { id:"pays",label:"Payments",icon:"💳" },
-    { id:"exps",label:"Expenses",icon:"📤" }, { id:"reports",label:"Reports",icon:"📈" },
-    ...(user?.role === "Admin" || user?.role === "Manager" ? [{ id:"locs",label:"Locations",icon:"📍" }, { id:"staff",label:"Staff",icon:"👥" }] : []),
+    ...(canDash ? [{ id:"dash",label:"Dashboard",icon:"📊" }] : []),
+    { id:"books",label:"Bookings",icon:"📋" },
+    { id:"rooms",label:"Rooms",icon:"🛏️" },
+    { id:"pays",label:"Payments",icon:"💳" },
+    { id:"exps",label:"Expenses",icon:"📤" },
+    ...(canReports ? [{ id:"reports",label:"Reports",icon:"📈" }] : []),
+    ...(canLocs    ? [{ id:"locs",label:"Locations",icon:"📍" }] : []),
+    ...(canStaff   ? [{ id:"staff",label:"Staff",icon:"👥" }] : []),
+    ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"🧑‍🤝‍🧑" }] : []),
     { id:"profile",label:"My Profile",icon:"👤" },
   ];
 
@@ -1340,15 +1365,17 @@ export default function App() {
   if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
-      {id:"dash",    icon:"📊", l:"Dashboard"},
-      {id:"books",   icon:"📋", l:"Bookings"},
-      {id:"rooms",   icon:"🛏️",  l:"Rooms"},
-      {id:"pays",    icon:"💳", l:"Payments"},
-      {id:"exps",    icon:"📤", l:"Expenses"},
-      {id:"reports", icon:"📈", l:"Reports"},
-      {id:"locs",    icon:"📍", l:"Locations"},
-      {id:"staff",   icon:"👥", l:"Staff"},
-      {id:"settings",icon:"⚙️",  l:"Settings"},
+      {id:"dash",      icon:"📊", l:"Dashboard"},
+      {id:"books",     icon:"📋", l:"Bookings"},
+      {id:"rooms",     icon:"🛏️",  l:"Rooms"},
+      {id:"pays",      icon:"💳", l:"Payments"},
+      {id:"exps",      icon:"📤", l:"Expenses"},
+      {id:"reports",   icon:"📈", l:"Reports"},
+      {id:"locs",      icon:"📍", l:"Locations"},
+      {id:"staff",     icon:"👥", l:"Staff"},
+      {id:"customers", icon:"🧑‍🤝‍🧑", l:"Customers"},
+      {id:"billing",   icon:"🧾", l:"Billing"},
+      {id:"settings",  icon:"⚙️",  l:"Settings"},
     ];
     const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
     const totExp2   = exps.reduce((s,e)=>s+e.amt,0);
@@ -1368,9 +1395,11 @@ export default function App() {
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
-        {!loading && aTab==="locs"    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-        {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
-        {!loading && aTab==="settings" && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
+        {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
+        {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
+        {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
+        {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
+        {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
       </>
     );
 
@@ -1446,15 +1475,16 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
-      {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
-      {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
-      {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
-      {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
-      {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
-      {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-      {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
-      {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
+      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
+      {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
+      {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
+      {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
+      {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
+      {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={user?.storeId} api={api} pop={pop}/>}
+      {!loading && aTab==="profile"   && <ProfileTab user={user} updateProfile={updateProfile}/>}
     </>
   );
 
@@ -1562,15 +1592,74 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
         <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
       </div>
+      {/* ── ROOMS STATUS ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
+        <Card>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <SecTitle>🟢 Available Rooms</SecTitle>
+            <span style={{ fontSize:13, fontWeight:700, color:OK }}>{allRooms.filter(r=>r.status==="available").length}</span>
+          </div>
+          {allRooms.filter(r=>r.status==="available").length===0
+            ? <div style={{color:G4,fontSize:13,textAlign:"center",padding:12}}>All rooms occupied</div>
+            : allRooms.filter(r=>r.status==="available").map(r=>{
+                const loc = locs.find(l=>l.id===r.locId);
+                // Find when this room next becomes unavailable
+                const nextBook = books.filter(b=>b.roomId===r.id && ["pending","confirmed"].includes(b.status) && b.ci >= td())
+                  .sort((a,b)=>a.ci.localeCompare(b.ci))[0];
+                return (
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
+                    <div>
+                      <div style={{fontWeight:700,color:BK}}>{r.name}</div>
+                      <div style={{fontSize:11,color:G6}}>{loc?.name||"—"} · {fmt(r.price)}/night</div>
+                    </div>
+                    <div style={{textAlign:"right",fontSize:11,color:G6}}>
+                      {nextBook ? <span style={{color:WA,fontWeight:600}}>Booked from {nextBook.ci}</span> : <span style={{color:OK,fontWeight:600}}>Open</span>}
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </Card>
+        <Card>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <SecTitle>🔴 Occupied Rooms</SecTitle>
+            <span style={{ fontSize:13, fontWeight:700, color:M }}>{allRooms.filter(r=>r.status==="occupied").length}</span>
+          </div>
+          {allRooms.filter(r=>r.status==="occupied").length===0
+            ? <div style={{color:G4,fontSize:13,textAlign:"center",padding:12}}>No rooms occupied</div>
+            : allRooms.filter(r=>r.status==="occupied").map(r=>{
+                const loc = locs.find(l=>l.id===r.locId);
+                const activeBook = books.find(b=>b.roomId===r.id && b.status==="checkedIn");
+                return (
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
+                    <div>
+                      <div style={{fontWeight:700,color:BK}}>{r.name}</div>
+                      <div style={{fontSize:11,color:G6}}>{loc?.name||"—"}</div>
+                    </div>
+                    <div style={{textAlign:"right",fontSize:11}}>
+                      {activeBook ? (
+                        <div>
+                          <div style={{fontWeight:600,color:BK}}>{activeBook.gName}</div>
+                          <div style={{color:ER,fontWeight:600}}>Checkout: {activeBook.co}</div>
+                        </div>
+                      ) : <span style={{color:G4}}>—</span>}
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </Card>
+      </div>
+
       <Card style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <SecTitle>Recent Bookings</SecTitle>
           <button onClick={() => setATab("books")} style={{ background: "none", border: "none", color: M, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>View all →</button>
         </div>
-        <Tbl hdr={["ID", "Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
-          rows={books.slice(-5).reverse().map(b => {
+        <Tbl hdr={["Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
+          rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).slice(0,8).map(b => {
             const rm = allRooms.find(r => r.id === b.roomId);
-            return [<span style={{ color: M, fontWeight: 700, fontSize: 12 }}>{b.id}</span>, b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
+            return [b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
           })} />
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
@@ -1603,9 +1692,11 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
 function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
+  // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
-  const [locFilter, setLocFilter] = useState("");   // filter by location
+  const [locFilter, setLocFilter]   = useState("");   // filter by location
+  const [roomFilter, setRoomFilter] = useState("");   // filter by room
   const [sel, setSel] = useState(null);
   const [payAmt, setPayAmt] = useState("");
   const [payMethod, setPayMethod] = useState("");
@@ -1622,11 +1713,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       const statusOk = filter === "all" ? true
         : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
         : b.status === filter;
-      const locOk = !locFilter || b.locId === locFilter;
+      const locOk  = !locFilter  || b.locId  === locFilter;
+      const roomOk = !roomFilter || b.roomId === roomFilter;
       const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
-      return statusOk && locOk && searchOk;
+      return statusOk && locOk && roomOk && searchOk;
     })
-    .sort((a, b) => b.id.localeCompare(a.id));
+    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
 
   const selB = books.find(b => b.id === sel);
   const selR = rooms.find(r => r.id === selB?.roomId);
@@ -1698,12 +1790,25 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
         {/* Location filter */}
-        <select value={locFilter} onChange={e => setLocFilter(e.target.value)}
+        <select value={locFilter} onChange={e => { setLocFilter(e.target.value); setRoomFilter(""); }}
           style={{ padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: locFilter ? M : G6, fontWeight: locFilter ? 700 : 400 }}>
           <option value="">All Locations</option>
           {locs.map(l => <option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
         </select>
-        {locFilter && <button onClick={() => setLocFilter("")} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 7, padding: "5px 9px", fontSize: 12, color: G6, cursor: "pointer", fontFamily: "inherit" }}>✕ Clear</button>}
+        {/* Room filter */}
+        <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)}
+          style={{ padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: roomFilter ? M : G6, fontWeight: roomFilter ? 700 : 400 }}>
+          <option value="">All Rooms</option>
+          {(locFilter ? rooms.filter(r => r.locId === locFilter) : rooms).map(r => (
+            <option key={r.id} value={r.id}>{r.name.length > 22 ? r.name.slice(0,20)+"…" : r.name}</option>
+          ))}
+        </select>
+        {(locFilter || roomFilter) && (
+          <button onClick={() => { setLocFilter(""); setRoomFilter(""); }}
+            style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 7, padding: "5px 9px", fontSize: 12, color: G6, cursor: "pointer", fontFamily: "inherit" }}>
+            ✕ Clear
+          </button>
+        )}
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guest or ID…"
           style={{ marginLeft: "auto", padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", minWidth: 190, fontFamily: "inherit" }} />
         <span style={{ fontSize: 12, color: G4, whiteSpace: "nowrap" }}>{filtered.length} booking{filtered.length !== 1 ? "s" : ""}</span>
@@ -1711,7 +1816,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
 
       {/* ── TABLE ── */}
       <Card>
-        <Tbl hdr={["ID", "Guest", "Location / Room", "Dates", "Amount", "Paid", "Status", "Actions"]}
+        <Tbl hdr={["ID", "Guest", "Room / Location", "Dates", "Amount", "Paid", "Status", "Actions"]}
           rows={filtered.map(b => {
             const rm  = rooms.find(r => r.id === b.roomId);
             const loc = locs.find(l => l.id === b.locId);
@@ -1724,8 +1829,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
                 <div style={{ fontSize: 11, color: G6 }}>{b.gPhone}</div>
               </div>,
               <div>
-                <div style={{ fontSize: 12 }}>{loc?.name}</div>
-                <div style={{ fontSize: 11, color: G6 }}>{rm?.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BK }}>
+                  {rm ? (rm.name.length > 18 ? rm.name.slice(0,16) + "…" : rm.name) : "—"}
+                </div>
+                <div style={{ fontSize: 11, color: G6 }}>
+                  {loc ? (loc.name.length > 18 ? loc.name.slice(0,16) + "…" : loc.name) : ""}
+                </div>
               </div>,
               <div style={{ fontSize: 12 }}>
                 <div>{b.ci}</div>
@@ -1748,7 +1857,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
                 {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${isDueToday ? "#F9A825" : G6}`, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
                 {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${IN}`, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
                 {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
-                {b.status === "cancelled" && user?.role === "Admin" && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
+                {b.status === "cancelled" && deleteBooking && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
               </div>
             ];
           })} />
@@ -1831,11 +1940,18 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
             <div>
               <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Guest Info</div>
-              {[["Name", selB.gName], ["Phone", selB.gPhone], ["Email", selB.gEmail], ["Nationality", selB.gNat]].map(([k, v]) => (
+              {[["Name", selB.gName], ["Nationality", selB.gNat], ["Email", selB.gEmail]].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
                   <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v || "—"}</span>
                 </div>
               ))}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${G1}`, fontSize:13 }}>
+                <span style={{ color:G6 }}>Phone</span>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontWeight:700 }}>{selB.gPhone||"—"}</span>
+                  {selB.gPhone && <a href={`tel:${selB.gPhone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
+                </div>
+              </div>
             </div>
             <div>
               <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Stay Details</div>
@@ -2206,11 +2322,29 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId }) {
 
       {/* ── LEDGER ── */}
       <Card>
-        <Tbl hdr={["Booking","Guest","Total","Paid","Balance","Method","Action"]}
-          rows={books.sort((a,b)=>b.id.localeCompare(a.id)).map(b=>{
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:14}}>All Payments</div>
+          <button onClick={()=>{
+            const w=window.open("","_blank","width=800,height=700");
+            const rows=books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
+            w.document.write(`<html><head><title>Payments Report</title><style>body{font-family:Arial;padding:24px}h1{color:#6B1B2A}table{width:100%;border-collapse:collapse}th{background:#6B1B2A;color:#FFF;padding:8px;text-align:left;font-size:12px}td{padding:8px;border-bottom:1px solid #eee;font-size:13px}.ok{color:#2E7D32;font-weight:700}.er{color:#C62828;font-weight:700}@media print{button{display:none}}</style></head><body>
+            <h1>BNBMIS — Payments Report</h1><p style="color:#666">Printed: ${new Date().toLocaleString()}</p>
+            <table><tr><th>Booking ID</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Total</th><th>Paid</th><th>Balance</th><th>Method</th><th>Status</th></tr>
+            ${rows.map(b=>`<tr><td>${b.id}</td><td>${b.gName}</td><td>${rooms.find(r=>r.id===b.roomId)?.name||"—"}</td><td>${b.ci||""}</td><td>TZS ${Number(b.total||0).toLocaleString()}</td><td class="ok">TZS ${Number(b.paid||0).toLocaleString()}</td><td class="${(b.total-b.paid)>0?"er":"ok"}">TZS ${Number((b.total||0)-(b.paid||0)).toLocaleString()}</td><td>${b.method||""}</td><td>${b.status}</td></tr>`).join("")}
+            </table><br/><button onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer">🖨 Print</button>
+            </body></html>`);w.document.close();
+          }} style={{background:"#1565C0",color:"#FFF",border:"none",borderRadius:7,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            🖨 Print Report
+          </button>
+        </div>
+        <Tbl hdr={["Date","Guest","Room","Total","Paid","Balance","Method","Action"]}
+          rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).map(b=>{
             const bal=b.total-b.paid;
+            const rm=rooms.find(r=>r.id===b.roomId);
             return [
-              <span style={{color:M,fontWeight:700,fontSize:12}}>{b.id}</span>, b.gName,
+              b.ci||"—",
+              <div><div style={{fontWeight:700,fontSize:13}}>{b.gName}</div><div style={{fontSize:11,color:G6}}>{b.gPhone}</div></div>,
+              <span style={{fontSize:12}}>{rm?.name||"—"}</span>,
               fmt(b.total),
               <span style={{color:OK,fontWeight:700}}>{fmt(b.paid)}</span>,
               <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span>,
@@ -3515,8 +3649,44 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
             </div>
           )}
 
+          {/* ── PRINT RECEIPT ── */}
+          <div style={{ borderTop:`1px solid ${G2}`, paddingTop:14, marginTop:14 }}>
+            <button onClick={()=>{
+              const w=window.open("","_blank","width=600,height=750");
+              const rm=rooms.find(r=>r.id===selB.roomId);
+              const lc=locs.find(l=>l.id===selB.locId);
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:32px;max-width:560px;margin:0 auto;color:#111}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
+              <div class="logo">BNBMIS</div><div class="sub">BNB Management Information System</div>
+              <hr/>
+              <h2>Booking Receipt</h2>
+              <div class="ref">ID: <strong>${selB.id}</strong> &nbsp;|&nbsp; Date: ${(selB.created||"").split("T")[0]||""}</div>
+              <div class="row"><span class="lbl">Guest Name</span><span class="val">${selB.gName}</span></div>
+              <div class="row"><span class="lbl">Phone</span><span class="val">${selB.gPhone||"—"}</span></div>
+              ${selB.gEmail?`<div class="row"><span class="lbl">Email</span><span class="val">${selB.gEmail}</span></div>`:""}
+              ${selB.gNat?`<div class="row"><span class="lbl">Nationality</span><span class="val">${selB.gNat}</span></div>`:""}
+              <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||"—"}</span></div>
+              <div class="row"><span class="lbl">Location</span><span class="val">${lc?.name||"—"}</span></div>
+              <div class="row"><span class="lbl">Check-in</span><span class="val">${selB.ci||"—"}</span></div>
+              <div class="row"><span class="lbl">Check-out</span><span class="val">${selB.co||"—"}</span></div>
+              <div class="row"><span class="lbl">Duration</span><span class="val">${selB.nights} night${selB.nights!==1?"s":""}</span></div>
+              <div class="row"><span class="lbl">Payment Method</span><span class="val">${selB.method||"—"}</span></div>
+              ${selB.notes?`<div class="row"><span class="lbl">Notes</span><span class="val">${selB.notes}</span></div>`:""}
+              <div class="total-row"><span>Total Amount</span><span class="total-val">TZS ${Number(selB.total||0).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Amount Paid</span><span class="val" style="color:#2E7D32">TZS ${Number(selB.paid||0).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Balance Due</span><span class="val balance">TZS ${Number((selB.total||0)-(selB.paid||0)).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Status</span><span class="badge">${selB.status}</span></div>
+              <div class="footer">Thank you for your stay!<br/>support@bnbmis.com &nbsp;|&nbsp; bnbmis.com</div>
+              <br/><button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
+              <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+              </body></html>`);
+              w.document.close();
+            }} style={{ width:"100%", padding:"11px", border:`1px solid #1565C0`, borderRadius:9, background:"#E3F2FD", color:"#1565C0", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              🖨 Print Receipt
+            </button>
+          </div>
+
           {["pending","confirmed"].includes(selB.status) && (
-            <div style={{ borderTop:`1px solid ${G2}`, paddingTop:14 }}>
+            <div style={{ paddingTop:10 }}>
               <button onClick={() => { onCancel(selB.id); setSel(null); }}
                 style={{ width:"100%", padding:"12px", border:`2px solid ${ER}`, borderRadius:9,
                   background:"none", color:ER, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
@@ -4515,9 +4685,9 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
   const selectTab = (id) => { setTab(id); setDrawerOpen(false); };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
+    <div style={{ height:"100vh", background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column", overflow:"hidden", position:"fixed", inset:0 }}>
       {/* ── TOP BAR ── */}
-      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),12px)", paddingBottom:10, flexShrink:0, position:"sticky", top:0, zIndex:300 }}>
+      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),12px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
         {/* Left: hamburger + title */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setDrawerOpen(true)}
@@ -4580,7 +4750,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       )}
 
       {/* ── CONTENT ── */}
-      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(70px + env(safe-area-inset-bottom))" }}>
+      <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"14px 14px calc(70px + env(safe-area-inset-bottom))", WebkitOverflowScrolling:"touch" }}>
         {children}
       </div>
 
@@ -4604,6 +4774,326 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
 
       {/* Toast */}
       {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?"#2E7D32":"#C62828", color:"#FFF", padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+    </div>
+  );
+}
+
+/* ─── OWNER BILLING TAB ──────────────────────────────────── */
+function OwnerBillingTab({ owner, storeId, api, pop }) {
+  const [plans,    setPlans]    = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [store,    setStore]    = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",WA2="#B76E00",WAB2="#FFF3E0",IN2="#1565C0",INB2="#E3F2FD";
+  const fmt2 = n => "TZS " + Number(n||0).toLocaleString();
+  const fmtD2 = d => d ? String(d).split("T")[0] : "—";
+
+  useEffect(()=>{
+    Promise.all([
+      api.getPlans(),
+      api.getSubPayments(storeId),
+      api.getStore(storeId),
+    ]).then(([pl, pay, st])=>{
+      setPlans(pl||[]);
+      setPayments(pay||[]);
+      setStore(st);
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  },[storeId]);
+
+  if (loading) return <div style={{padding:40,textAlign:"center",color:G62}}>Loading billing info…</div>;
+
+  const currentPlan = plans.find(p => p.id === store?.plan_id);
+  const statusColor = {active:OK2,trial:IN2,suspended:WA2,terminated:"#C62828"}[store?.status] || G62;
+  const statusBg    = {active:OKB2,trial:INB2,suspended:WAB2,terminated:"#FFEBEE"}[store?.status] || G12;
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Billing & Plan</h2>
+
+      {/* Current plan card */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+        <div style={{ background:WH2, border:`2px solid ${M2}`, borderRadius:14, padding:22 }}>
+          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Current Plan</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:M2, marginBottom:4 }}>
+            {currentPlan?.name || "Free Trial"}
+          </div>
+          <div style={{ fontSize:22, fontWeight:700, color:G82, marginBottom:12 }}>
+            {currentPlan ? (currentPlan.price_monthly||currentPlan.price_month) === 0 ? "Free" : fmt2(currentPlan.price_monthly||currentPlan.price_month) : "—"}
+            {currentPlan && (currentPlan.price_monthly||currentPlan.price_month) > 0 && <span style={{fontSize:13,fontWeight:400,color:G62}}>/month</span>}
+          </div>
+          {currentPlan && (
+            <div style={{ fontSize:12, color:G62, lineHeight:2 }}>
+              <div>📍 {currentPlan.max_locations >= 999 ? "Unlimited" : currentPlan.max_locations} locations</div>
+              <div>🛏️ {currentPlan.max_rooms >= 999 ? "Unlimited" : currentPlan.max_rooms} rooms</div>
+              <div>👥 {currentPlan.max_staff >= 999 ? "Unlimited" : currentPlan.max_staff} staff accounts</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:14, padding:22 }}>
+          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Account Status</div>
+          <div style={{ display:"inline-block", background:statusBg, color:statusColor, borderRadius:99, padding:"5px 16px", fontSize:14, fontWeight:700, textTransform:"uppercase", marginBottom:14 }}>
+            {store?.status || "—"}
+          </div>
+          {store?.trial_ends && store?.status === "trial" && (
+            <div style={{ fontSize:13, color:WA2, fontWeight:600, marginBottom:8 }}>
+              ⏱ Trial ends: {fmtD2(store.trial_ends)}
+            </div>
+          )}
+          <div style={{ fontSize:13, color:G62, lineHeight:1.7 }}>
+            To upgrade your plan or renew your subscription, contact BNBMIS support.
+          </div>
+          <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", marginTop:12, background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
+            Contact Support
+          </a>
+        </div>
+      </div>
+
+      {/* All available plans */}
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20, marginBottom:24 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Available Plans</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+          {plans.map(p=>(
+            <div key={p.id} style={{ border:`2px solid ${p.id===store?.plan_id?M2:G22}`, borderRadius:10, padding:16, background:p.id===store?.plan_id?`${M2}08`:WH2, position:"relative" }}>
+              {p.id===store?.plan_id && (
+                <div style={{ position:"absolute", top:-1, right:10, background:M2, color:WH2, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:"0 0 6px 6px" }}>Current</div>
+              )}
+              <div style={{ fontWeight:700, fontSize:15, color:G82, marginBottom:4 }}>{p.name}</div>
+              <div style={{ fontSize:18, fontWeight:700, color:M2, marginBottom:8 }}>
+                {(p.price_monthly||p.price_month)===0 ? "Free" : fmt2(p.price_monthly||p.price_month)}
+                {(p.price_monthly||p.price_month)>0 && <span style={{fontSize:11,fontWeight:400,color:G62}}>/mo</span>}
+              </div>
+              <div style={{ fontSize:11, color:G62, lineHeight:1.9 }}>
+                <div>📍 {p.max_locations>=999?"∞":p.max_locations} locations</div>
+                <div>🛏️ {p.max_rooms>=999?"∞":p.max_rooms} rooms</div>
+                <div>👥 {p.max_staff>=999?"∞":p.max_staff} staff</div>
+              </div>
+              {(p.features||[]).length>0 && (
+                <div style={{ marginTop:8, fontSize:11, color:G82, borderTop:`1px solid ${G22}`, paddingTop:8 }}>
+                  {p.features.slice(0,3).map((f,i)=><div key={i}>✓ {f}</div>)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Payment history */}
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Payment History</h3>
+        {payments.length === 0 ? (
+          <div style={{ textAlign:"center", padding:32, color:G62, fontSize:13 }}>No payments recorded yet.</div>
+        ) : (
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ borderBottom:`2px solid ${G22}` }}>
+                {["Date","Amount","Method","Reference","Notes"].map((h,i)=>(
+                  <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p,i)=>(
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
+                  <td style={{ padding:"10px" }}>{fmtD2(p.paid_at||p.created_at)}</td>
+                  <td style={{ padding:"10px", fontWeight:700, color:OK2 }}>{fmt2(p.amount)}</td>
+                  <td style={{ padding:"10px" }}>{p.method}</td>
+                  <td style={{ padding:"10px", color:G62 }}>{p.reference||"—"}</td>
+                  <td style={{ padding:"10px", color:G62 }}>{p.notes||"—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── CUSTOMERS TAB ─────────────────────────────────────── */
+function CustomersTab({ storeId, api, pop }) {
+  const [customers, setCustomers] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [search,    setSearch]    = useState("");
+  const [sel,       setSel]       = useState(null);
+  const [custBooks, setCustBooks] = useState([]);
+  const [resetPw,   setResetPw]   = useState({ open:false, custId:"", newpw:"" });
+
+  useEffect(()=>{
+    // Get all customers who have booked at this store
+    api.getBookings(storeId).then(async bks=>{
+      const ids = [...new Set((bks||[]).map(b=>b.customer_id||b.customerId).filter(Boolean))];
+      // We pull stats from bookings directly
+      const custMap = {};
+      (bks||[]).forEach(b=>{
+        const cid = b.customer_id || b.customerId;
+        if (!cid) return;
+        if (!custMap[cid]) custMap[cid] = { id:cid, name:b.guest_name, phone:b.guest_phone, email:b.guest_email||"", bookings:0, totalSpent:0, lastVisit:"" };
+        custMap[cid].bookings++;
+        custMap[cid].totalSpent += Number(b.paid_amount||b.paid||0);
+        if (!custMap[cid].lastVisit || (b.check_in||b.ci||"") > custMap[cid].lastVisit) custMap[cid].lastVisit = b.check_in||b.ci||"";
+      });
+      setCustomers(Object.values(custMap).sort((a,b)=>b.bookings-a.bookings));
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  },[storeId]);
+
+  const openCust = async (cust) => {
+    setSel(cust);
+    const bks = await api.getBookings(storeId).catch(()=>[]);
+    setCustBooks((bks||[]).filter(b=>(b.customer_id||b.customerId)===cust.id));
+  };
+
+  const doResetPw = async () => {
+    if (!resetPw.newpw || resetPw.newpw.length < 6) { pop("Password must be at least 6 chars","err"); return; }
+    try {
+      await api.customerUpdate(resetPw.custId, { new_password: resetPw.newpw, force_reset: true });
+      pop("Password reset successfully");
+      setResetPw({ open:false, custId:"", newpw:"" });
+    } catch(e) { pop(e.message,"err"); }
+  };
+
+  const shown = customers.filter(c =>
+    !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",IN2="#1565C0",INB2="#E3F2FD";
+  const fmt2 = n=>"TZS "+Number(n||0).toLocaleString();
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 18px" }}>Customers</h2>
+
+      {/* Stats row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:20 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Customers</div>
+          <div style={{ fontSize:26, fontWeight:700, color:M2 }}>{customers.length}</div>
+        </div>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Repeat Guests</div>
+          <div style={{ fontSize:26, fontWeight:700, color:OK2 }}>{customers.filter(c=>c.bookings>1).length}</div>
+        </div>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Revenue</div>
+          <div style={{ fontSize:18, fontWeight:700, color:M2 }}>{fmt2(customers.reduce((s,c)=>s+c.totalSpent,0))}</div>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ marginBottom:14 }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, phone or email…"
+          style={{ width:"100%", padding:"10px 14px", border:`1px solid ${G22}`, borderRadius:9, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+      </div>
+
+      {/* Customer list */}
+      {loading ? <div style={{padding:40,textAlign:"center",color:G62}}>Loading…</div> : (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ background:G12 }}>
+                {["Guest","Phone","Email","Bookings","Total Spent","Last Visit","Actions"].map((h,i)=>(
+                  <th key={i} style={{ padding:"10px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.length===0 && <tr><td colSpan={7} style={{padding:32,textAlign:"center",color:G62}}>No customers found</td></tr>}
+              {shown.map((cust,i)=>(
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
+                  <td style={{ padding:"10px 12px", fontWeight:700 }}>{cust.name}</td>
+                  <td style={{ padding:"10px 12px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      {cust.phone}
+                      {cust.phone && <a href={`tel:${cust.phone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞</a>}
+                    </div>
+                  </td>
+                  <td style={{ padding:"10px 12px", color:G62, fontSize:12 }}>{cust.email||"—"}</td>
+                  <td style={{ padding:"10px 12px", fontWeight:700, color:M2 }}>{cust.bookings}</td>
+                  <td style={{ padding:"10px 12px", fontWeight:700, color:OK2 }}>{fmt2(cust.totalSpent)}</td>
+                  <td style={{ padding:"10px 12px", fontSize:12, color:G62 }}>{cust.lastVisit||"—"}</td>
+                  <td style={{ padding:"10px 12px" }}>
+                    <div style={{ display:"flex", gap:5 }}>
+                      <button onClick={()=>openCust(cust)}
+                        style={{ background:INB2, color:IN2, border:"none", borderRadius:5, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                        History
+                      </button>
+                      {cust.id && <button onClick={()=>setResetPw({open:true,custId:cust.id,newpw:""})}
+                        style={{ background:G12, color:G82, border:`1px solid ${G22}`, borderRadius:5, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                        Reset PW
+                      </button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Customer history modal */}
+      {sel && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:WH2, borderRadius:14, width:"100%", maxWidth:560, maxHeight:"85vh", overflow:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
+            <div style={{ padding:"16px 20px", borderBottom:`1px solid ${G22}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:WH2 }}>
+              <div>
+                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{sel.name}</div>
+                <div style={{ fontSize:12, color:G62 }}>{sel.phone} {sel.email?`· ${sel.email}`:""}</div>
+              </div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                {sel.phone && <a href={`tel:${sel.phone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:7, padding:"7px 14px", fontSize:13, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
+                <button onClick={()=>setSel(null)} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer", color:G62, lineHeight:1 }}>×</button>
+              </div>
+            </div>
+            <div style={{ padding:20 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+                <div style={{ background:G12, borderRadius:8, padding:"10px 14px" }}>
+                  <div style={{ fontSize:11, color:G62, textTransform:"uppercase", letterSpacing:".06em" }}>Total Bookings</div>
+                  <div style={{ fontSize:22, fontWeight:700, color:M2 }}>{custBooks.length}</div>
+                </div>
+                <div style={{ background:G12, borderRadius:8, padding:"10px 14px" }}>
+                  <div style={{ fontSize:11, color:G62, textTransform:"uppercase", letterSpacing:".06em" }}>Total Spent</div>
+                  <div style={{ fontSize:16, fontWeight:700, color:OK2 }}>{fmt2(custBooks.reduce((s,b)=>s+Number(b.paid_amount||b.paid||0),0))}</div>
+                </div>
+              </div>
+              <div style={{ fontWeight:700, fontSize:13, marginBottom:8, color:G82 }}>Booking History</div>
+              {custBooks.sort((a,b)=>new Date(b.created_at||b.created||0)-new Date(a.created_at||a.created||0)).map((b,i)=>(
+                <div key={i} style={{ border:`1px solid ${G22}`, borderRadius:8, padding:12, marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                    <span style={{ fontWeight:700, fontSize:13 }}>{b.room_name||b.roomName||"Room"}</span>
+                    <span style={{ background:b.status==="checkedOut"?OKB2:b.status==="cancelled"?"#FFEBEE":"#E3F2FD", color:b.status==="checkedOut"?OK2:b.status==="cancelled"?"#C62828":IN2, borderRadius:99, fontSize:11, fontWeight:700, padding:"2px 8px" }}>{b.status}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:G62 }}>{b.check_in||b.ci} → {b.check_out||b.co} · {b.nights} nights</div>
+                  <div style={{ fontSize:13, marginTop:4 }}>
+                    <span style={{ fontWeight:700 }}>{fmt2(b.total_amount||b.total)}</span>
+                    <span style={{ color:OK2, marginLeft:12 }}>Paid: {fmt2(b.paid_amount||b.paid)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset password modal */}
+      {resetPw.open && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1001, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:WH2, borderRadius:12, width:"100%", maxWidth:380, padding:24 }}>
+            <h3 style={{ fontFamily:"'Playfair Display',serif", margin:"0 0 16px" }}>Reset Customer Password</h3>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>New Password</label>
+              <input type="password" value={resetPw.newpw} onChange={e=>setResetPw(p=>({...p,newpw:e.target.value}))}
+                placeholder="Minimum 6 characters"
+                style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setResetPw({open:false,custId:"",newpw:""})} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+              <button onClick={doResetPw} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>Reset Password</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
