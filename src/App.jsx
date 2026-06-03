@@ -211,6 +211,90 @@ const Spinner = () => (
   </div>
 );
 
+
+/* ─── ROOM DETAIL MODAL WRAPPER ─────────────────────────── */
+function RoomDetailModal({ dr, loc, avail, dateTaken, bD, selRoom, onClose, onSelect, onChangeDates }) {
+  const isYT = dr.video && (dr.video.includes("youtube.com") || dr.video.includes("youtu.be"));
+  const ytMatch = dr.video ? dr.video.match(/(?:v=|youtu\.be\/)([^&\s]+)/) : null;
+  const ytId = ytMatch ? ytMatch[1] : "";
+  return (
+    <Modal title="" onClose={onClose} wide>
+      <RoomDetailContent
+        dr={dr} loc={loc} isYT={isYT} ytId={ytId}
+        avail={avail} dateTakenForThisRoom={dateTaken}
+        bD={bD} selRoom={selRoom}
+        onSelect={onSelect}
+        onChangeDates={onChangeDates}
+      />
+    </Modal>
+  );
+}
+
+/* ─── VIDEO MODAL WRAPPER ────────────────────────────────── */
+function VideoModal({ room, onClose, fmt }) {
+  if (!room) return null;
+  const isYT = room.video && (room.video.includes("youtube.com") || room.video.includes("youtu.be"));
+  const ytMatch = room.video ? room.video.match(/(?:v=|youtu\.be\/)([^&\s]+)/) : null;
+  const ytId = ytMatch ? ytMatch[1] : "";
+  const title = "Video: " + (room.name || "Room");
+  return (
+    <Modal title={title} onClose={onClose} wide>
+      {isYT ? (
+        <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:10, overflow:"hidden" }}>
+          <iframe
+            src={"https://www.youtube.com/embed/" + ytId + "?autoplay=1"}
+            style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }}
+            allowFullScreen allow="autoplay" title="Room video"
+          />
+        </div>
+      ) : (
+        <video src={room.video} controls autoPlay style={{ width:"100%", borderRadius:10, maxHeight:400 }}/>
+      )}
+      <div style={{ marginTop:14, fontSize:13, color:"#666", textAlign:"center" }}>
+        {room.name} &middot; {room.type} &middot; {"TZS " + Number(room.price||0).toLocaleString() + "/night"}
+      </div>
+    </Modal>
+  );
+}
+
+/* ─── PAY DRILL SUMMARY ──────────────────────────────────── */
+function PayDrillSummary({ method, byMethod, Bk, fmt }) {
+  const entry = byMethod.find(function(m) { return m.method === method; });
+  const total = entry ? entry.total : 0;
+  const count = Bk.filter(function(b) { return b.method === method && b.paid > 0; }).length;
+  return (
+    <div style={{ background:"#F9F0F2", border:"1px solid rgba(107,27,42,.12)", borderRadius:8, padding:"11px 14px", marginBottom:14, display:"flex", gap:20, fontSize:13, flexWrap:"wrap" }}>
+      <div><span style={{ color:"#666" }}>Method: </span><strong style={{ color:"#6B1B2A" }}>{method}</strong></div>
+      <div><span style={{ color:"#666" }}>Total: </span><strong>{"TZS " + Number(total||0).toLocaleString()}</strong></div>
+      <div><span style={{ color:"#666" }}>Transactions: </span><strong>{count}</strong></div>
+    </div>
+  );
+}
+
+/* ─── LOC STATS MINI COMPONENT ──────────────────────────── */
+function LocStats({ lr, lrev, lexp, lb }) {
+  const avail = lr.filter(r => r.status === "available").length;
+  const roomsText = avail + "/" + lr.length + " avail";
+  const items = [
+    { k: "Revenue",  v: "TZS " + Number(lrev).toLocaleString(), col: "#6B1B2A" },
+    { k: "Expenses", v: "TZS " + Number(lexp).toLocaleString(), col: "#C62828" },
+    { k: "Rooms",    v: roomsText,                               col: "#2E7D32" },
+    { k: "Bookings", v: String(lb.length),                      col: "#1565C0" },
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      {items.map(function(item, i) {
+        return (
+          <div key={i} style={{ background: "#F5F5F5", borderRadius: 8, padding: "9px 11px" }}>
+            <div style={{ fontSize: 11, color: "#666" }}>{item.k}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: item.col, marginTop: 2 }}>{item.v}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
   // ── SUBDOMAIN DETECTION ──
@@ -1246,57 +1330,35 @@ export default function App() {
       </div>
       {modal === "login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={() => { setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
-      {roomDetail && (() => {
-        const dr = rooms.find(r => r.id === roomDetail);
-        if (!dr) return null;
-        const [photoIdx, setPhotoIdx] = [0, ()=>{}]; // simple — handled in local state below
-        const isYT = dr.video?.includes("youtube.com") || dr.video?.includes("youtu.be");
-        const ytId = dr.video ? (dr.video.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1] || "") : "";
-        const loc  = locs.find(l => l.id === dr.locId);
-        const avail = !["occupied","maintenance"].includes(dr.status);
-        const dateTakenForThisRoom = !isAvailableForDates(dr.id);
-        return (
-          <Modal title="" onClose={() => setRoomDetail(null)} wide>
-            <RoomDetailContent dr={dr} loc={loc} isYT={isYT} ytId={ytId} avail={avail} dateTakenForThisRoom={dateTakenForThisRoom}
-              bD={bD} selRoom={selRoom}
-              onSelect={() => {
-                if (!avail || dateTakenForThisRoom) return;
-                setBD(d => ({ ...d, roomId: dr.id }));
-                setRoomDetail(null);
-                goStep(3); // go to dates
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              onChangeDates={() => {
-                setBD(d => ({ ...d, roomId: dr.id }));
-                setRoomDetail(null);
-                goStep(3);
-              }}
-            />
-          </Modal>
-        );
-      })()}
+      {roomDetail && rooms.find(r => r.id === roomDetail) && (
+        <RoomDetailModal
+          dr={rooms.find(r => r.id === roomDetail)}
+          loc={locs.find(l => l.id === rooms.find(r => r.id === roomDetail)?.locId)}
+          avail={!["occupied","maintenance"].includes(rooms.find(r => r.id === roomDetail)?.status)}
+          dateTaken={!isAvailableForDates(roomDetail)}
+          bD={bD} selRoom={selRoom}
+          onClose={() => setRoomDetail(null)}
+          onSelect={() => {
+            setBD(d => ({ ...d, roomId: roomDetail }));
+            setRoomDetail(null);
+            goStep(3);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onChangeDates={() => {
+            setBD(d => ({ ...d, roomId: roomDetail }));
+            setRoomDetail(null);
+            goStep(3);
+          }}
+        />
+      )}
 
-      {videoModal && (() => {
-        const vRoom = rooms.find(r => r.id === videoModal);
-        const isYT = vRoom?.video?.includes("youtube.com") || vRoom?.video?.includes("youtu.be");
-        const ytId = vRoom?.video?.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1] || "";
-        return (
-          <Modal title={`🎬 ${vRoom?.name} — Room Video`} onClose={() => setVideoModal(null)} wide>
-            {isYT ? (
-              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 10, overflow: "hidden" }}>
-                <iframe src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                  allowFullScreen allow="autoplay" title="Room video"/>
-              </div>
-            ) : (
-              <video src={vRoom?.video} controls autoPlay style={{ width: "100%", borderRadius: 10, maxHeight: 400 }}/>
-            )}
-            <div style={{ marginTop: 14, fontSize: 13, color: G6, textAlign: "center" }}>
-              {vRoom?.name} · {vRoom?.type} · {fmt(vRoom?.price)}/night
-            </div>
-          </Modal>
-        );
-      })()}
+      {videoModal && rooms.find(r => r.id === videoModal) && (
+        <VideoModal
+          room={rooms.find(r => r.id === videoModal)}
+          onClose={() => setVideoModal(null)}
+          fmt={fmt}
+        />
+      )}
     </div>
   );
 
@@ -1593,14 +1655,14 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
           <KPI label="Active Guests" value={books.filter(b=>b.status==="checkedIn").length} icon="🔑" color={M} sub="Checked in now"/>
           <KPI label="Pending" value={books.filter(b=>b.status==="pending").length} icon="⏳" color={WA} sub="Need confirmation"/>
-          <KPI label="Available Rooms" value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={`of ${rooms.length} total`}/>
+          <KPI label="Available Rooms" value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={"of " + rooms.length + " total"}/>
           <KPI label="Checking Out Today" value={books.filter(b=>b.status==="checkedIn"&&b.co===new Date().toISOString().split("T")[0]).length} icon="📅" color={IN}/>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
           <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
           <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
-          <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={`${rooms.filter(r => r.status === "occupied").length}/${rooms.length} rooms`} />
+          <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={rooms.filter(r => r.status === "occupied").length + "/" + rooms.length + " rooms"} />
           <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
           <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
           <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
@@ -1703,18 +1765,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
                 <span style={{ fontSize: 22 }}>{loc.icon}</span>
                 <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {(()=>{
-                  const avail = lr.filter(r => r.status === "available").length;
-                  const items = [["Revenue", fmt(lrev), M], ["Expenses", fmt(lexp), ER], ["Rooms", avail + "/" + lr.length + " avail", OK], ["Bookings", lb.length, IN]];
-                  return items.map(([k, v, clr], i) => (
-                    <div key={i} style={{ background: G1, borderRadius: 8, padding: "9px 11px" }}>
-                      <div style={{ fontSize: 11, color: G6 }}>{k}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: clr, marginTop: 2 }}>{v}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
+              <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
             </Card>
           );
         })}
@@ -2004,7 +2055,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           {(selB.total - selB.paid) > 0 && selB.status !== "cancelled" && (
             <div style={{ marginTop: 18, padding: 14, background: G1, borderRadius: 10 }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12 }}>Record Payment</div>
-              <Inp label={`Amount (max ${fmt(selB.total - selB.paid)})`} type="number" value={payAmt} onChange={e => setPayAmt(e.target.value)} placeholder="Enter amount" />
+              <Inp label={"Amount (max " + fmt(selB.total - selB.paid) + ")"} type="number" value={payAmt} onChange={e => setPayAmt(e.target.value)} placeholder="Enter amount" />
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 7, textTransform: "uppercase", letterSpacing: ".05em" }}>Payment Method</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
@@ -2746,7 +2797,9 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
                   <button key={i} onClick={()=>setPayDrillMethod(m.method)} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${payDrillMethod===m.method?M:G2}`,background:payDrillMethod===m.method?M:WH,color:payDrillMethod===m.method?WH:G6}}>{m.method}</button>
                 ))}
               </div>
-              {payDrillMethod&&(()=>{const total=byMethod.find(m=>m.method===payDrillMethod)?.total||0;const count=Bk.filter(b=>b.method===payDrillMethod&&b.paid>0).length;return <div style={{background:MF,border:`1px solid ${M}20`,borderRadius:8,padding:"11px 14px",marginBottom:14,display:"flex",gap:20,fontSize:13}}><div><span style={{color:G6}}>Method: </span><strong style={{color:M}}>{payDrillMethod}</strong></div><div><span style={{color:G6}}>Total: </span><strong>{fmt(total)}</strong></div><div><span style={{color:G6}}>Transactions: </span><strong>{count}</strong></div></div>})()}
+              {payDrillMethod && byMethod.length > 0 && (
+                <PayDrillSummary method={payDrillMethod} byMethod={byMethod} Bk={Bk} fmt={fmt}/>
+              )}
               <Tbl hdr={["Booking","Guest","Room","Check-in","Method","Paid","Balance","Status"]}
                 rows={Bk.filter(b=>b.paid>0&&(!payDrillMethod||b.method===payDrillMethod)).sort((a,b)=>b.id.localeCompare(a.id)).map(b=>{
                   const rm=rooms.find(r=>r.id===b.roomId);const bal=b.total-b.paid;
@@ -2770,7 +2823,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
         <div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
             <KPI label="Overall Occupancy" value={occ+"%"} icon="🛏️"/>
-            <KPI label="Occupied"    value={rooms.filter(r=>r.status==="occupied").length}    color={M}  sub={`of ${rooms.length}`}/>
+            <KPI label="Occupied"    value={rooms.filter(r=>r.status==="occupied").length}    color={M}  sub={"of " + rooms.length}/>
             <KPI label="Available"   value={rooms.filter(r=>r.status==="available").length}   color={OK}/>
             <KPI label="Maintenance" value={rooms.filter(r=>r.status==="maintenance").length} color={WA}/>
             <KPI label="Avg Nightly Rate" value={fmt(avgRate)} color={M}/>
