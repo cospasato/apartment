@@ -5,37 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- Primary Meta -->
-    <title>BNBMS — BNB Management System</title>
-    <meta name="description" content="Manage your apartments, lodges and guesthouses — bookings, staff, revenue, all in one place."/>
-    <meta name="keywords" content="BNB management, apartment booking, lodge management, Tanzania, East Africa"/>
-    <meta name="author" content="BNBMS"/>
+    <title>BNBMIS — BNB Management Information System</title>
+    <meta name="description" content="Manage your hotel, lodge, BnB, apartment or guesthouse — bookings, staff and revenue all in one place. Available worldwide."/>
+    <meta name="keywords" content="BNB management, property management, hotel management, lodge booking, apartment rental, guesthouse management"/>
+    <meta name="author" content="BNBMIS"/>
 
     <!-- PWA -->
     <meta name="theme-color" content="#6B1B2A"/>
     <meta name="mobile-web-app-capable" content="yes"/>
-    <meta name="application-name" content="BNBMS"/>
+    <meta name="application-name" content="BNBMIS"/>
     <link rel="manifest" href="/manifest.json"/>
 
     <!-- Apple PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-    <meta name="apple-mobile-web-app-title" content="BNBMS"/>
+    <meta name="apple-mobile-web-app-title" content="BNBMIS"/>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"/>
     <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png"/>
     <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png"/>
-
-    <!-- Apple Splash Screens (iPhone sizes) -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png"/>
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png"/>
 
-    <!-- Open Graph (for sharing links) -->
+    <!-- Open Graph -->
     <meta property="og:type" content="website"/>
-    <meta property="og:title" content="BNBMS — BNB Management System"/>
-    <meta property="og:description" content="Manage your apartments and lodge bookings, staff, and revenue all in one place."/>
+    <meta property="og:title" content="BNBMIS — BNB Management Information System"/>
+    <meta property="og:description" content="Manage your hotel, lodge, BnB, apartment or guesthouse worldwide. Bookings, staff and revenue in one place."/>
     <meta property="og:image" content="/icons/icon-512.png"/>
+    <meta property="og:url" content="https://bnbmis.com"/>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -43,27 +41,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
     <style>
-      /* Prevent flash of unstyled content */
-      body { margin: 0; background: #111; }
-      /* Safe area for notched phones */
-      #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #111; font-family: 'DM Sans', -apple-system, sans-serif; }
+      #root { padding-bottom: env(safe-area-inset-bottom); }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-
-    <!-- Register Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => {
-              console.log('BNBMS SW registered:', reg.scope);
-              // Check for updates every 60 seconds
-              setInterval(() => reg.update(), 60000);
-            })
-            .catch(err => console.warn('SW registration failed:', err));
+            .then(reg => { setInterval(() => reg.update(), 60000); })
+            .catch(() => {});
         });
       }
     </script>

@@ -1,5 +1,5 @@
-// BNBMS Service Worker — PWA offline support
-const CACHE_NAME = 'bnbms-v1';
+// BNBMIS Service Worker — PWA offline support
+const CACHE_NAME = 'bnbmis-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -80,7 +80,7 @@ self.addEventListener('push', event => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'BNBMS', {
+    self.registration.showNotification(data.title || 'BNBMIS', {
       body: data.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-72.png',

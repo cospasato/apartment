@@ -1,9 +1,9 @@
-// src/api.js — BNBMS API client
+// src/api.js — BNBMIS API client
 const BASE = '';
 
 function getToken() {
   try {
-    const s = localStorage.getItem('bnbms_super') || localStorage.getItem('bnbms_owner') || localStorage.getItem('bnbms_staff');
+    const s = localStorage.getItem('bnbmis_super') || localStorage.getItem('bnbmis_owner') || localStorage.getItem('bnbmis_staff');
     if (!s) return null;
     return JSON.parse(s)?.token || null;
   } catch { return null; }

@@ -1,4 +1,4 @@
-# BNBMS — BNB Management System
+# BNBMIS — BNB Management Information System
 
 A multi-tenant SaaS platform for apartment and lodge management. Built with React + Vite, Vercel serverless functions, and Neon PostgreSQL.
 
@@ -17,16 +17,16 @@ A multi-tenant SaaS platform for apartment and lodge management. Built with Reac
 ```bash
 git init
 git add .
-git commit -m "Initial BNBMS commit"
+git commit -m "Initial BNBMIS commit"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/bnbms.git
+git remote add origin https://github.com/YOUR_USERNAME/bnbmis.git
 git push -u origin main
 ```
 
 ### Step 3 — Deploy to Vercel
 1. Go to [vercel.com](https://vercel.com) and sign in
 2. Click **New Project** → **Import from GitHub**
-3. Select your `bnbms` repository
+3. Select your `bnbmis` repository
 4. Vercel will auto-detect the Vite settings
 5. Before clicking Deploy, go to **Environment Variables** and add:
    ```
@@ -43,7 +43,7 @@ Visit `https://your-project.vercel.app/api/stores?action=setup` — you should s
 ### Step 5 — First login
 - Visit your deployed URL
 - Click **Sign In** → **Super Admin**
-- Email: `admin@bnbms.co.tz`
+- Email: `admin@bnbmis.com`
 - Password: `Admin@2024!`
 - **Immediately go to Settings → Change Password**
 
@@ -75,7 +75,7 @@ Visit `https://your-project.vercel.app/api/stores?action=setup` — you should s
 ## 📁 Project Structure
 
 ```
-bnbms/
+bnbmis/
 ├── api/                    # Vercel serverless functions
 │   ├── _db.js             # Database connection + auth helpers
 │   ├── auth.js            # Login for super/owner/staff
@@ -113,7 +113,7 @@ Tokens are base64-encoded strings: `type:id:storeId`
 | `owner:OWN123:ST456` | Store owner | Apartment owner |
 | `staff:S789:ST456` | Staff | Receptionist/manager |
 
-Customers use a separate session in `bnbms_customer` localStorage.
+Customers use a separate session in `bnbmis_customer` localStorage.
 
 ---
 

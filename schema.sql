@@ -1,5 +1,5 @@
 -- ============================================================
--- BNBMS — BNB MANAGEMENT SYSTEM — SUPER APP DATABASE SCHEMA
+-- BNBMIS — BNB MANAGEMENT SYSTEM — SUPER APP DATABASE SCHEMA
 -- Run this entire file in: Neon Console → SQL Editor → Run
 -- ============================================================
 
@@ -238,14 +238,14 @@ INSERT INTO subscription_plans (id, name, price_monthly, price_yearly, max_locat
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO platform_settings (key, value) VALUES
-  ('platform_name',     'BNBMS'),
+  ('platform_name',     'BNBMIS'),
   ('platform_currency', 'TZS'),
-  ('support_email',     'support@bnbms.co.tz'),
+  ('support_email',     'support@bnbmis.com'),
   ('trial_days',        '14'),
-  ('platform_tagline',  'BNB Management System')
+  ('platform_tagline',  'BNB Management Information System')
 ON CONFLICT (key) DO NOTHING;
 
 -- Super admin (CHANGE THIS PASSWORD AFTER FIRST LOGIN via the super admin dashboard)
 INSERT INTO super_admins (id, name, email, password_hash) VALUES
-  ('SADMIN', 'BNBMS Admin', 'admin@bnbms.co.tz', 'Admin@2024!')
+  ('SADMIN', 'BNBMIS Admin', 'admin@bnbmis.com', 'Admin@2024!')
 ON CONFLICT (id) DO NOTHING;

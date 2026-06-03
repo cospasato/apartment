@@ -6,12 +6,25 @@ function PWAInstallBanner() {
   const [prompt, setPrompt] = useState(null);
   const [show, setShow]     = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [isIOS, setIsIOS]   = useState(false);
+  const [iosGuide, setIosGuide] = useState(false);
 
   useEffect(() => {
+    // Detect iOS (Safari doesn't fire beforeinstallprompt)
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    const standalone = window.navigator.standalone;
+    setIsIOS(ios);
+
+    if (ios && !standalone) {
+      const dismissed = localStorage.getItem("bnbmis_pwa_dismissed");
+      if (!dismissed) setShow(true);
+      return;
+    }
+
     const handler = (e) => {
       e.preventDefault();
       setPrompt(e);
-      const dismissed = localStorage.getItem("bnbms_pwa_dismissed");
+      const dismissed = localStorage.getItem("bnbmis_pwa_dismissed");
       if (!dismissed) setShow(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -20,28 +33,67 @@ function PWAInstallBanner() {
   }, []);
 
   const install = async () => {
+    if (isIOS) { setIosGuide(true); return; }
     if (!prompt) return;
     prompt.prompt();
     const { outcome } = await prompt.userChoice;
-    if (outcome === "accepted") setInstalled(true);
-    setShow(false);
+    if (outcome === "accepted") { setInstalled(true); setShow(false); }
   };
 
-  const dismiss = () => { setShow(false); localStorage.setItem("bnbms_pwa_dismissed", "1"); };
+  const dismiss = () => { setShow(false); localStorage.setItem("bnbmis_pwa_dismissed", "1"); };
 
   if (!show || installed) return null;
+
   return (
-    <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:9999, background:"#111", borderTop:"1px solid #333", padding:"14px 20px", display:"flex", alignItems:"center", gap:14, boxShadow:"0 -4px 24px rgba(0,0,0,.5)" }}>
-      <div style={{ width:44, height:44, background:"#6B1B2A", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-        <span style={{ color:"#C9A84C", fontWeight:900, fontSize:13, fontFamily:"Georgia,serif" }}>BNB</span>
+    <>
+      {/* Bottom install bar */}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0, zIndex:9998,
+        background:"linear-gradient(to top, #0a0a0a, #111)",
+        borderTop:"1px solid rgba(201,168,76,.3)",
+        boxShadow:"0 -8px 32px rgba(0,0,0,.6)"
+      }}>
+        {/* iOS guide panel */}
+        {iosGuide && (
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid #222", textAlign:"center" }}>
+            <div style={{ color:"#C9A84C", fontWeight:700, fontSize:13, marginBottom:8 }}>How to install on iPhone / iPad</div>
+            <div style={{ color:"#aaa", fontSize:13, lineHeight:1.7 }}>
+              1. Tap the <strong style={{color:"#fff"}}>Share</strong> button <span style={{fontSize:16}}>⎙</span> at the bottom of Safari<br/>
+              2. Scroll down and tap <strong style={{color:"#fff"}}>"Add to Home Screen"</strong><br/>
+              3. Tap <strong style={{color:"#fff"}}>"Add"</strong> — done!
+            </div>
+            <button onClick={()=>setIosGuide(false)} style={{ marginTop:10, background:"transparent", color:"#666", border:"none", fontSize:12, cursor:"pointer" }}>Close</button>
+          </div>
+        )}
+        {/* Main bar */}
+        <div style={{ padding:"14px 20px 20px", display:"flex", alignItems:"center", gap:14 }}>
+          {/* App icon */}
+          <div style={{ width:48, height:48, background:"#6B1B2A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:"1.5px solid rgba(201,168,76,.4)" }}>
+            <span style={{ color:"#C9A84C", fontWeight:900, fontSize:13, fontFamily:"Georgia,serif", letterSpacing:"-0.5px" }}>BNB</span>
+          </div>
+          {/* Text */}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ color:"#fff", fontWeight:700, fontSize:14, marginBottom:2 }}>
+              Download the BNBMIS App
+            </div>
+            <div style={{ color:"#888", fontSize:12 }}>
+              {isIOS ? "Tap Install for steps to add to your home screen" : "Install for quick access — works offline"}
+            </div>
+          </div>
+          {/* Buttons */}
+          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+            <button onClick={dismiss}
+              style={{ background:"transparent", color:"#666", border:"1px solid #333", borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+              Not now
+            </button>
+            <button onClick={install}
+              style={{ background:"#6B1B2A", color:"#fff", border:"1px solid rgba(201,168,76,.5)", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+              {isIOS ? "📲 Install" : "⬇ Install"}
+            </button>
+          </div>
+        </div>
       </div>
-      <div style={{ flex:1 }}>
-        <div style={{ color:"#fff", fontWeight:700, fontSize:14, marginBottom:2 }}>Install BNBMS App</div>
-        <div style={{ color:"#888", fontSize:12 }}>Add to home screen for quick access — works offline</div>
-      </div>
-      <button onClick={install} style={{ background:"#6B1B2A", color:"#fff", border:"none", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Install</button>
-      <button onClick={dismiss} style={{ background:"transparent", color:"#666", border:"none", fontSize:22, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>×</button>
-    </div>
+    </>
   );
 }
 
@@ -161,9 +213,9 @@ const Spinner = () => (
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
-  // ── BNBMS MULTI-TENANT STATE ──
-  const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbms_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbms_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  // ── BNBMIS MULTI-TENANT STATE ──
+  const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -182,14 +234,14 @@ export default function App() {
   const [exps, setExps]   = useState([]);
   const [staff, setStaff] = useState([]);
   const [payMethods, setPayMethods] = useState(["Cash","M-Pesa","Tigo Pesa","Airtel Money","Halopesa","Bank Transfer","Card"]);
-  const [user, setUser]       = useState(() => { try { const s = localStorage.getItem("bnbms_staff"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [customer, setCustomer] = useState(() => { try { const s = localStorage.getItem("bnbms_customer"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [user, setUser]       = useState(() => { try { const s = localStorage.getItem("bnbmis_staff"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [customer, setCustomer] = useState(() => { try { const s = localStorage.getItem("bnbmis_customer"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [view, setView]   = useState(() => {
     try {
-      if (localStorage.getItem("bnbms_super"))   return "super";
-      if (localStorage.getItem("bnbms_owner"))   return "owner_dash";
-      if (localStorage.getItem("bnbms_staff"))   return "admin";
-      if (localStorage.getItem("bnbms_customer"))return "customer";
+      if (localStorage.getItem("bnbmis_super"))   return "super";
+      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
+      if (localStorage.getItem("bnbmis_staff"))   return "admin";
+      if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
     } catch { return "land"; }
   });
@@ -211,7 +263,7 @@ export default function App() {
   const custLogin = async (email, password) => {
     const u = await api.customerLogin({ email, password });
     setCustomer(u);
-    try { localStorage.setItem("bnbms_customer", JSON.stringify(u)); } catch {}
+    try { localStorage.setItem("bnbmis_customer", JSON.stringify(u)); } catch {}
     setCustModal(null);
     if (pendingBookLoc === "__confirm__") {
       setPendingBookLoc(null);
@@ -231,7 +283,7 @@ export default function App() {
   const custRegister = async (form) => {
     const u = await api.customerRegister(form);
     setCustomer(u);
-    try { localStorage.setItem("bnbms_customer", JSON.stringify(u)); } catch {}
+    try { localStorage.setItem("bnbmis_customer", JSON.stringify(u)); } catch {}
     setCustModal(null);
     pop("Welcome, " + u.name + "! Account created.");
     if (pendingBookLoc === "__confirm__") {
@@ -263,7 +315,7 @@ export default function App() {
       const updated = await api.customerUpdate(customer.id, form);
       setCustomer(u => {
         const next = { ...u, ...updated };
-        try { localStorage.setItem("bnbms_customer", JSON.stringify(next)); } catch {}
+        try { localStorage.setItem("bnbmis_customer", JSON.stringify(next)); } catch {}
         return next;
       });
       pop("Profile updated");
@@ -429,7 +481,7 @@ export default function App() {
 
   /* ── LOGOUT ── */
   const logout = () => {
-    ["bnbms_super","bnbms_owner","bnbms_staff","bnbms_customer"].forEach(k=>localStorage.removeItem(k));
+    ["bnbmis_super","bnbmis_owner","bnbmis_staff","bnbmis_customer"].forEach(k=>localStorage.removeItem(k));
     setSuperAdmin(null); setOwner(null); setUser(null); setCustomer(null);
     setLocs([]); setRooms([]); setBooks([]); setExps([]); setStaff([]);
     setMktSelStore(null);
@@ -573,7 +625,7 @@ export default function App() {
       const updated = await api.updateProfile(form);
       setUser(u => {
         const next = { ...u, name: updated.name, email: updated.email };
-        try { localStorage.setItem("bnbms_staff", JSON.stringify(next)); } catch {}
+        try { localStorage.setItem("bnbmis_staff", JSON.stringify(next)); } catch {}
         return next;
       });
       pop("Profile updated");
@@ -609,7 +661,7 @@ export default function App() {
     try {
       const u = await api.loginStaff(email, pin, storeIdForLogin);
       setUser(u);
-      try { localStorage.setItem("bnbms_staff", JSON.stringify(u)); } catch {}
+      try { localStorage.setItem("bnbmis_staff", JSON.stringify(u)); } catch {}
       navTo("admin"); setATab("dash"); setModal(null);
       await loadAll(u, u.storeId);
     } catch {
@@ -626,7 +678,7 @@ export default function App() {
   ];
 
   const NavBar = () => {
-    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMS";
+    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
@@ -635,7 +687,7 @@ export default function App() {
         </div>
         <div>
           <div style={{ color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", lineHeight:1.2 }}>{storeName}</div>
-          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>BNB Management</div>
+          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Property Management</div>
         </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
@@ -655,7 +707,7 @@ export default function App() {
         ) : !customer && view !== "admin" && view !== "owner_dash" ? (
           <>
             <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>My Account</button>
-            <button onClick={()=>setModal("bnbms_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Login</button>
+            <button onClick={()=>setModal("bnbmis_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Login</button>
           </>
         ) : (user || owner) ? (
           <>
@@ -675,7 +727,7 @@ export default function App() {
 
 
   /* ══════════════════════════════════════════════════════
-     BNBMS MARKETPLACE LANDING
+     BNBMIS MARKETPLACE LANDING
   ══════════════════════════════════════════════════════ */
   if (view === "land") return (
     <div style={{ minHeight:"100vh", background:WH, fontFamily:"'DM Sans',sans-serif" }}>
@@ -686,8 +738,8 @@ export default function App() {
             <span style={{ color:WH, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
           </div>
           <div>
-            <div style={{ color:WH, fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>BNBMS</div>
-            <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>BNB Management System</div>
+            <div style={{ color:WH, fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>BNBMIS</div>
+            <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Property Management Information System</div>
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
@@ -699,7 +751,7 @@ export default function App() {
           ) : (
             <>
               <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Guest Login</button>
-              <button onClick={()=>setModal("bnbms_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
+              <button onClick={()=>setModal("bnbmis_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
             </>
           )}
         </div>
@@ -709,13 +761,13 @@ export default function App() {
       <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
         <div style={{ color:GOLD, fontSize:12, letterSpacing:".2em", textTransform:"uppercase", marginBottom:14 }}>✦ Find Your Perfect Stay ✦</div>
         <h1 style={{ color:WH, fontSize:52, fontWeight:900, margin:"0 0 14px", fontFamily:"'Playfair Display',serif", lineHeight:1.15 }}>
-          Premium Apartments<br/><span style={{ color:GOLD }}>Across East Africa</span>
+          Premium Apartments<br/><span style={{ color:GOLD }}>Across worldwide</span>
         </h1>
         <p style={{ color:"rgba(255,255,255,.7)", fontSize:17, maxWidth:480, margin:"0 auto 32px", lineHeight:1.7 }}>
-          Browse apartments and lodges managed by BNBMS. Book direct for the best rates.
+          Browse hotels, lodges, BnBs, apartments and guesthouses worldwide. Book direct for the best rates.
         </p>
         <div style={{ display:"flex", gap:8, maxWidth:520, margin:"0 auto", background:WH, borderRadius:12, padding:8 }}>
-          <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
+          <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city or country…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
             style={{ flex:1, border:"none", outline:"none", fontSize:14, color:BK, padding:"8px 12px", fontFamily:"inherit" }}/>
           <button onClick={()=>loadMarketplace(mktCity)} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>Search</button>
         </div>
@@ -724,8 +776,8 @@ export default function App() {
       {/* Properties grid */}
       <div style={{ padding:"48px 28px", maxWidth:1100, margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:36 }}>
-          <div style={{ color:M, fontSize:12, letterSpacing:".18em", textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>Listed Properties</div>
-          <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Browse & Book</h2>
+          <div style={{ color:M, fontSize:12, letterSpacing:".18em", textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>Featured Properties</div>
+          <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Properties</h2>
         </div>
         {mktLoading ? <Spinner/> : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:22 }}>
@@ -740,7 +792,7 @@ export default function App() {
                   <div style={{ padding:20 }}>
                     <div style={{ fontSize:11, color:M, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em", marginBottom:6 }}>{store.city||store.country}</div>
                     <h3 style={{ margin:"0 0 8px", fontSize:20, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif" }}>{store.name}</h3>
-                    <p style={{ margin:"0 0 14px", fontSize:14, color:G6, lineHeight:1.6 }}>{store.description||"Quality serviced accommodation"}</p>
+                    <p style={{ margin:"0 0 14px", fontSize:14, color:G6, lineHeight:1.6 }}>{store.description||"Quality accommodation worldwide"}</p>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                       <span style={{ fontSize:12, color:roomCount>0?OK:G4, fontWeight:700 }}>{roomCount>0?`✓ ${roomCount} rooms available`:"No rooms listed"}</span>
                       <button onClick={async()=>{
@@ -766,26 +818,26 @@ export default function App() {
 
       {/* CTA for property owners */}
       <div style={{ background:G1, borderTop:`1px solid ${G2}`, padding:"48px 32px", textAlign:"center" }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:28, marginBottom:12 }}>Own an Apartment or Lodge?</h2>
-        <p style={{ fontSize:16, color:G6, marginBottom:24, maxWidth:500, margin:"0 auto 24px" }}>Join BNBMS and manage all your bookings, staff, and revenue in one place. Start free for 14 days.</p>
+        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:28, marginBottom:12 }}>Own an Property, Hotel, Lodge or BnB?</h2>
+        <p style={{ fontSize:16, color:G6, marginBottom:24, maxWidth:500, margin:"0 auto 24px" }}>List your hotel, lodge, BnB, apartment or guesthouse on BNBMIS. Manage bookings, staff and revenue in one place. Free for 14 days.</p>
         <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
           <button onClick={()=>setModal("register_store")} style={{ background:M, color:WH, border:"none", borderRadius:10, padding:"13px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Get Started Free</button>
-          <button onClick={()=>setModal("bnbms_login")} style={{ background:WH, color:M, border:`2px solid ${M}`, borderRadius:10, padding:"11px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
+          <button onClick={()=>setModal("bnbmis_login")} style={{ background:WH, color:M, border:`2px solid ${M}`, borderRadius:10, padding:"11px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
         </div>
       </div>
 
       {/* Footer */}
       <div style={{ background:BK, color:G4, padding:"20px 32px", textAlign:"center", fontSize:12 }}>
-        <span style={{ color:WH, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>BNBMS</span> — BNB Management System · &copy; {new Date().getFullYear()} · admin@bnbms.co.tz
+        <span style={{ color:WH, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>BNBMIS</span> — BNB Management Information System · &copy; {new Date().getFullYear()} · support@bnbmis.com
       </div>
 
-      {/* BNBMS Login Modal */}
-      {modal==="bnbms_login" && <BNBMSLoginModal
+      {/* BNBMIS Login Modal */}
+      {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
-        onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbms_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbms_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
-      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbms_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
+      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       <PWAInstallBanner/>
@@ -974,7 +1026,7 @@ export default function App() {
                 <Inp label="Full Name *" value={bD.name} onChange={e => setBD(d => ({ ...d, name: e.target.value }))} placeholder="John Doe" />
                 <Inp label="Phone *" value={bD.phone} onChange={e => setBD(d => ({ ...d, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
                 <Inp label="Email" type="email" value={bD.email} onChange={e => setBD(d => ({ ...d, email: e.target.value }))} placeholder="your@email.com" />
-                <Inp label="Nationality" value={bD.nat} onChange={e => setBD(d => ({ ...d, nat: e.target.value }))} placeholder="Tanzanian" />
+                <Inp label="Nationality" value={bD.nat} onChange={e => setBD(d => ({ ...d, nat: e.target.value }))} placeholder="e.g. American" />
                 <Sel label="Guests" value={bD.guests} onChange={e => setBD(d => ({ ...d, guests: e.target.value }))}>{[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} guest{n > 1 ? "s" : ""}</option>)}</Sel>
                 <Sel label="Payment Method" value={bD.method} onChange={e => setBD(d => ({ ...d, method: e.target.value }))}>
                   {(payMethods.length ? payMethods : ["Cash"]).map(pm => <option key={pm}>{pm}</option>)}
@@ -1126,7 +1178,7 @@ export default function App() {
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         <div style={{ width:220, background:MD, color:WH, display:"flex", flexDirection:"column", flexShrink:0 }}>
           <div style={{ padding:"22px 20px 16px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:GOLD }}>BNBMS</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:GOLD }}>BNBMIS</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Super Admin</div>
           </div>
           <div style={{ flex:1, padding:"4px 12px" }}>
@@ -2955,7 +3007,7 @@ function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop, b
             </div>
             <div>
               <label style={lblStyle}>Nationality</label>
-              <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
+              <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="e.g. American" />
             </div>
           </div>
         </>
@@ -3300,7 +3352,7 @@ function CustomerProfileTab({ customer, onUpdate }) {
           <label style={lblStyle}>Phone Number</label>
           <input style={inpStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
           <label style={lblStyle}>Nationality</label>
-          <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="Tanzanian" />
+          <input style={inpStyle} value={form.nationality} onChange={e => setForm(f => ({ ...f, nationality: e.target.value }))} placeholder="e.g. American" />
           <div style={{ background: G1, borderRadius: 8, padding: "9px 13px", fontSize: 12, color: G6, marginBottom: 14 }}>Email address cannot be changed. Contact us if needed.</div>
           <Btn onClick={saveDetails} disabled={saving || !form.name} style={{ width: "100%", justifyContent: "center" }}>{saving ? "Saving…" : "Save Changes"}</Btn>
         </Card>
@@ -3323,13 +3375,22 @@ function CustomerProfileTab({ customer, onUpdate }) {
   );
 }
 
-/* ─── BNBMS LOGIN MODAL ──────────────────────────────────── */
-function BNBMSLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
-  const [tab, setTab] = useState("owner"); // owner | super
+/* ─── BNBMIS LOGIN MODAL ──────────────────────────────────── */
+function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
+  const [tab, setTab] = useState("owner");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [superClick, setSuperClick] = useState(0);
+  const [showSuper, setShowSuper] = useState(false);
+
+  // Secret: click the BNBMIS logo text 5 times to reveal super admin
+  const handleLogoClick = () => {
+    const next = superClick + 1;
+    setSuperClick(next);
+    if (next >= 5) { setShowSuper(true); setTab("super"); setSuperClick(0); }
+  };
 
   const submit = async () => {
     setErr(""); setBusy(true);
@@ -3342,15 +3403,26 @@ function BNBMSLoginModal({ onSuperLogin, onOwnerLogin, onClose, pop }) {
 
   return (
     <Modal title="Business Login" onClose={onClose}>
-      <div style={{ display:"flex", gap:0, marginBottom:20, border:`1px solid ${G2}`, borderRadius:8, overflow:"hidden" }}>
-        {[["owner","🏪 Store Owner"],["super","👑 Super Admin"]].map(([id,label])=>(
-          <button key={id} onClick={()=>{ setTab(id); setErr(""); }}
-            style={{ flex:1, padding:"10px", border:"none", background:tab===id?M:WH, color:tab===id?WH:G6, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
-        ))}
+      <div style={{ textAlign:"center", marginBottom:20 }}>
+        <div onClick={handleLogoClick} style={{ display:"inline-block", cursor:"default", userSelect:"none" }}>
+          <div style={{ width:56, height:56, background:M, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 8px" }}>
+            <span style={{ color:GOLD, fontWeight:900, fontSize:18, fontFamily:"Georgia,serif" }}>BNB</span>
+          </div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:BK }}>BNBMIS</div>
+          <div style={{ fontSize:11, color:G4 }}>BNB Management Information System</div>
+        </div>
       </div>
-      {tab === "super" && (
+      {showSuper && (
+        <div style={{ display:"flex", gap:0, marginBottom:16, border:`1px solid ${G2}`, borderRadius:8, overflow:"hidden" }}>
+          {[["owner","Store Owner"],["super","Admin"]].map(([id,label])=>(
+            <button key={id} onClick={()=>{ setTab(id); setErr(""); }}
+              style={{ flex:1, padding:"9px", border:"none", background:tab===id?M:WH, color:tab===id?WH:G6, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
+          ))}
+        </div>
+      )}
+      {tab === "super" && showSuper && (
         <div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:8, padding:"9px 13px", marginBottom:14, fontSize:12, color:"#5D4037" }}>
-          👑 Super admin access — full platform control
+          👑 Platform administrator access
         </div>
       )}
       <div style={{ marginBottom:13 }}>
@@ -3399,7 +3471,7 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
     </div>
   );
   return (
-    <Modal title="Register Your Property on BNBMS" onClose={onClose} wide>
+    <Modal title="List Your Property on BNBMIS" onClose={onClose} wide>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
         <div>
           <div style={{ fontWeight:700, color:M, fontSize:13, marginBottom:12, textTransform:"uppercase", letterSpacing:".05em" }}>Your Account</div>

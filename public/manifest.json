@@ -1,7 +1,7 @@
 {
-  "name": "BNBMS — BNB Management System",
-  "short_name": "BNBMS",
-  "description": "Manage your apartments and lodge bookings, staff, and revenue all in one place.",
+  "name": "BNBMIS — BNB Management Information System",
+  "short_name": "BNBMIS",
+  "description": "Manage your hotel, lodge, BnB, apartment or guesthouse — bookings, staff and revenue in one place.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -32,15 +32,6 @@
       "description": "View your dashboard",
       "url": "/?action=dashboard",
       "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/icons/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "BNBMS Dashboard"
     }
   ]
 }
