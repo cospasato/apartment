@@ -1321,115 +1321,115 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
-    const otabs=[
-      {id:"dash",  icon:"📊",l:"Dashboard"},
-      {id:"books", icon:"📋",l:"Bookings"},
-      {id:"rooms", icon:"🛏️",l:"Rooms"},
-      {id:"pays",  icon:"💳",l:"Payments"},
-      {id:"exps",  icon:"📤",l:"Expenses"},
-      {id:"reports",icon:"📈",l:"Reports"},
-      {id:"locs",  icon:"📍",l:"Locations"},
-      {id:"staff", icon:"👥",l:"Staff"},
+    const otabs = [
+      {id:"dash",   icon:"📊", l:"Dashboard"},
+      {id:"books",  icon:"📋", l:"Bookings"},
+      {id:"rooms",  icon:"🛏️",  l:"Rooms"},
+      {id:"pays",   icon:"💳", l:"Payments"},
+      {id:"exps",   icon:"📤", l:"Expenses"},
+      {id:"reports",icon:"📈", l:"Reports"},
+      {id:"locs",   icon:"📍", l:"Locations"},
+      {id:"staff",  icon:"👥", l:"Staff"},
     ];
-    const totRev2  = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
-    const totExp2  = exps.reduce((s,e)=>s+e.amt,0);
-    const netPro2  = totRev2-totExp2;
-    const pending2 = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
-    const occPct2  = rooms.length?Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100):0;
+    const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
+    const totExp2   = exps.reduce((s,e)=>s+e.amt,0);
+    const netPro2   = totRev2 - totExp2;
+    const pending2  = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
+    const occPct2   = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
     const ownerUser = { id:owner.id, name:owner.name, email:owner.email, role:"Admin", storeId:sid };
     const pendingBooks = books.filter(b=>b.status==="pending").length;
+    const isMobile  = window.innerWidth < 768;
 
-    return (
+    const content = (
+      <>
+        {loading && <Spinner/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
+        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid}/>}
+        {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
+        {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
+        {!loading && aTab==="locs"    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
+        {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
+      </>
+    );
+
+    /* ── MOBILE LAYOUT ── */
+    if (isMobile) return (
       <div style={{ minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-        <style>{`
-          @media(min-width:768px){
-            .portal-layout{flex-direction:row!important}
-            .portal-sidebar{display:flex!important;width:220px!important;position:static!important}
-            .portal-topbar{display:none!important}
-            .portal-bottomnav{display:none!important}
-            .portal-content{padding:22px!important}
-          }
-          @media(max-width:767px){
-            .portal-sidebar{display:none!important}
-            .portal-content{padding:14px!important; padding-bottom:80px!important}
-          }
-        `}</style>
-
-        {/* ── MOBILE TOP BAR ── */}
-        <div className="portal-topbar" style={{ background:M, color:WH, height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", flexShrink:0 }}>
+        {/* Top bar */}
+        <div style={{ background:M, color:WH, height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
           <div>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD, lineHeight:1.2 }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>{owner.store.name}</div>
             <div style={{ fontSize:10, color:"rgba(255,255,255,.5)" }}>Store Owner</div>
           </div>
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {pendingBooks>0 && <div style={{ background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px" }}>{pendingBooks} new</div>}
-            <button onClick={()=>setModal("newBook")} style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.25)", color:WH, borderRadius:7, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>+ Book</button>
-            <button onClick={logout} style={{ background:"none", border:"none", color:"rgba(255,255,255,.6)", fontSize:12, cursor:"pointer" }}>Out</button>
+          <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+            {pendingBooks>0 && <div style={{ background:GOLD, color:BK, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>{pendingBooks} new</div>}
+            <button onClick={requestNotifPermission} style={{ background:"rgba(255,255,255,.12)", border:"none", color:WH, borderRadius:6, padding:"5px 8px", fontSize:14, cursor:"pointer" }}>🔔</button>
+            <button onClick={()=>setModal("newBook")} style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", color:WH, borderRadius:6, padding:"5px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>+ Book</button>
+            <button onClick={logout} style={{ background:"none", border:"none", color:"rgba(255,255,255,.5)", fontSize:11, cursor:"pointer" }}>Out</button>
           </div>
         </div>
-
-        <div className="portal-layout" style={{ display:"flex", flex:1, overflow:"hidden" }}>
-          {/* ── DESKTOP SIDEBAR ── */}
-          <div className="portal-sidebar" style={{ width:220, background:M, color:WH, flexDirection:"column", flexShrink:0 }}>
-            <div style={{ padding:"22px 20px 16px" }}>
-              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
-              {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending booking{pendingBooks>1?"s":""}</div>}
-            </div>
-            <div style={{ flex:1, padding:"4px 12px", overflowY:"auto" }}>
-              {otabs.map(t=>(
-                <button key={t.id} onClick={()=>setATab(t.id)}
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:8, border:"none", background:aTab===t.id?"rgba(201,168,76,.2)":"transparent", color:aTab===t.id?GOLD:"rgba(255,255,255,.75)", fontSize:13, fontWeight:aTab===t.id?700:400, cursor:"pointer", textAlign:"left", marginBottom:2, display:"flex", alignItems:"center", gap:8 }}>
-                  <span>{t.icon}</span><span>{t.l}</span>
-                </button>
-              ))}
-            </div>
-            <div style={{ padding:"16px 20px", borderTop:"1px solid rgba(255,255,255,.15)" }}>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginBottom:2 }}>{owner.name}</div>
-              <div style={{ fontSize:10, color:"rgba(255,255,255,.3)", marginBottom:8 }}>ID: {sid}</div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>↻</button>
-                <button onClick={requestNotifPermission} title="Enable notifications" style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>🔔</button>
-                <button onClick={logout} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.7)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Logout</button>
-              </div>
-            </div>
-          </div>
-
-          {/* ── MAIN CONTENT ── */}
-          <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
-            {/* Desktop top action bar */}
-            <div className="portal-topbar-desktop" style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 20px", height:50, flexShrink:0 }}>
-              <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>↻ Refresh</button>
-              <span style={{ marginLeft:10 }}><Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn></span>
-            </div>
-            <div className="portal-content" style={{ flex:1, padding:22 }}>
-              {loading && <Spinner/>}
-              {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab}/>}
-              {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
-              {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
-              {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid}/>}
-              {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
-              {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
-              {!loading && aTab==="locs"    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-              {!loading && aTab==="staff"   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
-            </div>
-          </div>
+        {/* Content */}
+        <div style={{ flex:1, overflowY:"auto", padding:"14px 14px 90px" }}>
+          {content}
         </div>
-
-        {/* ── MOBILE BOTTOM NAV ── */}
-        <div className="portal-bottomnav" style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`1px solid ${G2}`, display:"grid", gridTemplateColumns:"repeat(8,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
+        {/* Bottom nav */}
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`2px solid ${G2}`, display:"grid", gridTemplateColumns:"repeat(8,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
           {otabs.map(t=>(
-            <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"8px 2px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <span style={{ fontSize:18 }}>{t.icon}</span>
-              <span style={{ fontSize:9, fontWeight:700, color:aTab===t.id?M:G4, letterSpacing:".02em" }}>{t.l}</span>
-              {aTab===t.id && <div style={{ width:16, height:3, background:M, borderRadius:99 }}/>}
+            <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"7px 1px 5px", border:"none", background:aTab===t.id?MF:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
+              <span style={{ fontSize:16 }}>{t.icon}</span>
+              <span style={{ fontSize:8, fontWeight:700, color:aTab===t.id?M:G4, letterSpacing:".01em", lineHeight:1.4 }}>{t.l}</span>
             </button>
           ))}
         </div>
-
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
-        {toast && <div style={{ position:"fixed", bottom:70, right:16, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 16px", borderRadius:10, fontSize:13, fontWeight:700, zIndex:2000, maxWidth:280, boxShadow:"0 4px 16px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+        {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?OK:ER, color:WH, padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+      </div>
+    );
+
+    /* ── DESKTOP LAYOUT ── */
+    return (
+      <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+        {/* Sidebar */}
+        <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
+          <div style={{ padding:"22px 20px 14px" }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
+            {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
+          </div>
+          <div style={{ flex:1, padding:"4px 12px", overflowY:"auto" }}>
+            {otabs.map(t=>(
+              <button key={t.id} onClick={()=>setATab(t.id)}
+                style={{ width:"100%", padding:"10px 14px", borderRadius:8, border:"none", background:aTab===t.id?"rgba(201,168,76,.2)":"transparent", color:aTab===t.id?GOLD:"rgba(255,255,255,.75)", fontSize:13, fontWeight:aTab===t.id?700:400, cursor:"pointer", textAlign:"left", marginBottom:2, display:"flex", alignItems:"center", gap:8 }}>
+                <span>{t.icon}</span><span>{t.l}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{ padding:"14px 20px", borderTop:"1px solid rgba(255,255,255,.12)" }}>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginBottom:2 }}>{owner.name}</div>
+            <div style={{ fontSize:10, color:"rgba(255,255,255,.3)", marginBottom:8 }}>ID: {sid}</div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>↻</button>
+              <button onClick={requestNotifPermission} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>🔔</button>
+              <button onClick={logout} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.7)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Logout</button>
+            </div>
+          </div>
+        </div>
+        {/* Main */}
+        <div style={{ flex:1, background:G1, display:"flex", flexDirection:"column", minWidth:0 }}>
+          <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 20px", height:50, flexShrink:0 }}>
+            <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻ Refresh</button>
+            <span style={{ marginLeft:10 }}><Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn></span>
+          </div>
+          <div style={{ flex:1, overflowY:"auto", padding:22 }}>
+            {content}
+          </div>
+        </div>
+        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+        {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       </div>
     );
   }
@@ -1440,83 +1440,94 @@ export default function App() {
   const netPro = totRev - totExp;
   const pending = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
   const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
+  const isMobileAdmin = window.innerWidth < 768;
 
+  const adminContent = (
+    <>
+      {loading && <Spinner/>}
+      {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
+      {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
+      {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+      {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
+      {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
+      {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
+      {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
+      {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
+      {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
+    </>
+  );
+
+  /* ── STAFF MOBILE LAYOUT ── */
+  if (isMobileAdmin) return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      {/* Top bar */}
+      <div style={{ background:G8, color:WH, height:52, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
+        <div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>
+            {ATABS.find(t=>t.id===aTab)?.icon} {ATABS.find(t=>t.id===aTab)?.label}
+          </div>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,.4)" }}>{user?.role} · {user?.name}</div>
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={()=>setModal("newBook")} style={{ background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)", color:WH, borderRadius:6, padding:"5px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>+ Book</button>
+          <button onClick={logout} style={{ background:"none", border:"none", color:"rgba(255,255,255,.4)", fontSize:11, cursor:"pointer" }}>Out</button>
+        </div>
+      </div>
+      {/* Content */}
+      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px 80px" }}>
+        {adminContent}
+      </div>
+      {/* Bottom nav — show all ATABS, 2 rows if needed */}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`2px solid ${G2}`, display:"grid", gridTemplateColumns:`repeat(${Math.min(ATABS.length, 5)},1fr)`, zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
+        {ATABS.slice(0, 5).map(t=>(
+          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"7px 2px 5px", border:"none", background:aTab===t.id?G1:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1, borderTop:aTab===t.id?`2px solid ${M}`:"2px solid transparent" }}>
+            <span style={{ fontSize:16 }}>{t.icon}</span>
+            <span style={{ fontSize:8, fontWeight:700, color:aTab===t.id?M:G4 }}>{t.label}</span>
+          </button>
+        ))}
+        {ATABS.length > 5 && (
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {ATABS.slice(5).map(t=>(
+              <button key={t.id} onClick={()=>setATab(t.id)} style={{ flex:1, border:"none", background:aTab===t.id?G1:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:4, fontSize:11, fontWeight:700, color:aTab===t.id?M:G4 }}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+      {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
+      {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?OK:ER, color:WH, padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+    </div>
+  );
+
+  /* ── STAFF DESKTOP LAYOUT ── */
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <style>{`
-        @media(max-width:767px){
-          .staff-tabbar{display:none!important}
-          .staff-content{padding:14px!important; padding-bottom:80px!important}
-        }
-        @media(min-width:768px){
-          .staff-bottomnav{display:none!important}
-          .staff-content{padding:22px!important}
-        }
-      `}</style>
-
-      {/* Top navbar */}
       <NavBar/>
-
-      {/* Desktop horizontal tab bar */}
-      <div className="staff-tabbar" style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
+      <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
         {ATABS.map(t=>(
           <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:`3px solid ${aTab===t.id?M:"transparent"}`, display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
             {t.icon} {t.label}
           </button>
         ))}
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", padding:"0 14px", gap:8, flexShrink:0 }}>
-          <button onClick={()=>loadAll(user)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>↻</button>
+          <button onClick={()=>loadAll(user)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻</button>
           <Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn>
         </div>
       </div>
-
-      {/* Content */}
-      <div className="staff-content" style={{ flex:1, overflow:"auto", padding:22 }}>
-        {/* Mobile page title */}
-        <div style={{ display:"none" }} className="mobile-page-title">
-          <div style={{ fontSize:16, fontWeight:700, color:BK, marginBottom:14, fontFamily:"'Playfair Display',serif" }}>
-            {ATABS.find(t=>t.id===aTab)?.icon} {ATABS.find(t=>t.id===aTab)?.label}
-          </div>
-        </div>
-        {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
-        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
-        {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
-        {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
-        {!loading && aTab==="locs"    && user?.role==="Admin" && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-        {!loading && aTab==="staff"   && user?.role==="Admin" && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
-        {!loading && aTab==="profile" && <ProfileTab user={user} updateProfile={updateProfile}/>}
+      <div style={{ flex:1, overflow:"auto", padding:22 }}>
+        {adminContent}
       </div>
-
-      {/* Mobile bottom nav */}
-      <div className="staff-bottomnav" style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`1px solid ${G2}`, display:"grid", gridTemplateColumns:`repeat(${Math.min(ATABS.length,5)},1fr)`, zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
-        {ATABS.slice(0,5).map(t=>(
-          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"8px 2px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-            <span style={{ fontSize:18 }}>{t.icon}</span>
-            <span style={{ fontSize:9, fontWeight:700, color:aTab===t.id?M:G4 }}>{t.label}</span>
-            {aTab===t.id && <div style={{ width:16, height:3, background:M, borderRadius:99 }}/>}
-          </button>
-        ))}
-        {ATABS.length>5 && (
-          <button onClick={()=>{
-            const next = ATABS[(ATABS.findIndex(t=>t.id===aTab)+1)%ATABS.length];
-            setATab(next.id);
-          }} style={{ padding:"8px 2px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-            <span style={{ fontSize:18 }}>⋯</span>
-            <span style={{ fontSize:9, fontWeight:700, color:G4 }}>More</span>
-          </button>
-        )}
-      </div>
-
       {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
-      {modal==="login" && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-      {toast && <div style={{ position:"fixed", bottom:70, right:16, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 16px", borderRadius:10, fontSize:13, fontWeight:700, zIndex:2000, maxWidth:280, boxShadow:"0 4px 16px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+      {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
+      {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
     </div>
   );
 }
+
 
 function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   return (
