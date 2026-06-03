@@ -770,7 +770,7 @@ export default function App() {
   const isAdmin    = user?.role === "Admin";
   const isManager  = user?.role === "Manager";
   const isAcct     = user?.role === "Accountant";
-  const canDash    = isAdmin || isManager;
+  const canDash    = isAdmin || isManager || isRecept;
   const canReports = isAdmin || isManager || isAcct;
   const canStaff   = isAdmin || isManager;
   const canLocs    = isAdmin || isManager;
@@ -1389,10 +1389,10 @@ export default function App() {
     const content = (
       <>
         {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab}/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin"/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
@@ -1475,7 +1475,7 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
@@ -1580,19 +1580,30 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+  const isReceptDash = userRole === "Receptionist";
   return (
     <div>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Overview</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
-        <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
-        <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
-        <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={`${rooms.filter(r => r.status === "occupied").length}/${rooms.length} rooms`} />
-        <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
-        <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
-        <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
-      </div>
-      {/* ── ROOMS STATUS ── */}
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
+      {/* Receptionist sees minimal KPIs only */}
+      {isReceptDash ? (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
+          <KPI label="Active Guests" value={books.filter(b=>b.status==="checkedIn").length} icon="🔑" color={M} sub="Checked in now"/>
+          <KPI label="Pending" value={books.filter(b=>b.status==="pending").length} icon="⏳" color={WA} sub="Need confirmation"/>
+          <KPI label="Available Rooms" value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={`of ${rooms.length} total`}/>
+          <KPI label="Checking Out Today" value={books.filter(b=>b.status==="checkedIn"&&b.co===new Date().toISOString().split("T")[0]).length} icon="📅" color={IN}/>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
+          <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
+          <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
+          <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={`${rooms.filter(r => r.status === "occupied").length}/${rooms.length} rooms`} />
+          <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
+          <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
+          <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
+        </div>
+      )}
+      {/* ── ROOMS STATUS — shown to all ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
         <Card>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
@@ -1656,13 +1667,28 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
           <SecTitle>Recent Bookings</SecTitle>
           <button onClick={() => setATab("books")} style={{ background: "none", border: "none", color: M, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>View all →</button>
         </div>
-        <Tbl hdr={["Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
-          rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).slice(0,8).map(b => {
-            const rm = allRooms.find(r => r.id === b.roomId);
-            return [b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
-          })} />
+        {isReceptDash ? (
+          <Tbl hdr={["Guest", "Phone", "Room", "Check-in", "Check-out", "Status", "Actions"]}
+            rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).slice(0,10).map(b => {
+              const rm = allRooms.find(r => r.id === b.roomId);
+              return [
+                <span style={{fontWeight:700}}>{b.gName}</span>,
+                b.gPhone ? <a href={`tel:${b.gPhone}`} style={{color:OK,fontWeight:700,textDecoration:"none"}}>📞 {b.gPhone}</a> : "—",
+                rm ? (rm.name.length>16?rm.name.slice(0,14)+"…":rm.name) : "—",
+                b.ci, b.co,
+                <Badge s={b.status}/>,
+                <button onClick={()=>setATab("books")} style={{padding:"3px 8px",fontSize:11,borderRadius:6,background:INB,color:IN,border:"none",cursor:"pointer",fontWeight:700}}>Open</button>
+              ];
+            })} />
+        ) : (
+          <Tbl hdr={["Guest", "Room", "Check-in", "Check-out", "Amount", "Status"]}
+            rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).slice(0,8).map(b => {
+              const rm = allRooms.find(r => r.id === b.roomId);
+              return [b.gName, rm?.name || "-", b.ci, b.co, fmt(b.total), <Badge s={b.status} />];
+            })} />
+        )}
       </Card>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+      {!isReceptDash && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
         {locs.map(loc => {
           const lr = allRooms.filter(r => r.locId === loc.id);
           const lb = books.filter(b => b.locId === loc.id);
@@ -2234,7 +2260,8 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId }) {
+function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole }) {
+  const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
   const [method, setMethod] = useState("");
@@ -2286,12 +2313,14 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId }) {
   return (
     <div>
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 18px"}}>Payments</h2>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
-        <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅"/>
-        <KPI label="Outstanding"     value={fmt(totPend)} color={ER} icon="⚠️"/>
-        <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️"/>
-        <KPI label="Total Bookings"  value={books.length} icon="📋"/>
-      </div>
+      {!hideFinance && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
+          <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅"/>
+          <KPI label="Outstanding"     value={fmt(totPend)} color={ER} icon="⚠️"/>
+          <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️"/>
+          <KPI label="Total Bookings"  value={books.length} icon="📋"/>
+        </div>
+      )}
 
       {/* ── PAYMENT METHODS MANAGER ── */}
       <Card style={{marginBottom:18}}>
@@ -2324,7 +2353,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId }) {
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontWeight:700,fontSize:14}}>All Payments</div>
-          <button onClick={()=>{
+          {!hideFinance && <button onClick={()=>{
             const w=window.open("","_blank","width=800,height=700");
             const rows=books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
             w.document.write(`<html><head><title>Payments Report</title><style>body{font-family:Arial;padding:24px}h1{color:#6B1B2A}table{width:100%;border-collapse:collapse}th{background:#6B1B2A;color:#FFF;padding:8px;text-align:left;font-size:12px}td{padding:8px;border-bottom:1px solid #eee;font-size:13px}.ok{color:#2E7D32;font-weight:700}.er{color:#C62828;font-weight:700}@media print{button{display:none}}</style></head><body>
@@ -2335,7 +2364,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId }) {
             </body></html>`);w.document.close();
           }} style={{background:"#1565C0",color:"#FFF",border:"none",borderRadius:7,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             🖨 Print Report
-          </button>
+          </button>}
         </div>
         <Tbl hdr={["Date","Guest","Room","Total","Paid","Balance","Method","Action"]}
           rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).map(b=>{
