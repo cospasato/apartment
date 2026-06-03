@@ -421,14 +421,17 @@ export default function App() {
     if (!storeIdToUse) return;
     setLoading(true);
     try {
-      // Staff with a specific location only see that location's data
+      // Staff with a specific location see filtered data
+      // Receptionist sees ALL rooms (for availability display) but filtered bookings/expenses
       const isAdminRole = !u || u?.role === "Admin" || u?.role === "Manager" || u?.role === "Accountant";
-      const locFilter = isAdminRole ? null : u?.locId;
+      const isReceptRole = u?.role === "Receptionist";
+      const locFilter = (isAdminRole || isReceptRole) ? null : u?.locId;
+      const bookLocFilter = isAdminRole ? null : u?.locId; // bookings still filtered for non-admin non-recept
       const [l, r, b, e, s, pm] = await Promise.all([
         api.getLocations(storeIdToUse),
-        api.getRooms(storeIdToUse, locFilter),
-        api.getBookings(storeIdToUse, locFilter),
-        api.getExpenses(storeIdToUse, locFilter),
+        api.getRooms(storeIdToUse, locFilter),         // Receptionist gets ALL rooms
+        api.getBookings(storeIdToUse, bookLocFilter),  // Bookings filtered by location for non-admin
+        api.getExpenses(storeIdToUse, bookLocFilter),
         (u?.role === "Admin" || u?.role === "Manager") ? api.getStaff(storeIdToUse) : Promise.resolve([]),
         api.getPayMethods(storeIdToUse).catch(()=>[]),
       ]);
@@ -770,11 +773,11 @@ export default function App() {
   const isAdmin    = user?.role === "Admin";
   const isManager  = user?.role === "Manager";
   const isAcct     = user?.role === "Accountant";
+  const isRecept   = user?.role === "Receptionist";
   const canDash    = isAdmin || isManager || isRecept;
   const canReports = isAdmin || isManager || isAcct;
   const canStaff   = isAdmin || isManager;
   const canLocs    = isAdmin || isManager;
-  const isRecept   = user?.role === "Receptionist";
   const canCustomers = isAdmin || isManager || isAcct || isRecept;
   const canDelete  = isAdmin; // only admin can delete bookings
 
@@ -1391,7 +1394,7 @@ export default function App() {
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
-        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin"/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
@@ -1477,7 +1480,7 @@ export default function App() {
       {loading && <Spinner/>}
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
-      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop}/>}
+      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
       {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
@@ -2029,7 +2032,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
 }
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
+function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2117,7 +2120,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
                     </div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif", marginBottom: 7 }}>{fmt(rm.price)}<span style={{ fontSize: 11, color: G4, fontWeight: 400 }}>/night</span></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 7px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                    <div style={{ display: "flex", gap: 5 }}>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                       <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
                       <select value={rm.status} onChange={e => saveRoom({...rm, amen: rm.amen.join(", ")}, true, e.target.value)}
                         style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
@@ -2125,6 +2128,23 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop }) {
                       </select>
                       <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 10px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
                     </div>
+                    {/* Share button */}
+                    <button onClick={()=>{
+                      const base = storeSlug ? `https://${storeSlug}.bnbmis.com` : "https://bnbmis.com";
+                      const url  = `${base}?room=${rm.id}`;
+                      const text = `🛏️ ${rm.name}
+📍 ${locs.find(l=>l.id===rm.locId)?.name||""}
+💰 TZS ${Number(rm.price).toLocaleString()}/night
+
+Book here: ${url}`;
+                      if (navigator.share) {
+                        navigator.share({ title: rm.name, text, url }).catch(()=>{});
+                      } else {
+                        navigator.clipboard?.writeText(text).then(()=>pop("Room link copied!")).catch(()=>pop(url));
+                      }
+                    }} style={{ width:"100%", marginTop:4, padding:"7px", fontSize:12, borderRadius:6, border:`1px solid ${IN}`, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                      📤 Share Room
+                    </button>
                   </div>
                 </Card>
               ))}
