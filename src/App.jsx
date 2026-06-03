@@ -878,7 +878,7 @@ export default function App() {
           <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Properties</h2>
         </div>
         {mktLoading ? <Spinner/> : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:22 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%/2 - 8px, 280px),1fr))", gap:14 }}>
             {mktStores.map(store => {
               const roomCount = store.room_count || 0;
               return (
@@ -1322,6 +1322,7 @@ export default function App() {
   if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
+      {id:"settings",icon:"⚙️",  l:"Settings"},
       {id:"dash",    icon:"📊", l:"Dashboard"},
       {id:"books",   icon:"📋", l:"Bookings"},
       {id:"rooms",   icon:"🛏️",  l:"Rooms"},
@@ -1330,7 +1331,6 @@ export default function App() {
       {id:"reports", icon:"📈", l:"Reports"},
       {id:"locs",    icon:"📍", l:"Locations"},
       {id:"staff",   icon:"👥", l:"Staff"},
-      {id:"settings",icon:"⚙️",  l:"Settings"},
     ];
     const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
     const totExp2   = exps.reduce((s,e)=>s+e.amt,0);
@@ -1366,11 +1366,11 @@ export default function App() {
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>{owner.store.name}</div>
             <div style={{ fontSize:10, color:"rgba(255,255,255,.5)" }}>Store Owner</div>
           </div>
-          <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-            {pendingBooks>0 && <div style={{ background:GOLD, color:BK, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>{pendingBooks} new</div>}
-            <button onClick={requestNotifPermission} style={{ background:"rgba(255,255,255,.12)", border:"none", color:WH, borderRadius:6, padding:"5px 8px", fontSize:14, cursor:"pointer" }}>🔔</button>
-            <button onClick={()=>setModal("newBook")} style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", color:WH, borderRadius:6, padding:"5px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>+ Book</button>
-            <button onClick={logout} style={{ background:"none", border:"none", color:"rgba(255,255,255,.5)", fontSize:11, cursor:"pointer" }}>Out</button>
+          <div style={{ display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
+            {pendingBooks>0 && <div style={{ background:GOLD, color:BK, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 6px", flexShrink:0 }}>{pendingBooks}</div>}
+            <button onClick={requestNotifPermission} style={{ background:"rgba(255,255,255,.12)", border:"none", color:WH, borderRadius:6, width:32, height:32, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>🔔</button>
+            <button onClick={()=>setModal("newBook")} style={{ background:M, color:WH, border:"1px solid rgba(255,255,255,.4)", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>＋ New</button>
+            <button onClick={logout} style={{ background:"rgba(255,255,255,.1)", border:"1px solid rgba(255,255,255,.2)", color:WH, borderRadius:6, width:32, height:32, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Logout">⏏</button>
           </div>
         </div>
         {/* Content */}
@@ -3731,53 +3731,108 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
   const [f, setF] = useState({ owner_country:"TZ", store_country:"TZ" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [step, setStep] = useState(1); // 1=account, 2=property
+
   const submit = async () => {
     if (!f.owner_name||!f.owner_email||!f.owner_password||!f.store_name) { setErr("Please fill all required fields"); return; }
     setBusy(true); setErr("");
     try {
-      const r = await api.registerStore({ ...f, plan_id: plans.find(p=>p.name==="Free Trial")?.id||"PLN001" });
-      // Auto-login as owner
+      await api.registerStore({ ...f, plan_id: plans.find(p=>p.name==="Free Trial")?.id||"PLN001" });
       const u = await api.loginOwner(f.owner_email, f.owner_password);
+      // Save featured image after store created
+      if (f.featured_image && u.store?.id) {
+        await api.updateStore(u.store.id, { featured_image: f.featured_image }).catch(()=>{});
+      }
       onSuccess(u);
     } catch(e) { setErr(e.message); }
     setBusy(false);
   };
-  const M2 = "#6B1B2A", G22 = "#E8E8E8", G62 = "#666", G82 = "#333";
-  const inp = (label, key, type="text", ph="") => (
-    <div style={{ marginBottom:13 }}>
-      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+
+  const M2="#6B1B2A", G22="#E8E8E8", G62="#666", G82="#333", WH2="#FFF", G12="#F5F5F5";
+
+  const inp = (label, key, type="text", ph="", required=false) => (
+    <div style={{ marginBottom:14 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}{required&&<span style={{color:ER}}> *</span>}</label>
       <input type={type} value={f[key]||""} onChange={e=>setF(d=>({...d,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
+
   return (
     <Modal title="List Your Property on BNBMIS" onClose={onClose} wide>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+      {/* Step indicator */}
+      <div style={{ display:"flex", gap:0, marginBottom:22, borderRadius:8, overflow:"hidden", border:`1px solid ${G22}` }}>
+        {[["1","Your Account"],["2","Property Details"]].map(([n,label],i)=>(
+          <button key={n} onClick={()=>setStep(i+1)}
+            style={{ flex:1, padding:"10px", border:"none", background:step===i+1?M2:G12, color:step===i+1?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+            <span style={{ width:22, height:22, borderRadius:"50%", background:step===i+1?"rgba(255,255,255,.25)":G22, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700 }}>{n}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {step===1 && (
         <div>
-          <div style={{ fontWeight:700, color:M, fontSize:13, marginBottom:12, textTransform:"uppercase", letterSpacing:".05em" }}>Your Account</div>
-          {inp("Your Full Name *","owner_name","text","John Mwangi")}
-          {inp("Email Address *","owner_email","email","you@example.com")}
-          {inp("Phone Number","owner_phone","tel","+255 7XX XXX XXX")}
-          {inp("Password * (min 6 chars)","owner_password","password","••••••")}
-        </div>
-        <div>
-          <div style={{ fontWeight:700, color:M, fontSize:13, marginBottom:12, textTransform:"uppercase", letterSpacing:".05em" }}>Property / Store</div>
-          {inp("Property Name *","store_name","text","e.g. Sunset Lodge Arusha")}
-          {inp("City","store_city","text","e.g. Dar es Salaam")}
-          <div style={{ marginBottom:13 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
-            <textarea value={f.store_description||""} onChange={e=>setF(d=>({...d,store_description:e.target.value}))} rows={3}
-              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+          <div style={{ fontSize:13, color:G62, marginBottom:16 }}>Create your BNBMIS account to manage your property.</div>
+          {inp("Full Name","owner_name","text","e.g. John Kamau",true)}
+          {inp("Email Address","owner_email","email","you@example.com",true)}
+          {inp("Phone Number","owner_phone","tel","+254 7XX XXX XXX")}
+          {inp("Password (min 6 chars)","owner_password","password","••••••",true)}
+          <div style={{ display:"flex", justifyContent:"flex-end", marginTop:8 }}>
+            <button onClick={()=>{
+              if(!f.owner_name||!f.owner_email||!f.owner_password){setErr("Please fill name, email and password");return;}
+              if(f.owner_password.length<6){setErr("Password must be at least 6 characters");return;}
+              setErr(""); setStep(2);
+            }} style={{ padding:"10px 24px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              Next: Property Details →
+            </button>
           </div>
         </div>
-      </div>
-      {err && <div style={{ color:ER, fontSize:13, marginTop:8, background:ERB, padding:"8px 12px", borderRadius:6 }}>{err}</div>}
-      <div style={{ marginTop:16, display:"flex", gap:10, justifyContent:"flex-end" }}>
-        <button onClick={onClose} style={{ padding:"9px 18px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
-        <button onClick={submit} disabled={busy} style={{ padding:"9px 24px", borderRadius:8, border:"none", background:M, color:WH, fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:busy?.7:1 }}>
-          {busy?"Registering…":"Register Free — 14 Day Trial"}
-        </button>
-      </div>
+      )}
+
+      {step===2 && (
+        <div>
+          <div style={{ fontSize:13, color:G62, marginBottom:16 }}>Tell guests about your property.</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+            <div>
+              {inp("Property / Store Name","store_name","text","e.g. Sunset Lodge",true)}
+              {inp("City","store_city","text","e.g. Nairobi")}
+              {inp("Phone","store_phone","tel","+254 7XX XXX XXX")}
+              {inp("Website (optional)","store_website","url","https://yourlodge.com")}
+            </div>
+            <div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
+                <textarea value={f.store_description||""} onChange={e=>setF(d=>({...d,store_description:e.target.value}))} rows={4}
+                  placeholder="Describe your property — location, type of accommodation, what makes it special…"
+                  style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>
+                  Featured Image URL <span style={{ fontSize:10, fontWeight:400, textTransform:"none", letterSpacing:0, color:G62 }}>(shown on homepage card)</span>
+                </label>
+                <input type="url" value={f.featured_image||""} onChange={e=>setF(d=>({...d,featured_image:e.target.value}))}
+                  placeholder="https://example.com/your-property.jpg"
+                  style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+                {f.featured_image && (
+                  <div style={{ marginTop:8, borderRadius:8, overflow:"hidden", height:90 }}>
+                    <img src={f.featured_image} alt="Preview" style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                      onError={e=>{e.target.style.display="none";}}/>
+                  </div>
+                )}
+                <div style={{ fontSize:11, color:G62, marginTop:4 }}>Paste a URL to any image of your property. You can also add/change this later from Settings.</div>
+              </div>
+            </div>
+          </div>
+          {err && <div style={{ color:ER, fontSize:13, marginBottom:12, background:ERB, padding:"8px 12px", borderRadius:6 }}>{err}</div>}
+          <div style={{ display:"flex", gap:10, justifyContent:"space-between", marginTop:8 }}>
+            <button onClick={()=>setStep(1)} style={{ padding:"10px 18px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>← Back</button>
+            <button onClick={submit} disabled={busy} style={{ padding:"10px 24px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:busy?.7:1 }}>
+              {busy?"Creating your account…":"Register Free — 14 Day Trial ✓"}
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
