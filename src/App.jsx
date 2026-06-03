@@ -232,9 +232,13 @@ export default function App() {
           if (store?.id) {
             setSubdomainStoreId(store.id);
             setSubdomainStore(store);
-            // Auto-set view: if no session, show that store's booking portal
+            setMktSelStore(store);
+            // Auto-set view: if no session, go straight to store booking page
             const hasSession = localStorage.getItem("bnbmis_staff") || localStorage.getItem("bnbmis_owner");
-            if (!hasSession) setView("book");
+            if (!hasSession) {
+              loadPublic(store.id);
+              setView("book");
+            }
           }
         })
         .catch(() => {}); // invalid slug — show normal landing
@@ -815,13 +819,14 @@ export default function App() {
      SUBDOMAIN STORE VIEW (sunrise.bnbmis.com)
      When on a store subdomain, show that store directly
   ══════════════════════════════════════════════════════ */
-  // If on a subdomain and no staff/owner session, auto-use that store
-  if (subdomainStore && !mktSelStore && view !== "admin" && view !== "owner_dash" && view !== "super" && view !== "customer") {
-    // Quietly set it — next render will route to book view
-    setTimeout(() => {
-      setMktSelStore(subdomainStore);
-      if (view !== "book") setView("book");
-    }, 0);
+  // If on a subdomain, route directly to that store's booking page
+  if (subdomainStore && view !== "admin" && view !== "owner_dash" && view !== "super" && view !== "customer") {
+    if (!mktSelStore || mktSelStore.id !== subdomainStore.id) {
+      setTimeout(() => {
+        setMktSelStore(subdomainStore);
+        if (view !== "book") { navTo("book", 1); }
+      }, 0);
+    }
   }
 
   /* ══════════════════════════════════════════════════════
@@ -878,27 +883,40 @@ export default function App() {
           <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Properties</h2>
         </div>
         {mktLoading ? <Spinner/> : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%/2 - 8px, 280px),1fr))", gap:14 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {mktStores.map(store => {
               const roomCount = store.room_count || 0;
+              const hasImg = !!(store.featured_image && store.featured_image.trim());
+              const goStore = async()=>{ setMktSelStore(store); await loadPublic(store.id); navTo("book",1); };
               return (
-                <div key={store.id}
-                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow=`0 14px 36px rgba(107,27,42,.16)`;}}
+                <div key={store.id} onClick={goStore}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(107,27,42,.14)";}}
                   onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
-                  style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .2s,box-shadow .2s" }}>
-                  <div style={{ background:`linear-gradient(135deg,${MD},${M})`, height:140, display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>🏨</div>
-                  <div style={{ padding:20 }}>
-                    <div style={{ fontSize:11, color:M, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em", marginBottom:6 }}>{store.city||store.country}</div>
-                    <h3 style={{ margin:"0 0 8px", fontSize:20, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif" }}>{store.name}</h3>
-                    <p style={{ margin:"0 0 14px", fontSize:14, color:G6, lineHeight:1.6 }}>{store.description||"Quality accommodation worldwide"}</p>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <span style={{ fontSize:12, color:roomCount>0?OK:G4, fontWeight:700 }}>{roomCount>0?`✓ ${roomCount} rooms available`:"No rooms listed"}</span>
-                      <button onClick={async()=>{
-                        setMktSelStore(store);
-                        await loadPublic(store.id);
-                        navTo("book",1);
-                      }} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>View →</button>
+                  style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
+                  {/* Featured image — top banner */}
+                  <div style={{ height:200, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
+                    {hasImg && (
+                      <img
+                        src={store.featured_image}
+                        alt={store.name}
+                        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                        onError={e=>{ e.target.style.display="none"; }}
+                      />
+                    )}
+                    {!hasImg && <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:56, opacity:.5 }}>🏨</div>}
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,.5) 0%, transparent 50%)" }}/>
+                    <div style={{ position:"absolute", bottom:12, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                      <h3 style={{ margin:0, fontSize:20, fontWeight:700, color:WH, fontFamily:"'Playfair Display',serif", lineHeight:1.2, textShadow:"0 1px 4px rgba(0,0,0,.4)" }}>{store.name}</h3>
+                      {roomCount>0 && <div style={{ background:"rgba(0,0,0,.6)", color:WH, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 10px", backdropFilter:"blur(6px)", flexShrink:0, marginLeft:8 }}>{roomCount} rooms</div>}
                     </div>
+                  </div>
+                  {/* Info row */}
+                  <div style={{ padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontSize:12, color:M, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:4 }}>📍 {store.city||store.country||"—"}</div>
+                      <p style={{ margin:0, fontSize:13, color:G6, lineHeight:1.5 }}>{(store.description||"Quality accommodation").slice(0,90)}{(store.description||"").length>90?"…":""}</p>
+                    </div>
+                    <span style={{ color:M, fontSize:22, fontWeight:700, marginLeft:14, flexShrink:0 }}>›</span>
                   </div>
                 </div>
               );
@@ -1322,7 +1340,6 @@ export default function App() {
   if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
-      {id:"settings",icon:"⚙️",  l:"Settings"},
       {id:"dash",    icon:"📊", l:"Dashboard"},
       {id:"books",   icon:"📋", l:"Bookings"},
       {id:"rooms",   icon:"🛏️",  l:"Rooms"},
@@ -1331,6 +1348,7 @@ export default function App() {
       {id:"reports", icon:"📈", l:"Reports"},
       {id:"locs",    icon:"📍", l:"Locations"},
       {id:"staff",   icon:"👥", l:"Staff"},
+      {id:"settings",icon:"⚙️",  l:"Settings"},
     ];
     const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
     const totExp2   = exps.reduce((s,e)=>s+e.amt,0);
@@ -1358,37 +1376,18 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
-      <div style={{ minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-        {/* Top bar */}
-        <div style={{ background:M, color:WH, minHeight:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"env(safe-area-inset-top) 14px 0", paddingTop:"max(env(safe-area-inset-top),12px)", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
-          <div>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>{owner.store.name}</div>
-            <div style={{ fontSize:10, color:"rgba(255,255,255,.5)" }}>Store Owner</div>
-          </div>
-          <div style={{ display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
-            {pendingBooks>0 && <div style={{ background:GOLD, color:BK, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 6px", flexShrink:0 }}>{pendingBooks}</div>}
-            <button onClick={requestNotifPermission} style={{ background:"rgba(255,255,255,.12)", border:"none", color:WH, borderRadius:6, width:32, height:32, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>🔔</button>
-            <button onClick={()=>setModal("newBook")} style={{ background:M, color:WH, border:"1px solid rgba(255,255,255,.4)", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>＋ New</button>
-            <button onClick={logout} style={{ background:"rgba(255,255,255,.1)", border:"1px solid rgba(255,255,255,.2)", color:WH, borderRadius:6, width:32, height:32, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Logout">⏏</button>
-          </div>
-        </div>
-        {/* Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(80px + env(safe-area-inset-bottom))" }}>
-          {content}
-        </div>
-        {/* Bottom nav */}
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`2px solid ${G2}`, display:"grid", gridTemplateColumns:"repeat(8,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
-          {otabs.map(t=>(
-            <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"7px 1px 5px", border:"none", background:aTab===t.id?MF:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
-              <span style={{ fontSize:16 }}>{t.icon}</span>
-              <span style={{ fontSize:8, fontWeight:700, color:aTab===t.id?M:G4, letterSpacing:".01em", lineHeight:1.4 }}>{t.l}</span>
-            </button>
-          ))}
-        </div>
+      <MobilePortal
+        storeName={owner.store.name} role="Store Owner"
+        tabs={otabs} activeTab={aTab} setTab={setATab}
+        pendingCount={pendingBooks}
+        onNewBooking={()=>setModal("newBook")}
+        onNotif={requestNotifPermission}
+        onLogout={logout}
+        toast={toast}
+      >
+        {content}
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
-        {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?OK:ER, color:WH, padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
-      </div>
+      </MobilePortal>
     );
 
     /* ── DESKTOP LAYOUT ── */
@@ -1460,48 +1459,20 @@ export default function App() {
   );
 
   /* ── STAFF MOBILE LAYOUT ── */
+  const staffTabs = ATABS.map(t=>({id:t.id, icon:t.icon, l:t.label}));
   if (isMobileAdmin) return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      {/* Top bar */}
-      <div style={{ background:G8, color:WH, minHeight:52, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),10px)", flexShrink:0, position:"sticky", top:0, zIndex:100 }}>
-        <div>
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:GOLD, lineHeight:1.2 }}>
-            {ATABS.find(t=>t.id===aTab)?.icon} {ATABS.find(t=>t.id===aTab)?.label}
-          </div>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,.4)" }}>{user?.role} · {user?.name}</div>
-        </div>
-        <div style={{ display:"flex", gap:6 }}>
-          <button onClick={()=>setModal("newBook")} style={{ background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)", color:WH, borderRadius:6, padding:"5px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>+ Book</button>
-          <button onClick={logout} style={{ background:"none", border:"none", color:"rgba(255,255,255,.4)", fontSize:11, cursor:"pointer" }}>Out</button>
-        </div>
-      </div>
-      {/* Content */}
-      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(72px + env(safe-area-inset-bottom))" }}>
-        {adminContent}
-      </div>
-      {/* Bottom nav — show all ATABS, 2 rows if needed */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:WH, borderTop:`2px solid ${G2}`, display:"grid", gridTemplateColumns:`repeat(${Math.min(ATABS.length, 5)},1fr)`, zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
-        {ATABS.slice(0, 5).map(t=>(
-          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"7px 2px 5px", border:"none", background:aTab===t.id?G1:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1, borderTop:aTab===t.id?`2px solid ${M}`:"2px solid transparent" }}>
-            <span style={{ fontSize:16 }}>{t.icon}</span>
-            <span style={{ fontSize:8, fontWeight:700, color:aTab===t.id?M:G4 }}>{t.label}</span>
-          </button>
-        ))}
-        {ATABS.length > 5 && (
-          <div style={{ display:"flex", flexDirection:"column" }}>
-            {ATABS.slice(5).map(t=>(
-              <button key={t.id} onClick={()=>setATab(t.id)} style={{ flex:1, border:"none", background:aTab===t.id?G1:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:4, fontSize:11, fontWeight:700, color:aTab===t.id?M:G4 }}>
-                {t.icon} {t.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <MobilePortal
+      storeName={user?.name||"Staff"} role={user?.role||"Staff"}
+      tabs={staffTabs} activeTab={aTab} setTab={setATab}
+      onNewBooking={()=>setModal("newBook")}
+      onLogout={logout}
+      toast={toast}
+      headerBg={G8}
+    >
+      {adminContent}
       {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
       {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-      {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?OK:ER, color:WH, padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
-    </div>
+    </MobilePortal>
   );
 
   /* ── STAFF DESKTOP LAYOUT ── */
@@ -2804,9 +2775,11 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
           <div style={{ fontSize:13, fontWeight:700, color:IN, marginBottom:8 }}>📋 How staff log in to this store</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <div>
-              <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Store ID</div>
-              <div style={{ fontFamily:"monospace", fontWeight:700, fontSize:15, color:BK, letterSpacing:"1px", background:WH, padding:"6px 10px", borderRadius:6, border:`1px solid ${G2}`, display:"inline-block" }}>
+              <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Store ID (share this with staff)</div>
+              <div style={{ fontFamily:"monospace", fontWeight:700, fontSize:18, color:M, letterSpacing:"2px", background:MF, padding:"8px 14px", borderRadius:6, border:`1px solid ${M}22`, display:"inline-flex", alignItems:"center", gap:10 }}>
                 {currentUser.storeId}
+                <button onClick={()=>navigator.clipboard?.writeText(currentUser.storeId).then(()=>{}).catch(()=>{})}
+                  style={{ background:M, color:WH, border:"none", borderRadius:5, padding:"2px 8px", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>Copy</button>
               </div>
             </div>
             <div>
@@ -3809,18 +3782,42 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>
-                  Featured Image URL <span style={{ fontSize:10, fontWeight:400, textTransform:"none", letterSpacing:0, color:G62 }}>(shown on homepage card)</span>
+                  Featured Image <span style={{ fontSize:10, fontWeight:400, textTransform:"none", letterSpacing:0, color:G62 }}>(shown on homepage)</span>
                 </label>
-                <input type="url" value={f.featured_image||""} onChange={e=>setF(d=>({...d,featured_image:e.target.value}))}
-                  placeholder="https://example.com/your-property.jpg"
-                  style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
-                {f.featured_image && (
-                  <div style={{ marginTop:8, borderRadius:8, overflow:"hidden", height:90 }}>
-                    <img src={f.featured_image} alt="Preview" style={{ width:"100%", height:"100%", objectFit:"cover" }}
-                      onError={e=>{e.target.style.display="none";}}/>
+                {f.featured_image ? (
+                  <div style={{ position:"relative", marginBottom:8 }}>
+                    <img src={f.featured_image} alt="Preview" style={{ width:"100%", height:120, objectFit:"cover", borderRadius:8, border:`2px solid ${M2}`, display:"block" }}/>
+                    <button onClick={()=>setF(d=>({...d,featured_image:""}))}
+                      style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.6)", color:"#FFF", border:"none", borderRadius:"50%", width:24, height:24, cursor:"pointer", fontSize:14, lineHeight:1 }}>×</button>
+                    <div style={{ fontSize:11, color:M2, fontWeight:700, marginTop:4 }}>✓ Image selected</div>
                   </div>
+                ) : (
+                  <label style={{ display:"block", border:`2px dashed ${G22}`, borderRadius:8, padding:"20px 16px", textAlign:"center", cursor:"pointer", background:"#FAFAFA" }}>
+                    <div style={{ fontSize:28, marginBottom:6 }}>📸</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:G82, marginBottom:3 }}>Upload a photo</div>
+                    <div style={{ fontSize:11, color:G62 }}>JPG or PNG, will be compressed automatically</div>
+                    <input type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        const img = new Image();
+                        img.onload = () => {
+                          const canvas = document.createElement("canvas");
+                          const MAX = 1200;
+                          let w = img.width, h = img.height;
+                          if (w > MAX) { h = Math.round(h*MAX/w); w = MAX; }
+                          canvas.width = w; canvas.height = h;
+                          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+                          setF(d=>({...d, featured_image: canvas.toDataURL("image/jpeg", 0.8)}));
+                        };
+                        img.src = ev.target.result;
+                      };
+                      reader.readAsDataURL(file);
+                    }}/>
+                  </label>
                 )}
-                <div style={{ fontSize:11, color:G62, marginTop:4 }}>Paste a URL to any image of your property. You can also add/change this later from Settings.</div>
+                <div style={{ fontSize:11, color:G62, marginTop:4 }}>You can also change this later from Settings → Featured Image.</div>
               </div>
             </div>
           </div>
@@ -4353,18 +4350,43 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
             </div>
           )}
 
-          {/* URL input */}
+          {/* File upload + URL input */}
           <div style={{ marginBottom:18 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Image URL</label>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Upload New Image</label>
+            <label style={{ display:"block", border:`2px dashed ${G22}`, borderRadius:8, padding:"16px", textAlign:"center", cursor:"pointer", background:G12, marginBottom:10 }}>
+              <div style={{ fontSize:24, marginBottom:4 }}>📸</div>
+              <div style={{ fontSize:13, fontWeight:600, color:G82 }}>Click to upload a photo</div>
+              <div style={{ fontSize:11, color:G62, marginTop:2 }}>JPG or PNG — compressed automatically</div>
+              <input type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                  const img = new Image();
+                  img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const MAX = 1200;
+                    let w = img.width, h = img.height;
+                    if (w > MAX) { h = Math.round(h*MAX/w); w = MAX; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                    setForm(f=>({...f, featured_image: dataUrl}));
+                    save({featured_image: dataUrl});
+                  };
+                  img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+              }}/>
+            </label>
             <div style={{ display:"flex", gap:8 }}>
-              <input value={form.featured_image} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="https://example.com/image.jpg"
+              <input value={form.featured_image.startsWith("data:")?"":(form.featured_image||"")} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="Or paste image URL…"
                 style={{ flex:1, padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }}/>
               <button onClick={()=>save({featured_image:form.featured_image})} disabled={saving}
-                style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
-                {saving?"…":"Set Image"}
+                style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                {saving?"…":"Save"}
               </button>
             </div>
-            <div style={{ fontSize:11, color:G62, marginTop:4 }}>Paste any image URL, or pick from your room photos below</div>
           </div>
 
           {/* Pick from room photos */}
@@ -4479,6 +4501,109 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── MOBILE PORTAL — hamburger drawer nav ──────────────── */
+function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, onNewBooking, onNotif, onLogout, onLogoutLabel, toast, children, headerBg }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const BG = headerBg || "#6B1B2A";
+  // Bottom nav shows first 4 tabs + hamburger
+  const bottomTabs = tabs.slice(0, 4);
+
+  const selectTab = (id) => { setTab(id); setDrawerOpen(false); };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
+      {/* ── TOP BAR ── */}
+      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),12px)", paddingBottom:10, flexShrink:0, position:"sticky", top:0, zIndex:300 }}>
+        {/* Left: hamburger + title */}
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={()=>setDrawerOpen(true)}
+            style={{ background:"rgba(255,255,255,.12)", border:"none", color:"#FFF", borderRadius:7, width:36, height:36, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", flexShrink:0, padding:0 }}>
+            <span style={{ width:18, height:2, background:"#FFF", borderRadius:2, display:"block" }}/>
+            <span style={{ width:14, height:2, background:"rgba(255,255,255,.7)", borderRadius:2, display:"block" }}/>
+            <span style={{ width:18, height:2, background:"#FFF", borderRadius:2, display:"block" }}/>
+          </button>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, color:"#C9A84C", lineHeight:1.2, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{storeName}</div>
+            <div style={{ fontSize:10, color:"rgba(255,255,255,.5)" }}>{role}</div>
+          </div>
+        </div>
+        {/* Right: quick actions */}
+        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          {pendingCount>0 && <div style={{ background:"#C9A84C", color:"#111", borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px", flexShrink:0 }}>{pendingCount}</div>}
+          {onNotif && <button onClick={onNotif} style={{ background:"rgba(255,255,255,.1)", border:"none", color:"#FFF", borderRadius:7, width:34, height:34, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>🔔</button>}
+          {onNewBooking && <button onClick={onNewBooking} style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.35)", color:"#FFF", borderRadius:7, padding:"0 12px", height:34, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>＋ Book</button>}
+        </div>
+      </div>
+
+      {/* ── DRAWER OVERLAY ── */}
+      {drawerOpen && (
+        <>
+          {/* Backdrop */}
+          <div onClick={()=>setDrawerOpen(false)}
+            style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:400 }}/>
+          {/* Drawer panel */}
+          <div style={{ position:"fixed", top:0, left:0, bottom:0, width:280, background:"#1a1a1a", zIndex:500, display:"flex", flexDirection:"column", animation:"slideIn .22s ease" }}>
+            <style>{`@keyframes slideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}`}</style>
+            {/* Drawer header */}
+            <div style={{ background:BG, padding:"max(env(safe-area-inset-top),20px) 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div>
+                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:"#C9A84C" }}>{storeName}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>{role}</div>
+              </div>
+              <button onClick={()=>setDrawerOpen(false)}
+                style={{ background:"rgba(255,255,255,.1)", border:"none", color:"#FFF", borderRadius:7, width:32, height:32, fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+            </div>
+            {/* Nav items */}
+            <div style={{ flex:1, overflowY:"auto", padding:"8px 12px" }}>
+              {tabs.map(t=>(
+                <button key={t.id} onClick={()=>selectTab(t.id)}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:14, padding:"13px 14px", borderRadius:10, border:"none", background:activeTab===t.id?"rgba(107,27,42,.9)":"transparent", color:activeTab===t.id?"#FFF":"rgba(255,255,255,.7)", fontSize:14, fontWeight:activeTab===t.id?700:400, cursor:"pointer", textAlign:"left", marginBottom:2, fontFamily:"inherit" }}>
+                  <span style={{ fontSize:20, flexShrink:0 }}>{t.icon}</span>
+                  <span>{t.l}</span>
+                  {activeTab===t.id && <span style={{ marginLeft:"auto", width:6, height:6, borderRadius:"50%", background:"#C9A84C" }}/>}
+                </button>
+              ))}
+            </div>
+            {/* Drawer footer */}
+            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,.08)", paddingBottom:"max(env(safe-area-inset-bottom),12px)" }}>
+              <button onClick={onLogout}
+                style={{ width:"100%", padding:"11px", borderRadius:8, border:"1px solid rgba(255,255,255,.15)", background:"transparent", color:"rgba(255,255,255,.6)", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── CONTENT ── */}
+      <div style={{ flex:1, overflowY:"auto", padding:"14px 14px calc(70px + env(safe-area-inset-bottom))" }}>
+        {children}
+      </div>
+
+      {/* ── BOTTOM NAV (4 tabs + menu) ── */}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
+        {bottomTabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
+            <span style={{ fontSize:18 }}>{t.icon}</span>
+            <span style={{ fontSize:9, fontWeight:700, color:activeTab===t.id?"#6B1B2A":"#AAAAAA" }}>{t.l}</span>
+            {activeTab===t.id && <div style={{ width:18, height:3, background:"#6B1B2A", borderRadius:99 }}/>}
+          </button>
+        ))}
+        {/* Menu button */}
+        <button onClick={()=>setDrawerOpen(true)}
+          style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
+          <span style={{ fontSize:18 }}>☰</span>
+          <span style={{ fontSize:9, fontWeight:700, color:"#AAAAAA" }}>Menu</span>
+        </button>
+      </div>
+
+      {/* Toast */}
+      {toast && <div style={{ position:"fixed", bottom:72, right:12, background:toast.t==="ok"?"#2E7D32":"#C62828", color:"#FFF", padding:"10px 14px", borderRadius:8, fontSize:13, fontWeight:700, zIndex:2001, maxWidth:260, boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
     </div>
   );
 }

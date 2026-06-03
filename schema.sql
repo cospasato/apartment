@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS store_owners (
 );
 
 CREATE TABLE IF NOT EXISTS stores (
-  id          TEXT        PRIMARY KEY DEFAULT 'STR' || upper(substr(md5(random()::text), 1, 5)),
+  id          TEXT        PRIMARY KEY DEFAULT 'ST' || lpad((floor(random()*9000+1000)::int)::text, 4, '0'),
   name        TEXT        NOT NULL,
   slug        TEXT        UNIQUE NOT NULL,
   owner_id    TEXT        NOT NULL REFERENCES store_owners(id),
@@ -254,5 +254,13 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 -- MIGRATION: Run this if you already have the database set up
 -- (safe to run multiple times — uses IF NOT EXISTS)
+-- ============================================================
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
+
+-- If existing stores have long IDs, no action needed — new stores will get short IDs
+-- Store IDs are now format: ST + 4 chars, e.g. STABCD (easy to share with staff)
+
+-- ============================================================
+-- MIGRATION: Add featured_image column if not exists
 -- ============================================================
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
