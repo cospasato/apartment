@@ -12,20 +12,15 @@ export default defineConfig({
     },
   },
   build: {
+    // Generate source maps for debugging
     sourcemap: false,
-    // Target modern browsers — smaller output
-    target: 'es2020',
-    // Compress output
-    minify: 'esbuild',
     rollupOptions: {
       output: {
-        // Better code splitting
+        // Split chunks for better caching
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
+          react: ['react', 'react-dom'],
         }
       }
-    },
-    // Increase chunk size warning threshold
-    chunkSizeWarningLimit: 800,
+    }
   }
 })

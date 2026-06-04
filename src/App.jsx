@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
-import { COUNTRY_CITIES, ALL_COUNTRIES } from "./countryCities.js";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
 function PWAInstallBanner() {
@@ -393,6 +392,32 @@ function LocStats({ lr, lrev, lexp, lb }) {
 }
 
 
+/* ─── COUNTRIES + CITIES DATA ───────────────────────────── */
+const COUNTRY_CITIES = {
+  "Tanzania": ["Dar es Salaam","Dodoma","Arusha","Mwanza","Zanzibar","Mbeya","Morogoro","Tanga","Iringa","Kilimanjaro","Tabora","Kigoma","Moshi","Lindi","Mtwara","Ruvuma","Shinyanga","Kagera","Mara","Singida","Rukwa"],
+  "Kenya": ["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Malindi","Kitale","Garissa","Kakamega","Nyeri","Machakos","Meru","Embu","Lamu","Nanyuki","Kericho","Kisii","Bungoma","Homabay"],
+  "Uganda": ["Kampala","Gulu","Lira","Mbarara","Jinja","Bwizibwera","Mbale","Mukono","Kasese","Masaka","Entebbe","Soroti","Kabale","Arua","Fort Portal","Hoima","Moroto","Tororo","Njeru","Kitgum"],
+  "Rwanda": ["Kigali","Butare","Gitarama","Ruhengeri","Gisenyi","Byumba","Cyangugu","Kibungo","Kibuye","Nyanza","Rwamagana","Musanze","Rubavu","Karongi","Rusizi"],
+  "Ethiopia": ["Addis Ababa","Dire Dawa","Mekelle","Gondar","Hawassa","Bahir Dar","Dessie","Jimma","Jijiga","Shashamane","Bishoftu","Sodo","Arba Minch","Hosaena","Harar"],
+  "South Africa": ["Johannesburg","Cape Town","Durban","Pretoria","Port Elizabeth","Bloemfontein","East London","Polokwane","Nelspruit","Kimberley","Pietermaritzburg","George","Rustenburg","Witbank","Alberton"],
+  "Nigeria": ["Lagos","Abuja","Kano","Ibadan","Port Harcourt","Benin City","Maiduguri","Zaria","Aba","Jos","Ilorin","Oyo","Enugu","Abeokuta","Onitsha","Warri","Sokoto","Kaduna","Calabar","Uyo"],
+  "Ghana": ["Accra","Kumasi","Tamale","Sekondi-Takoradi","Cape Coast","Obuasi","Tema","Sunyani","Koforidua","Ho","Wa","Bolgatanga","Techiman","Nkoranza","Berekum"],
+  "Egypt": ["Cairo","Alexandria","Giza","Shubra El-Kheima","Port Said","Suez","Luxor","Aswan","Mansoura","Tanta","Ismailia","Hurghada","Zagazig","Faiyum","Asyut"],
+  "Morocco": ["Casablanca","Rabat","Fez","Marrakech","Agadir","Tangier","Meknes","Oujda","Kenitra","Tetouan","El Jadida","Safi","Beni Mellal","Nador","Khouribga"],
+  "United States": ["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio","San Diego","Dallas","San Jose","Austin","Jacksonville","Fort Worth","Columbus","Charlotte","Indianapolis","Seattle","Denver","Washington DC","Boston","Miami"],
+  "United Kingdom": ["London","Birmingham","Manchester","Glasgow","Liverpool","Bristol","Sheffield","Leeds","Edinburgh","Leicester","Bradford","Cardiff","Belfast","Nottingham","Kingston upon Hull","Newcastle","Southampton","Portsmouth","Oxford","Cambridge"],
+  "United Arab Emirates": ["Dubai","Abu Dhabi","Sharjah","Al Ain","Ajman","Ras Al Khaimah","Fujairah","Umm Al Quwain"],
+  "India": ["Mumbai","Delhi","Bengaluru","Hyderabad","Ahmedabad","Chennai","Kolkata","Pune","Jaipur","Surat","Lucknow","Kanpur","Nagpur","Visakhapatnam","Indore","Thane","Bhopal","Patna","Vadodara","Ludhiana","Agra","Nashik","Goa"],
+  "Australia": ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Gold Coast","Canberra","Hobart","Darwin","Cairns","Townsville","Geelong","Wollongong","Newcastle","Ballarat"],
+  "Germany": ["Berlin","Hamburg","Munich","Cologne","Frankfurt","Stuttgart","Dusseldorf","Dortmund","Essen","Leipzig","Bremen","Dresden","Hanover","Nuremberg","Duisburg"],
+  "France": ["Paris","Marseille","Lyon","Toulouse","Nice","Nantes","Montpellier","Strasbourg","Bordeaux","Lille","Rennes","Reims","Saint-Etienne","Toulon","Le Havre"],
+  "Canada": ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Victoria","Halifax","Oshawa","Windsor"],
+  "Singapore": ["Singapore"],
+  "Japan": ["Tokyo","Yokohama","Osaka","Nagoya","Sapporo","Kobe","Kyoto","Fukuoka","Kawasaki","Saitama","Hiroshima","Sendai","Chiba","Kitakyushu","Sakai"],
+  "Brazil": ["São Paulo","Rio de Janeiro","Brasília","Salvador","Fortaleza","Belo Horizonte","Manaus","Curitiba","Recife","Porto Alegre","Belém","Goiânia","Guarulhos","Campinas","São Luís"],
+  "Other": ["Other City"],
+};
+const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
@@ -439,7 +464,7 @@ export default function App() {
       // On main domain with ?room= — need to know which store
       // Try to detect from URL path or just open booking
       setView("book");
-      setBStep(2);
+      setBStep(3);
       setBD(d => ({ ...d, roomId: deepRoomId }));
       setRoomDetail(deepRoomId);
     }
@@ -650,6 +675,7 @@ export default function App() {
       if (s?.length) setStaff(s.map(mapStaff));
       if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
     } catch {
+      console.warn("DB not reachable");
     } finally {
       setLoading(false);
     }
@@ -740,14 +766,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (bD.locId && bStep >= 2) {
+    if (bD.locId && bStep >= 3) {
       setAvailLoading(true);
       api.getBookedDates(bD.locId)
         .then(data => setBookedDates(data||{}))
         .catch(() => setBookedDates({}))
         .finally(() => setAvailLoading(false));
     }
-  }, [bD.locId, bStep]);
+  }, [bD.locId, bStep, bD.ci, bD.co]);
 
   useEffect(() => {
     if (payMethods?.length && (bD.method === "Cash" || !bD.method)) {
@@ -1234,7 +1260,7 @@ export default function App() {
       {bStep < 5 && (
         <div style={{ background: WH, borderBottom: `1px solid ${G2}` }}>
           <div style={{ display: "flex", maxWidth: 780, margin: "0 auto" }}>
-            {["Location", "Room", "Dates", "Details", "Confirm"].map((s, i) => (
+            {["Location", "Dates", "Rooms", "Details", "Confirm"].map((s, i) => (
               <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: `3px solid ${bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent"}`, color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 18, height: 18, borderRadius: "50%", background: bStep > i + 1 ? OK : bStep === i + 1 ? M : G2, color: bStep >= i + 1 ? WH : G4, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
@@ -1305,13 +1331,47 @@ export default function App() {
             </div>
           </div>
         )}
-        {/* Step 2 */}
+        {/* Step 2 — SELECT DATES (new order) */}
         {bStep === 2 && (
           <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select a Room</h2>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select Your Dates</h2>
             <p style={{ color: G6, marginBottom: 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            <Card>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <Inp label="Check-in Date" type="date" value={bD.ci} min={td()}
+                  onChange={e => { const ci = e.target.value; const n = bD.co ? dd(ci, bD.co) : 1; setBD(d => ({ ...d, ci, nights: n, roomId: "" })); }} />
+                <Inp label="Check-out Date" type="date" value={bD.co} min={bD.ci || td()}
+                  onChange={e => { const co = e.target.value; const n = bD.ci ? dd(bD.ci, co) : 1; setBD(d => ({ ...d, co, nights: n, roomId: "" })); }} />
+              </div>
+              {bD.ci && bD.co && (
+                <div style={{ background: MF, borderRadius: 8, padding: 13, marginTop: 4, fontSize: 14, color: M, fontWeight: 700 }}>
+                  📅 {bD.nights} night{bD.nights > 1 ? "s" : ""} · {bD.ci} → {bD.co}
+                </div>
+              )}
+            </Card>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <Btn v="ghost" onClick={() => goStep(1)}>← Back</Btn>
+              <Btn onClick={() => goStep(3)} disabled={!bD.ci || !bD.co}>See Available Rooms →</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — SELECT ROOM (new order, dates already chosen) */}
+        {bStep === 3 && (
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 4, color: BK }}>Choose a Room</h2>
+            <p style={{ color: G6, marginBottom: 4, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            {bD.ci && bD.co && (
+              <div style={{ background: MF, borderRadius: 8, padding: "9px 14px", marginBottom: 18, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>📅 {bD.ci} → {bD.co} · {bD.nights} night{bD.nights>1?"s":""}</span>
+                <button onClick={() => goStep(2)}
+                  style={{ background:"none", border:`1px solid ${M}`, color:M, borderRadius:6, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  Change Dates
+                </button>
+              </div>
+            )}
+            {availLoading && <div style={{padding:"8px 0",fontSize:13,color:G6}}>Checking availability…</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {availLoading && <div style={{padding:"8px 0",fontSize:13,color:G6}}>Checking availability…</div>}
               {rooms.filter(r => r.locId === bD.locId).map(rm => {
                 const occupied = rm.status !== "available";
                 const dateTaken = !isAvailableForDates(rm.id);
@@ -1319,30 +1379,36 @@ export default function App() {
                 return (
                 <div key={rm.id}
                   onClick={() => !unavail && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : G2}`, cursor: unavail ? "not-allowed" : "pointer", opacity: unavail ? .55 : 1, overflow: "hidden", transition: "border-color .15s" }}>
+                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: unavail ? "default" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
+                  onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
-                    <div style={{ position: "relative", paddingTop: "62%", cursor: "pointer" }}
+                    <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
                       onClick={e => { e.stopPropagation(); setRoomDetail(rm.id); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0)", transition: "background .2s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.12)"}
-                        onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0)"}/>
+                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: unavail ? "grayscale(60%)" : "none" }} />
                       <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: WH, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, display:"flex", alignItems:"center", gap:5 }}>
-                        🔍 View {rm.photos.length > 1 ? `${rm.photos.length} photos` : "photo"}{rm.video ? " · 🎬" : ""}
+                        🔍 View {rm.photos.length > 1 ? rm.photos.length + " photos" : "photo"}{rm.video ? " · 🎬" : ""}
                       </div>
                     </div>
                   )}
                   <div style={{ padding: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap:"wrap" }}>
                         <span style={{ fontSize: 15, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif" }}>{rm.name}</span>
-                        {dateTaken && bD.ci && bD.co
-                        ? <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>📅 Dates Taken</span>
-                        : <Badge s={rm.status}/>}
+                        {unavail
+                          ? <span style={{background:dateTaken?"#FFF3E0":"#FFEBEE", color:dateTaken?WA:ER, padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700}}>
+                              {dateTaken ? "📅 Dates Taken" : "🚫 Unavailable"}
+                            </span>
+                          : bD.roomId === rm.id
+                            ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
+                            : <Badge s={rm.status}/>
+                        }
                       </div>
                       <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 8px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                      <div style={{ display:"flex", gap:6, marginTop:7 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                        {rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 8px", borderRadius: 99, color: G6 }}>{a}</span>)}
+                      </div>
+                      <div style={{ display:"flex", gap:6 }}>
                         <button onClick={e=>{e.stopPropagation();setRoomDetail(rm.id);}}
                           style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:G1, color:G8, border:`1px solid ${G2}`, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                           🔍 Details
@@ -1358,18 +1424,25 @@ export default function App() {
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 17, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(rm.price)}</div>
                       <div style={{ fontSize: 11, color: G4 }}>per night</div>
+                      {bD.ci && bD.co && <div style={{ fontSize: 12, color: G6, marginTop: 3 }}>{fmt(rm.price * bD.nights)} total</div>}
                     </div>
                   </div>
+                  {/* Unavailable room: show Change Dates badge */}
                   {dateTaken && bD.ci && bD.co && (
-                    <div style={{ margin: "0 16px 14px", padding: "10px 13px", background: WAB, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                      <div style={{ fontSize: 12, color: WA, fontWeight: 700 }}>
+                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ fontSize: 12, color: WA, fontWeight: 600 }}>
                         Not available {bD.ci} → {bD.co}
                       </div>
                       <button
-                        onClick={e => { e.stopPropagation(); setBD(d => ({ ...d, roomId: rm.id })); goStep(3); }}
-                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        Change Dates →
+                        onClick={e => { e.stopPropagation(); goStep(2); }}
+                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        📅 Change Dates
                       </button>
+                    </div>
+                  )}
+                  {occupied && !dateTaken && (
+                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
+                      🚫 Currently occupied — check back later
                     </div>
                   )}
                 </div>
@@ -1377,58 +1450,8 @@ export default function App() {
               })}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <Btn v="ghost" onClick={() => goStep(1)}>← Back</Btn>
-              <Btn onClick={() => goStep(3)} disabled={!bD.roomId}>Continue →</Btn>
-            </div>
-          </div>
-        )}
-        {/* Step 3 */}
-        {bStep === 3 && (
-          <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 12, color: BK }}>Select Dates</h2>
-            {bD.roomId && !isAvailableForDates(bD.roomId) && bD.ci && bD.co && (
-              <div style={{ background: WAB, border: `1px solid ${WA}`, borderRadius: 10, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 12 }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>📅</span>
-                <div>
-                  <div style={{ fontWeight: 700, color: WA, fontSize: 14, marginBottom: 3 }}>
-                    {rooms.find(r=>r.id===bD.roomId)?.name} is not available for {bD.ci} → {bD.co}
-                  </div>
-                  <div style={{ fontSize: 13, color: G6 }}>
-                    Pick different dates below, or{" "}
-                    <button onClick={() => { setBD(d => ({ ...d, roomId: "" })); goStep(2); }}
-                      style={{ background: "none", border: "none", color: M, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13, padding: 0, textDecoration: "underline" }}>
-                      choose a different room
-                    </button>
-                    .
-                  </div>
-                </div>
-              </div>
-            )}
-            <Card>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Inp label="Check-in Date" type="date" value={bD.ci} min={td()}
-                  onChange={e => { const ci = e.target.value; const n = bD.co ? dd(ci, bD.co) : 1; setBD(d => ({ ...d, ci, nights: n })); }} />
-                <Inp label="Check-out Date" type="date" value={bD.co} min={bD.ci || td()}
-                  onChange={e => { const co = e.target.value; const n = bD.ci ? dd(bD.ci, co) : 1; setBD(d => ({ ...d, co, nights: n })); }} />
-              </div>
-              {bD.ci && bD.co && (
-                <div style={{ background: MF, borderRadius: 8, padding: 13, marginTop: 4, fontSize: 14, color: M, fontWeight: 700 }}>
-                  {bD.nights} night{bD.nights > 1 ? "s" : ""} · {fmt(selRoom?.price * bD.nights)}
-                </div>
-              )}
-            </Card>
-            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <Btn v="ghost" onClick={() => goStep(2)}>← Back</Btn>
-              <Btn onClick={() => {
-                if (bD.roomId && !isAvailableForDates(bD.roomId)) {
-                  // dates changed but room still conflicts — clear room, go back to select
-                  setBD(d=>({...d, roomId:""}));
-                  pop("Those dates are taken for that room — pick a different room.", "err");
-                  goStep(2);
-                } else {
-                  goStep(4);
-                }
-              }} disabled={!bD.ci || !bD.co}>Continue →</Btn>
+              <Btn onClick={() => goStep(4)} disabled={!bD.roomId}>Continue →</Btn>
             </div>
           </div>
         )}
@@ -1519,13 +1542,12 @@ export default function App() {
           onSelect={() => {
             setBD(d => ({ ...d, roomId: roomDetail }));
             setRoomDetail(null);
-            goStep(3);
+            if (bD.ci && bD.co) goStep(4); else goStep(2);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           onChangeDates={() => {
-            setBD(d => ({ ...d, roomId: roomDetail }));
             setRoomDetail(null);
-            goStep(3);
+            goStep(2);
           }}
         />
       )}
@@ -1731,9 +1753,6 @@ export default function App() {
   const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
   const isMobileAdmin = window.innerWidth < 768;
 
-  // Memoize expensive sorts
-  const sortedBooks = useMemo(() => [...books].sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)), [books]);
-
   const adminContent = (
     <>
       {loading && <Spinner/>}
@@ -1846,7 +1865,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-const DashTab = memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   return (
     <div>
@@ -1981,7 +2000,7 @@ const DashTab = memo(function DashTab({ books, rooms, exps, locs, allRooms, totR
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-const BooksTab = memo(function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -2380,7 +2399,7 @@ const BooksTab = memo(function BooksTab({ books, rooms, locs, updBook, recPay, d
 }
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-const RoomsTab = memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
+function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2617,7 +2636,7 @@ const RoomsTab = memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-const PaysTab = memo(function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
@@ -2813,7 +2832,7 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
 
 /* ─── REPORTS TAB ────────────────────────────────────────── */
 /* ─── REPORTS TAB ────────────────────────────────────────── */
-const ReportsTab = memo(function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, api: apiProp, user: userProp }) {
+function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, api: apiProp, user: userProp }) {
   const props = { storeId };
   const [rt, setRt]             = useState("financial");
   const [dateFrom, setDateFrom] = useState("");
@@ -3310,7 +3329,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
 }
 
 /* ─── STAFF TAB ──────────────────────────────────────────── */
-const StaffTab = memo(function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser, storeId: tabStoreId }) {
+function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser, storeId: tabStoreId }) {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: "", pin: "", active: true });
 
@@ -4851,7 +4870,7 @@ function SuperLoginModal({ onLogin, onClose, pop }) {
 }
 
 /* ─── OWNER SETTINGS TAB ────────────────────────────────── */
-const OwnerSettingsTab = memo(function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
+function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
   const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",WH2="#FFF",G12="#F5F5F5";
   const [storeData, setStoreData] = useState(null);
   const [saving, setSaving]       = useState(false);
@@ -5235,7 +5254,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
 }
 
 /* ─── OWNER BILLING TAB ──────────────────────────────────── */
-const OwnerBillingTab = memo(function OwnerBillingTab({ owner, storeId, api, pop }) {
+function OwnerBillingTab({ owner, storeId, api, pop }) {
   const [plans,    setPlans]    = useState([]);
   const [payments, setPayments] = useState([]);
   const [store,    setStore]    = useState(null);
@@ -5368,7 +5387,7 @@ const OwnerBillingTab = memo(function OwnerBillingTab({ owner, storeId, api, pop
 }
 
 /* ─── CUSTOMERS TAB ─────────────────────────────────────── */
-const CustomersTab = memo(function CustomersTab({ storeId, api, pop }) {
+function CustomersTab({ storeId, api, pop }) {
   const [customers, setCustomers] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState("");
@@ -5795,7 +5814,7 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
 }
 
 /* ─── SHARE STORE TAB ────────────────────────────────────── */
-const ShareStoreTab = memo(function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }) {
+function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }) {
   const [mode, setMode]       = useState("store"); // "store" | "room"
   const [selRoomId, setSelRoomId] = useState("");
   const [copied, setCopied]   = useState(false);
@@ -5959,7 +5978,7 @@ const ShareStoreTab = memo(function ShareStoreTab({ owner, storeId, rooms, locs,
 }
 
 /* ─── RECEIPTS TAB ───────────────────────────────────────── */
-const ReceiptsTab = memo(function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
+function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState("all"); // all | paid | balance | checkedIn
   const [selBook, setSelBook] = useState(null);
