@@ -183,54 +183,48 @@ const Btn = ({ children, onClick, v = "pri", style, disabled }) => {
   return <button onClick={onClick} disabled={disabled} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity .15s", ...VS[v], ...style }}>{children}</button>;
 };
 const Modal = ({ title, onClose, children, wide }) => (
-  <div
-    onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    style={{
-      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: "rgba(0,0,0,.6)",
-      zIndex: 9999,
+  <div style={{
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+    background: "rgba(0,0,0,.6)",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+  }}>
+    {/* Backdrop tap to close */}
+    <div onClick={onClose} style={{ position:"absolute", inset:0 }}/>
+    {/* Sheet */}
+    <div style={{
+      position: "relative",
+      background: WH,
+      borderRadius: "16px 16px 0 0",
+      width: "100%",
+      maxWidth: wide ? 740 : 520,
+      height: "88vh",
       display: "flex",
-      alignItems: "flex-end",
-      justifyContent: "center",
-      /* Prevent iOS from scrolling the backdrop */
-      touchAction: "none",
+      flexDirection: "column",
+      boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
+      zIndex: 1,
     }}>
-    <div
-      onClick={e => e.stopPropagation()}
-      style={{
-        background: WH,
-        borderRadius: "16px 16px 0 0",
-        width: "100%",
-        maxWidth: wide ? 740 : 520,
-        height: "90vh",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
-        touchAction: "auto",
-      }}>
-      {/* Sticky header */}
+      {/* Header — fixed inside sheet */}
       <div style={{
+        flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "16px 20px", borderBottom: `1px solid ${G2}`,
-        flexShrink: 0, background: WH, zIndex: 1,
+        padding: "16px 20px", borderBottom: `1px solid ${G2}`, background: WH,
       }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif", paddingRight: 12 }}>{title}</h3>
         <button onClick={onClose} style={{ background: G1, border: "none", cursor: "pointer", fontSize: 18, color: G6, lineHeight: 1, padding: "4px 9px", borderRadius: 8, flexShrink: 0 }}>×</button>
       </div>
-      {/* Scrollable body */}
+      {/* Scroll body */}
       <div style={{
-        padding: "18px 20px 0",
-        overflowY: "scroll",
+        flex: 1,
+        overflowY: "auto",
         overflowX: "hidden",
         WebkitOverflowScrolling: "touch",
-        flex: 1,
-        minHeight: 0,
-        touchAction: "pan-y",
+        padding: "18px 20px",
+        paddingBottom: "60px",
       }}>
         {children}
-        {/* Spacer so the last element (Save button) is always above safe area */}
-        <div style={{ height: "max(40px, calc(20px + env(safe-area-inset-bottom)))", flexShrink: 0 }}/>
       </div>
     </div>
   </div>
@@ -305,25 +299,21 @@ function VideoModal({ room, onClose, fmt }) {
 
 /* ─── INSTAGRAM EMBED ────────────────────────────────────── */
 function IGEmbed({ url }) {
-  // Normalize to clean post URL and append /embed/
+  // Instagram blocks iframe embedding — open directly in Instagram app/browser
   const cleanUrl = url.split("?")[0].replace(/\/$/, "");
-  const embedUrl = cleanUrl + "/embed/";
   return (
-    <div style={{ position:"relative", width:"100%", maxWidth:400, margin:"0 auto" }}>
-      <iframe
-        src={embedUrl}
-        style={{ width:"100%", minHeight:540, border:"none", borderRadius:12 }}
-        scrolling="no"
-        allowTransparency
-        allowFullScreen
-        title="Instagram post"
-      />
-      <div style={{ marginTop:10, textAlign:"center" }}>
-        <a href={url} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:12, color:"#833AB4", fontWeight:700, textDecoration:"none" }}>
-          📸 View on Instagram
-        </a>
+    <div style={{ textAlign:"center", padding:"20px 0" }}>
+      <div style={{ width:72, height:72, borderRadius:18, background:"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, margin:"0 auto 16px" }}>📸</div>
+      <div style={{ fontWeight:700, fontSize:16, color:"#111", marginBottom:8 }}>Instagram Reel</div>
+      <div style={{ fontSize:13, color:"#666", marginBottom:20, lineHeight:1.6 }}>
+        Instagram does not allow videos to play inside other apps.<br/>
+        Tap below to open and watch it directly on Instagram.
       </div>
+      <a href={cleanUrl} target="_blank" rel="noopener noreferrer"
+        style={{ display:"inline-block", padding:"13px 32px", borderRadius:10, fontWeight:700, fontSize:15, textDecoration:"none", color:"#FFF", background:"linear-gradient(135deg,#833AB4,#FD1D1D)", boxShadow:"0 4px 16px rgba(131,58,180,.35)" }}>
+        Watch on Instagram →
+      </a>
+      <div style={{ marginTop:12, fontSize:11, color:"#aaa" }}>{cleanUrl}</div>
     </div>
   );
 }
@@ -1297,15 +1287,15 @@ export default function App() {
                       </div>
                       <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 8px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                      <div style={{ display:"flex", gap:7, marginTop:7, flexWrap:"wrap" }}>
+                      <div style={{ display:"flex", gap:6, marginTop:7 }}>
                         <button onClick={e=>{e.stopPropagation();setRoomDetail(rm.id);}}
-                          style={{ display:"flex", alignItems:"center", gap:5, background:G1, color:G8, border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                          🔍 View Details
+                          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:G1, color:G8, border:`1px solid ${G2}`, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                          🔍 Details
                         </button>
                         {rm.video && (
                           <button onClick={e=>{e.stopPropagation();setVideoModal(rm.id);}}
-                            style={{ display:"flex", alignItems:"center", gap:5, background:BK, color:WH, border:"none", borderRadius:7, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                            🎬 Watch Video
+                            style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:BK, color:WH, border:"none", borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                            {rm.video.includes("instagram") ? "📸 Reel" : "🎬 Video"}
                           </button>
                         )}
                       </div>
@@ -2407,31 +2397,26 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                     </div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif", marginBottom: 7 }}>{fmt(rm.price)}<span style={{ fontSize: 11, color: G4, fontWeight: 400 }}>/night</span></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 7px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
                       <select value={rm.status} onChange={e => saveRoom({...rm, amen: rm.amen.join(", ")}, true, e.target.value)}
                         style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
                         <option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option>
                       </select>
-                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 10px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
-                    </div>
-                    {/* Share button */}
-                    <button onClick={()=>{
-                      const base = storeSlug ? `https://${storeSlug}.bnbmis.com` : "https://bnbmis.com";
-                      const url  = `${base}?room=${rm.id}`;
-                      const text = `🛏️ ${rm.name}
-📍 ${locs.find(l=>l.id===rm.locId)?.name||""}
-💰 TZS ${Number(rm.price).toLocaleString()}/night
+                      {rm.video && <button onClick={()=>setVideoModal(rm.id)} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${G2}`, background:"none", cursor:"pointer", color:G6, fontFamily:"inherit" }}>{rm.video.includes("instagram")?"📸":"🎬"}</button>}
+                      <button onClick={()=>{
+                        const base = storeSlug ? "https://"+storeSlug+".bnbmis.com" : "https://bnbmis.com";
+                        const url  = base+"?room="+rm.id;
+                        const text = "🛏️ "+rm.name+"
+📍 "+(locs.find(l=>l.id===rm.locId)?.name||"")+"
+💰 TZS "+Number(rm.price).toLocaleString()+"/night
 
-Book here: ${url}`;
-                      if (navigator.share) {
-                        navigator.share({ title: rm.name, text, url }).catch(()=>{});
-                      } else {
-                        navigator.clipboard?.writeText(text).then(()=>pop("Room link copied!")).catch(()=>pop(url));
-                      }
-                    }} style={{ width:"100%", marginTop:4, padding:"7px", fontSize:12, borderRadius:6, border:`1px solid ${IN}`, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
-                      📤 Share Room
-                    </button>
+Book here: "+url;
+                        if (navigator.share) { navigator.share({ title:rm.name, text, url }).catch(()=>{}); }
+                        else { navigator.clipboard?.writeText(text).then(()=>pop("Link copied!")).catch(()=>pop(url)); }
+                      }} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${IN}`, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit" }}>📤</button>
+                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 9px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -2441,75 +2426,61 @@ Book here: ${url}`;
         );
       })}
 
-      {/* ── EDIT / ADD MODAL ── */}
+      {/* ── EDIT / ADD — full page overlay (works on all devices) ── */}
       {modal === "f" && (
-        <Modal title={form.id ? "Edit Room" : "Add Room"} onClose={() => setModal(null)} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Deluxe Suite" />
-            </div>
-            <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
-            <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
-            <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
-            <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Room Video / Reel URL" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="YouTube, Instagram Reel or direct .mp4 link" />
-              <div style={{ fontSize:11, color:G4, marginTop:-10, marginBottom:8 }}>
-                Supports: YouTube · Instagram Reel (e.g. instagram.com/reel/...) · Direct .mp4
-              </div>
-              {form.video && (
-                <div style={{ marginTop: -10, marginBottom: 14, fontSize: 12, color: G6 }}>
-                  {form.video.includes("youtube.com") || form.video.includes("youtu.be")
-                    ? "✓ YouTube link detected — will embed as a player"
-                    : "✓ Direct video link detected — will play inline"}
-                  <button onClick={() => setForm(f=>({...f,video:""}))} style={{ marginLeft: 10, background: "none", border: "none", color: ER, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Remove</button>
-                </div>
-              )}
-            </div>
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:G1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+          {/* Top bar */}
+          <div style={{ background:M, color:WH, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", paddingTop:"max(env(safe-area-inset-top),14px)", paddingBottom:12, position:"sticky", top:0, zIndex:1 }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{form.id ? "Edit Room" : "Add Room"}</div>
+            <button onClick={() => setModal(null)} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH, borderRadius:8, padding:"6px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Cancel</button>
           </div>
-
-          {/* ── PHOTO UPLOAD ── */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>Room Photos</label>
-
-            {/* Preview grid */}
-            {form.photos && form.photos.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 8, marginBottom: 10 }}>
-                {form.photos.map((src, i) => (
-                  <div key={i} style={{ position: "relative", borderRadius: 8, overflow: "hidden", height: 90 }}>
-                    <img src={src} alt={`Room photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    <button onClick={() => removePhoto(i)} style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,0.65)", border: "none", color: WH, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>✕</button>
-                    {i === 0 && <div style={{ position: "absolute", bottom: 4, left: 4, background: M, color: WH, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99 }}>COVER</div>}
-                  </div>
-                ))}
+          {/* Form body */}
+          <div style={{ padding:"20px 16px", maxWidth:600, margin:"0 auto" }}>
+            <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+            <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Deluxe Suite" />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+              <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
+              <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
+              <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
+              <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
+            </div>
+            <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+            <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
+            <Inp label="Room Video / Reel URL (optional)" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="YouTube or Instagram Reel link" />
+            {form.video && (
+              <div style={{ fontSize:12, color:G6, marginTop:-10, marginBottom:12 }}>
+                {form.video.includes("youtube") || form.video.includes("youtu.be") ? "✓ YouTube" : form.video.includes("instagram") ? "✓ Instagram Reel" : "✓ Video link"}
+                <button onClick={() => setForm(f=>({...f,video:""}))} style={{ marginLeft:10, background:"none", border:"none", color:ER, cursor:"pointer", fontSize:12 }}>Remove</button>
               </div>
             )}
-
-            {/* Upload button */}
-            <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: `2px dashed ${G2}`, borderRadius: 8, cursor: "pointer", fontSize: 13, color: G6, background: G1, transition: "border-color 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = M}
-              onMouseLeave={e => e.currentTarget.style.borderColor = G2}>
-              <span style={{ fontSize: 20 }}>📷</span>
-              <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
-              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: "none" }} />
-            </label>
-            <div style={{ fontSize: 11, color: G4, marginTop: 5 }}>First photo is used as the cover. Photos are compressed automatically. Max ~5 photos recommended.</div>
+            {/* Photos */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Room Photos</label>
+              {form.photos && form.photos.length > 0 && (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))", gap:8, marginBottom:10 }}>
+                  {form.photos.map((src, i) => (
+                    <div key={i} style={{ position:"relative", borderRadius:8, overflow:"hidden", height:80 }}>
+                      <img src={src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      <button onClick={() => removePhoto(i)} style={{ position:"absolute", top:3, right:3, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.65)", border:"none", color:WH, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      {i === 0 && <div style={{ position:"absolute", bottom:3, left:3, background:M, color:WH, fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:99 }}>COVER</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px", border:`2px dashed ${G2}`, borderRadius:8, cursor:"pointer", fontSize:13, color:G6, background:WH }}>
+                <span style={{ fontSize:20 }}>📷</span>
+                <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
+                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display:"none" }} />
+              </label>
+              <div style={{ fontSize:11, color:G4, marginTop:4 }}>First photo is the cover image. Auto-compressed.</div>
+            </div>
+            {/* Save button */}
+            <div style={{ display:"flex", gap:10, paddingBottom:"max(24px, env(safe-area-inset-bottom))" }}>
+              <Btn v="ghost" onClick={() => setModal(null)} style={{ flex:1, justifyContent:"center" }}>Cancel</Btn>
+              <Btn onClick={save} style={{ flex:1, justifyContent:"center" }}>Save Room</Btn>
+            </div>
           </div>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <Btn v="ghost" onClick={() => setModal(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} style={{ flex: 1, justifyContent: "center" }}>Save Room</Btn>
-          </div>
-        </Modal>
+        </div>
       )}
 
       {/* ── PHOTO VIEWER MODAL ── */}
