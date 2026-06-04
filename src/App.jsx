@@ -1289,7 +1289,7 @@ export default function App() {
                     <div style={{ padding: 14 }}>
                       <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
-                      {loc.desc && <div style={{ fontSize: 12, color: G6, marginBottom: 8, lineHeight: 1.5 }}>{loc.desc.length > 80 ? loc.desc.slice(0,78)+"…" : loc.desc}</div>}
+                      {loc.desc && <div style={{ fontSize: 12, color: G6, marginBottom: 8, lineHeight: 1.6 }}>{loc.desc.length > 120 ? loc.desc.slice(0,118)+"…" : loc.desc}</div>}
                       {loc.addr && <div style={{ fontSize: 11, color: G4, marginBottom: 6 }}>📍 {loc.addr}</div>}
                       <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
                     </div>
@@ -1674,7 +1674,7 @@ export default function App() {
 
     /* ── DESKTOP LAYOUT ── */
     return (
-      <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ display:"flex", minHeight:"100vh", minHeight:"-webkit-fill-available", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
@@ -2486,15 +2486,22 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 
       {/* ── EDIT / ADD — centered popup dialog ── */}
       {modal === "f" && (
-        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px" }}>
-          <div style={{ background:WH, borderRadius:16, width:"100%", maxWidth:560, maxHeight:"85vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)" }}
+          onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
+          <div style={{
+            position:"absolute", top:"5%", left:"50%", transform:"translateX(-50%)",
+            width:"calc(100% - 32px)", maxWidth:560,
+            background:WH, borderRadius:16, boxShadow:"0 20px 60px rgba(0,0,0,.3)",
+            display:"flex", flexDirection:"column",
+            maxHeight:"90%",
+          }}>
             {/* Dialog header */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G2}`, flexShrink:0 }}>
               <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>{form.id ? "Edit Room" : "Add Room"}</h3>
               <button onClick={() => setModal(null)} style={{ background:G1, border:"none", color:G6, borderRadius:8, padding:"4px 10px", fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
             </div>
             {/* Scrollable body */}
-            <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"18px 20px", flex:1, minHeight:0 }}>
+            <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"18px 20px", flex:1 }}>
               <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
               <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Deluxe Suite" />
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
@@ -4074,7 +4081,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
             </button>
           </div>
 
-          {["pending","confirmed"].includes(selB.status) && (
+          {["pending","confirmed"].includes(selB.status) && (user?.role === "Admin" || user?.role === "Manager") && (
             <div style={{ paddingTop:10 }}>
               <button onClick={() => { onCancel(selB.id); setSel(null); }}
                 style={{ width:"100%", padding:"12px", border:`2px solid ${ER}`, borderRadius:9,
