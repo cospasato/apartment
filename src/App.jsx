@@ -135,7 +135,7 @@ const mapRoom = r => r ? ({
 
 const mapLoc = l => l ? ({
   id: l.id, storeId: l.store_id, name: l.name, city: l.city, addr: l.address,
-  icon: l.icon, desc: l.description,
+  icon: l.icon, desc: l.description, phone: l.phone||"",
 }) : null;
 
 const mapStaff = s => s ? ({
@@ -1290,8 +1290,40 @@ export default function App() {
                       <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
                       {loc.desc && <div style={{ fontSize: 12, color: G6, marginBottom: 8, lineHeight: 1.6 }}>{loc.desc.length > 120 ? loc.desc.slice(0,118)+"…" : loc.desc}</div>}
-                      {loc.addr && <div style={{ fontSize: 11, color: G4, marginBottom: 6 }}>📍 {loc.addr}</div>}
-                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
+                      {loc.addr && (
+                        <a href={"https://maps.google.com/?q="+encodeURIComponent(loc.addr+(loc.city?", "+loc.city:""))}
+                          target="_blank" rel="noopener noreferrer"
+                          onClick={e=>e.stopPropagation()}
+                          style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:IN, fontWeight:600, marginBottom:8, textDecoration:"none" }}>
+                          📍 {loc.addr}
+                        </a>
+                      )}
+                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700, marginBottom: 10 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
+                      {/* Contact actions */}
+                      {(loc.phone || loc.addr) && (
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }} onClick={e=>e.stopPropagation()}>
+                          {loc.phone && (
+                            <a href={"tel:"+loc.phone}
+                              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, padding:"7px 10px", borderRadius:8, background:"#E8F5E9", color:"#2E7D32", textDecoration:"none", fontSize:12, fontWeight:700 }}>
+                              📞 Call
+                            </a>
+                          )}
+                          {loc.phone && (
+                            <a href={"https://wa.me/"+loc.phone.replace(/\D/g,"")}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, padding:"7px 10px", borderRadius:8, background:"#E8F5E9", color:"#25D366", textDecoration:"none", fontSize:12, fontWeight:700 }}>
+                              💬 WhatsApp
+                            </a>
+                          )}
+                          {loc.addr && (
+                            <a href={"https://maps.google.com/?q="+encodeURIComponent(loc.addr+(loc.city?", "+loc.city:""))}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, padding:"7px 10px", borderRadius:8, background:"#E3F2FD", color:"#1565C0", textDecoration:"none", fontSize:12, fontWeight:700 }}>
+                              🗺️ Map
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -2879,43 +2911,76 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
 
   const ST = ({c}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:`4px solid ${M}`,paddingLeft:11,color:BK}}>{c}</h3>;
 
+  const [locFilter, setLocFilter] = useState(""); // filter all reports by location
+
+  // Apply location filter on top of date filter
+  const BkF = locFilter ? Bk.filter(b=>b.locId===locFilter) : Bk;
+  const EkF = locFilter ? Ek.filter(e=>e.locId===locFilter) : Ek;
+
+  // Recompute totals with location filter
+  const totRevF  = BkF.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
+  const totExpF  = EkF.reduce((s,e)=>s+e.amt,0);
+  const netF     = totRevF - totExpF;
+  const pendingF = BkF.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
+  const totDiscF = BkF.reduce((s,b)=>s+(b.base-b.total),0);
+
   return (
     <div>
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 16px"}}>Reports & Analytics</h2>
 
-      {/* ── DATE FILTER BAR ── */}
+      {/* ── FILTER BAR ── */}
       <Card style={{marginBottom:18}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",flexShrink:0}}>Period:</span>
-          {[["All Time","all"],["Today","today"],["This Week","week"],["This Month","month"],["Last Month","lastmonth"],["This Year","year"]].map(([label,preset])=>{
+        {/* Date presets — wrapping row */}
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          <span style={{fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",width:"100%"}}>Period</span>
+          {[["All","all"],["Today","today"],["Week","week"],["Month","month"],["Last Mo.","lastmonth"],["Year","year"]].map(([label,preset])=>{
             const active = preset==="all"?(!dateFrom&&!dateTo)
               :preset==="today"?dateFrom===fmtD(new Date())
               :preset==="month"?dateFrom===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-01`
               :preset==="year"?dateFrom===`${new Date().getFullYear()}-01-01`:false;
             return (
               <button key={preset} onClick={()=>applyPreset(preset)}
-                style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
-                  border:`1px solid ${active?M:G2}`,background:active?M:WH,color:active?WH:G6,transition:"all .15s"}}>
+                style={{padding:"5px 11px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
+                  border:`1px solid ${active?M:G2}`,background:active?M:WH,color:active?WH:G6}}>
                 {label}
               </button>
             );
           })}
-          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-              style={{padding:"5px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
-            <span style={{color:G6,fontSize:13}}>→</span>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-              style={{padding:"5px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
-            {(dateFrom||dateTo) && <button onClick={()=>{setDateFrom("");setDateTo("");}} style={{padding:"5px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH}}>✕ Clear</button>}
-          </div>
         </div>
-        {(dateFrom||dateTo) && <div style={{marginTop:8,fontSize:12,color:M,fontWeight:700}}>{rptLoading?"Loading…":`Showing: ${dateFrom||"start"} → ${dateTo||"today"}`}</div>}
+        {/* Custom date range */}
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
+            style={{flex:1,minWidth:120,padding:"7px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
+          <span style={{color:G6,fontSize:13,flexShrink:0}}>→</span>
+          <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
+            style={{flex:1,minWidth:120,padding:"7px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
+          {(dateFrom||dateTo) && <button onClick={()=>{setDateFrom("");setDateTo("");}} style={{padding:"7px 10px",border:`1px solid ${G2}`,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕</button>}
+        </div>
+        {/* Location filter */}
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",flexShrink:0}}>Location</span>
+          <select value={locFilter} onChange={e=>setLocFilter(e.target.value)}
+            style={{flex:1,padding:"7px 10px",border:`1px solid ${locFilter?M:G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:locFilter?M:G6,fontWeight:locFilter?700:400,outline:"none",background:WH}}>
+            <option value="">All Locations</option>
+            {locs.map(l=><option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
+          </select>
+          {locFilter && <button onClick={()=>setLocFilter("")} style={{padding:"7px 10px",border:`1px solid ${G2}`,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕ All</button>}
+        </div>
+        {(dateFrom||dateTo||locFilter) && (
+          <div style={{marginTop:8,fontSize:12,color:M,fontWeight:700}}>
+            {rptLoading?"Loading…":""} 
+            {dateFrom||dateTo ? `${dateFrom||"start"} → ${dateTo||"today"}` : ""}
+            {locFilter ? ` · ${locs.find(l=>l.id===locFilter)?.name}` : ""}
+          </div>
+        )}
       </Card>
 
-      {/* ── SUB-TABS ── */}
-      <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:`1px solid ${G2}`}}>
-        {["financial","occupancy","location","expenses","bookings"].map(t=>(
-          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 15px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:`3px solid ${rt===t?M:"transparent"}`,textTransform:"capitalize",fontFamily:"inherit"}}>{t}</button>
+      {/* ── SUB-TABS — scrollable on mobile ── */}
+      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${G2}`,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        {[["💰","financial"],["🛏️","occupancy"],["📍","location"],["📤","expenses"],["📋","bookings"]].map(([icon,t])=>(
+          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 14px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:`3px solid ${rt===t?M:"transparent"}`,textTransform:"capitalize",fontFamily:"inherit",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+            <span>{icon}</span><span>{t}</span>
+          </button>
         ))}
       </div>
 
@@ -3204,7 +3269,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
+        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
         {locs.map(loc => {
@@ -3253,6 +3318,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
           {(form.city === "__other__" || (form.country && !COUNTRY_CITIES[form.country]?.includes(form.city) && form.city && form.city !== "")) && (
             <Inp label="City Name" value={form.city === "__other__" ? "" : form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Enter city name" />
           )}
+          <Inp label="Phone" value={form.phone||""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX XXX XXX" />
           <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="e.g. Masaki Peninsula, Plot 12" />
           <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
