@@ -2448,11 +2448,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                       <button onClick={()=>{
                         const base = storeSlug ? "https://"+storeSlug+".bnbmis.com" : "https://bnbmis.com";
                         const url  = base+"?room="+rm.id;
-                        const text = "🛏️ "+rm.name+"
-📍 "+(locs.find(l=>l.id===rm.locId)?.name||"")+"
-💰 TZS "+Number(rm.price).toLocaleString()+"/night
-
-Book here: "+url;
+                        const text = "🛏️ "+rm.name+"\n📍 "+(locs.find(l=>l.id===rm.locId)?.name||"")+"\n💰 TZS "+Number(rm.price).toLocaleString()+"/night\n\nBook here: "+url;
                         if (navigator.share) { navigator.share({ title:rm.name, text, url }).catch(()=>{}); }
                         else { navigator.clipboard?.writeText(text).then(()=>pop("Link copied!")).catch(()=>pop(url)); }
                       }} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${IN}`, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit" }}>📤</button>
