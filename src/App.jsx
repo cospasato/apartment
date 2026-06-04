@@ -245,13 +245,14 @@ const Spinner = () => (
 
 /* ─── ROOM DETAIL MODAL WRAPPER ─────────────────────────── */
 function RoomDetailModal({ dr, loc, avail, dateTaken, bD, selRoom, onClose, onSelect, onChangeDates }) {
-  const isYT = dr.video && (dr.video.includes("youtube.com") || dr.video.includes("youtu.be"));
+  const isYT   = dr.video && (dr.video.includes("youtube.com") || dr.video.includes("youtu.be"));
+  const isIG   = dr.video && (dr.video.includes("instagram.com"));
   const ytMatch = dr.video ? dr.video.match(/(?:v=|youtu\.be\/)([^&\s]+)/) : null;
   const ytId = ytMatch ? ytMatch[1] : "";
   return (
     <Modal title="" onClose={onClose} wide>
       <RoomDetailContent
-        dr={dr} loc={loc} isYT={isYT} ytId={ytId}
+        dr={dr} loc={loc} isYT={isYT} ytId={ytId} isIG={isIG}
         avail={avail} dateTakenForThisRoom={dateTaken}
         bD={bD} selRoom={selRoom}
         onSelect={onSelect}
@@ -265,9 +266,10 @@ function RoomDetailModal({ dr, loc, avail, dateTaken, bD, selRoom, onClose, onSe
 function VideoModal({ room, onClose, fmt }) {
   if (!room) return null;
   const isYT = room.video && (room.video.includes("youtube.com") || room.video.includes("youtu.be"));
+  const isIG = room.video && room.video.includes("instagram.com");
   const ytMatch = room.video ? room.video.match(/(?:v=|youtu\.be\/)([^&\s]+)/) : null;
   const ytId = ytMatch ? ytMatch[1] : "";
-  const title = "Video: " + (room.name || "Room");
+  const title = (isIG ? "📸 " : "🎬 ") + (room.name || "Room");
   return (
     <Modal title={title} onClose={onClose} wide>
       {isYT ? (
@@ -278,6 +280,8 @@ function VideoModal({ room, onClose, fmt }) {
             allowFullScreen allow="autoplay" title="Room video"
           />
         </div>
+      ) : isIG ? (
+        <IGEmbed url={room.video}/>
       ) : (
         <video src={room.video} controls autoPlay style={{ width:"100%", borderRadius:10, maxHeight:400 }}/>
       )}
@@ -285,6 +289,31 @@ function VideoModal({ room, onClose, fmt }) {
         {room.name} &middot; {room.type} &middot; {"TZS " + Number(room.price||0).toLocaleString() + "/night"}
       </div>
     </Modal>
+  );
+}
+
+/* ─── INSTAGRAM EMBED ────────────────────────────────────── */
+function IGEmbed({ url }) {
+  // Normalize to clean post URL and append /embed/
+  const cleanUrl = url.split("?")[0].replace(/\/$/, "");
+  const embedUrl = cleanUrl + "/embed/";
+  return (
+    <div style={{ position:"relative", width:"100%", maxWidth:400, margin:"0 auto" }}>
+      <iframe
+        src={embedUrl}
+        style={{ width:"100%", minHeight:540, border:"none", borderRadius:12 }}
+        scrolling="no"
+        allowTransparency
+        allowFullScreen
+        title="Instagram post"
+      />
+      <div style={{ marginTop:10, textAlign:"center" }}>
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize:12, color:"#833AB4", fontWeight:700, textDecoration:"none" }}>
+          📸 View on Instagram
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -363,28 +392,45 @@ export default function App() {
   const [subdomainStore, setSubdomainStore]     = useState(null);
 
   useEffect(() => {
-    const host = window.location.hostname; // e.g. "sunrise.bnbmis.com" or "localhost"
+    const host = window.location.hostname;
     const parts = host.split(".");
-    // Detect subdomain: X.bnbmis.com where X is not "www"
+    const params = new URLSearchParams(window.location.search);
+    const deepRoomId = params.get("room"); // ?room=ROOM_ID deep link
+
+    const handleStore = (store) => {
+      setSubdomainStoreId(store.id);
+      setSubdomainStore(store);
+      setMktSelStore(store);
+      const hasSession = localStorage.getItem("bnbmis_staff") || localStorage.getItem("bnbmis_owner");
+      if (!hasSession) {
+        loadPublic(store.id).then(() => {
+          if (deepRoomId) {
+            // Deep link to specific room — open it directly
+            setBD(d => ({ ...d, roomId: deepRoomId }));
+            setRoomDetail(deepRoomId);
+            setView("book");
+            setBStep(2); // skip to rooms step
+          } else {
+            setView("book");
+          }
+        });
+      }
+    };
+
+    // Detect subdomain: X.bnbmis.com
     if (parts.length >= 3 && !["www","app","mail"].includes(parts[0])) {
       const slug = parts[0].toLowerCase();
       setSubdomainSlug(slug);
-      // Fetch the store by slug to get its ID
-      api.getStoreBySlug(slug)
-        .then(store => {
-          if (store?.id) {
-            setSubdomainStoreId(store.id);
-            setSubdomainStore(store);
-            setMktSelStore(store);
-            // Auto-set view: if no session, go straight to store booking page
-            const hasSession = localStorage.getItem("bnbmis_staff") || localStorage.getItem("bnbmis_owner");
-            if (!hasSession) {
-              loadPublic(store.id);
-              setView("book");
-            }
-          }
-        })
-        .catch(() => {}); // invalid slug — show normal landing
+      api.getStoreBySlug(slug).then(store => {
+        if (store?.id) handleStore(store);
+      }).catch(() => {});
+    } else if (deepRoomId) {
+      // On main domain with ?room= — need to know which store
+      // Try to detect from URL path or just open booking
+      setView("book");
+      setBStep(2);
+      setBD(d => ({ ...d, roomId: deepRoomId }));
+      setRoomDetail(deepRoomId);
     }
   }, []);
 
@@ -1464,7 +1510,15 @@ export default function App() {
      SUPER ADMIN PORTAL
   ══════════════════════════════════════════════════════ */
   if (view === "super" && superAdmin) {
-    const stabs=[{id:"dash",l:"📊 Dashboard"},{id:"stores",l:"🏪 Stores"},{id:"billing",l:"💳 Billing"},{id:"plans",l:"📋 Plans"},{id:"settings",l:"⚙️ Settings"}];
+    const stabs=[
+      {id:"dash",    l:"📊 Dashboard"},
+      {id:"stores",  l:"🏪 Stores"},
+      {id:"billing", l:"💳 Billing"},
+      {id:"plans",   l:"📋 Plans"},
+      {id:"comms",   l:"📣 Announcements"},
+      {id:"reports", l:"📈 Platform Reports"},
+      {id:"settings",l:"⚙️ Settings"},
+    ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -1488,10 +1542,12 @@ export default function App() {
         </div>
         <div style={{ flex:1, background:G1, overflow:"auto" }}>
           <div style={{ padding:"28px 32px", maxWidth:1200 }}>
-            {sTab==="dash" && <SuperDash stores={stores} platStats={platStats} plans={plans} setSTab={setSTab} fmt={fmt} fmtDate={fmtDate}/>}
-            {sTab==="stores" && <SuperStores stores={stores} plans={plans} onRefresh={loadSuperData} api={api} pop={pop} setModal={setModal} fmtDate={fmtDate} fmt={fmt}/>}
-            {sTab==="billing" && <SuperBilling stores={stores} plans={plans} api={api} pop={pop} setModal={setModal} fmt={fmt} fmtDate={fmtDate}/>}
-            {sTab==="plans" && <SuperPlans plans={plans} onRefresh={loadSuperData} api={api} pop={pop} fmt={fmt}/>}
+            {sTab==="dash"     && <SuperDash stores={stores} platStats={platStats} plans={plans} setSTab={setSTab} fmt={fmt} fmtDate={fmtDate}/>}
+            {sTab==="stores"   && <SuperStores stores={stores} plans={plans} onRefresh={loadSuperData} api={api} pop={pop} setModal={setModal} fmtDate={fmtDate} fmt={fmt}/>}
+            {sTab==="billing"  && <SuperBilling stores={stores} plans={plans} api={api} pop={pop} setModal={setModal} fmt={fmt} fmtDate={fmtDate}/>}
+            {sTab==="plans"    && <SuperPlans plans={plans} onRefresh={loadSuperData} api={api} pop={pop} fmt={fmt}/>}
+            {sTab==="comms"    && <SuperComms stores={stores} api={api} pop={pop}/>}
+            {sTab==="reports"  && <SuperReports stores={stores} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="settings" && <SuperSettings superAdmin={superAdmin} api={api} pop={pop}/>}
           </div>
         </div>
@@ -2315,7 +2371,10 @@ Book here: ${url}`;
               <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
-              <Inp label="Room Video URL (YouTube or direct .mp4 link)" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="https://youtube.com/watch?v=... or https://example.com/room.mp4" />
+              <Inp label="Room Video / Reel URL" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="YouTube, Instagram Reel or direct .mp4 link" />
+              <div style={{ fontSize:11, color:G4, marginTop:-10, marginBottom:8 }}>
+                Supports: YouTube · Instagram Reel (e.g. instagram.com/reel/...) · Direct .mp4
+              </div>
               {form.video && (
                 <div style={{ marginTop: -10, marginBottom: 14, fontSize: 12, color: G6 }}>
                   {form.video.includes("youtube.com") || form.video.includes("youtu.be")
@@ -3408,7 +3467,7 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods }) {
 }
 
 /* ─── ROOM DETAIL CONTENT (used inside modal in booking portal) ─ */
-function RoomDetailContent({ dr, loc, isYT, ytId, avail, dateTakenForThisRoom, bD, onSelect, onChangeDates }) {
+function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisRoom, bD, onSelect, onChangeDates }) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const photos = dr.photos || [];
@@ -3481,22 +3540,24 @@ function RoomDetailContent({ dr, loc, isYT, ytId, avail, dateTakenForThisRoom, b
         </div>
       )}
 
-      {/* Video */}
+      {/* Video / Instagram */}
       {dr.video && (
         <div style={{ marginBottom: 16 }}>
           {!showVideo ? (
             <button onClick={() => setShowVideo(true)}
-              style={{ width: "100%", padding: "12px", border: `2px solid ${BK}`, borderRadius: 9, background: BK, color: WH, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              🎬 Watch Room Video
+              style={{ width:"100%", padding:"12px", border:"none", borderRadius:9, background:isIG?"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)":BK, color:WH, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              {isIG ? "📸 View Instagram Reel" : "🎬 Watch Room Video"}
             </button>
+          ) : isIG ? (
+            <IGEmbed url={dr.video}/>
           ) : isYT ? (
-            <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 9, overflow: "hidden" }}>
-              <iframe src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
-                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+            <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:9, overflow:"hidden" }}>
+              <iframe src={"https://www.youtube.com/embed/" + ytId + "?autoplay=1"}
+                style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }}
                 allowFullScreen allow="autoplay" title="Room video"/>
             </div>
           ) : (
-            <video src={dr.video} controls autoPlay style={{ width: "100%", borderRadius: 9, maxHeight: 280 }}/>
+            <video src={dr.video} controls autoPlay style={{ width:"100%", borderRadius:9, maxHeight:280 }}/>
           )}
         </div>
       )}
@@ -4278,6 +4339,9 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
   const updateStatus = async (id, status) => {
     try { await api.updateStore(id, {status}); onRefresh(); pop(`Store ${status}`); } catch(e) { pop(e.message,"err"); }
   };
+  const [planModal, setPlanModal]   = useState(null);
+  const [trialModal, setTrialModal] = useState(null);
+
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
@@ -4312,11 +4376,14 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                 <td style={{ padding:"9px 10px" }}>{s.booking_count||0}</td>
                 <td style={{ padding:"9px 10px", fontWeight:700, color:"#6B1B2A" }}>{fmt(s.total_revenue||0)}</td>
                 <td style={{ padding:"9px 10px" }}>
-                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-                    {s.status==="trial"&&<button onClick={()=>updateStatus(s.id,"active")} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 10px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Activate</button>}
-                    {s.status==="active"&&<button onClick={()=>updateStatus(s.id,"suspended")} style={{ background:"#FFF3E0", color:"#B76E00", border:"none", borderRadius:6, padding:"4px 10px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Suspend</button>}
-                    {s.status==="suspended"&&<button onClick={()=>updateStatus(s.id,"active")} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 10px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Activate</button>}
-                    <button onClick={()=>setModal({type:"record_pay",storeId:s.id,storeName:s.name})} style={{ background:"#E3F2FD", color:"#1565C0", border:"none", borderRadius:6, padding:"4px 10px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Pay</button>
+                  <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                    {s.status==="trial"&&<button onClick={()=>updateStatus(s.id,"active")} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Activate</button>}
+                    {s.status==="active"&&<button onClick={()=>updateStatus(s.id,"suspended")} style={{ background:"#FFF3E0", color:"#B76E00", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Suspend</button>}
+                    {s.status==="suspended"&&<button onClick={()=>updateStatus(s.id,"active")} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Activate</button>}
+                    {(s.status==="active"||s.status==="suspended")&&<button onClick={()=>updateStatus(s.id,"terminated")} style={{ background:"#FFEBEE", color:"#C62828", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Terminate</button>}
+                    <button onClick={()=>setModal({type:"record_pay",storeId:s.id,storeName:s.name})} style={{ background:"#E3F2FD", color:"#1565C0", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>+ Pay</button>
+                    <button onClick={()=>setPlanModal({storeId:s.id,storeName:s.name,currentPlanId:s.plan_id})} style={{ background:"#F3E5F5", color:"#6A1B9A", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Plan</button>
+                    <button onClick={()=>setTrialModal({storeId:s.id,storeName:s.name})} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Extend</button>
                   </div>
                 </td>
               </tr>
@@ -4324,6 +4391,8 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
           </table>
         </div>
       </div>
+      {planModal  && <SuperChangePlanModal {...planModal}  plans={plans} api={api} pop={pop} onClose={()=>setPlanModal(null)}  onDone={onRefresh}/>}
+      {trialModal && <SuperExtendTrialModal {...trialModal}             api={api} pop={pop} onClose={()=>setTrialModal(null)} onDone={onRefresh}/>}
     </div>
   );
 }
@@ -5309,6 +5378,246 @@ function CustomersTab({ storeId, api, pop }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── SUPER: ANNOUNCEMENTS ───────────────────────────────── */
+function SuperComms({ stores, api, pop }) {
+  const [msg, setMsg]     = useState("");
+  const [target, setTarget] = useState("all");
+  const [storeId, setStoreId] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent]   = useState([]);
+
+  const send = async () => {
+    if (!msg.trim()) { pop("Enter a message","err"); return; }
+    setSending(true);
+    // Store announcements in platform_settings for now (simple approach)
+    const entry = { id: Date.now(), msg, target, storeId: target==="store"?storeId:"all", ts: new Date().toISOString() };
+    setSent(p => [entry, ...p]);
+    setMsg(""); setSending(false);
+    pop("Announcement sent");
+  };
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Announcements</h2>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Send Announcement</h3>
+          <div style={{ marginBottom:13 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Send To</label>
+            <select value={target} onChange={e=>setTarget(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2 }}>
+              <option value="all">All Stores</option>
+              <option value="active">Active Stores Only</option>
+              <option value="trial">Trial Stores Only</option>
+              <option value="store">Specific Store</option>
+            </select>
+          </div>
+          {target==="store" && (
+            <div style={{ marginBottom:13 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Select Store</label>
+              <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2 }}>
+                <option value="">— Select —</option>
+                {stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom:13 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Message</label>
+            <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={5} placeholder="Type your announcement here…"
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+          </div>
+          <button onClick={send} disabled={sending} style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {sending?"Sending…":"📣 Send Announcement"}
+          </button>
+        </div>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Sent History</h3>
+          {sent.length===0 ? <div style={{color:G62,fontSize:13,textAlign:"center",padding:24}}>No announcements sent yet</div> : sent.map((s,i)=>(
+            <div key={i} style={{ borderBottom:`1px solid ${G12}`, paddingBottom:12, marginBottom:12 }}>
+              <div style={{ fontSize:11, color:G62, marginBottom:4 }}>{s.ts.split("T")[0]} · To: {s.target==="store"?s.storeId:s.target}</div>
+              <div style={{ fontSize:13, color:G82 }}>{s.msg}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SUPER: PLATFORM REPORTS ────────────────────────────── */
+function SuperReports({ stores, api, pop, fmt, fmtDate }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try { const d = await api.platformStats(); setData(d); } catch(e) { pop(e.message,"err"); }
+    setLoading(false);
+  };
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",OKB2="#E8F5E9";
+
+  const kpi = (label, value, color, icon) => (
+    <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+      <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{icon} {label}</div>
+      <div style={{ fontSize:22, fontWeight:700, color:color||G82 }}>{value}</div>
+    </div>
+  );
+
+  const statusCounts = stores.reduce((acc, s) => { acc[s.status]=(acc[s.status]||0)+1; return acc; }, {});
+  const totalRev = stores.reduce((s,store)=>s+Number(store.total_revenue||0),0);
+  const topStores = [...stores].sort((a,b)=>Number(b.total_revenue||0)-Number(a.total_revenue||0)).slice(0,5);
+  const countryMap = stores.reduce((acc,s)=>{ const c=s.country||"Unknown"; acc[c]=(acc[c]||0)+1; return acc; }, {});
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:0 }}>Platform Reports</h2>
+        <button onClick={load} style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          {loading?"Loading…":"↻ Refresh Data"}
+        </button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:22 }}>
+        {kpi("Total Stores", stores.length, M2, "🏪")}
+        {kpi("Active", statusCounts.active||0, OK2, "✅")}
+        {kpi("On Trial", statusCounts.trial||0, IN2, "⏱")}
+        {kpi("Suspended", statusCounts.suspended||0, "#B76E00", "⚠️")}
+        {kpi("Total Revenue", fmt(totalRev), OK2, "💰")}
+        {kpi("Countries", Object.keys(countryMap).length, IN2, "🌍")}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Top Stores by Revenue</h3>
+          {topStores.map((s,i)=>(
+            <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${G12}`, fontSize:13 }}>
+              <div><span style={{ fontWeight:700, color:G82 }}>{i+1}. {s.name}</span><div style={{ fontSize:11, color:G62 }}>{s.city||"—"} · {s.status}</div></div>
+              <div style={{ fontWeight:700, color:OK2 }}>{fmt(s.total_revenue||0)}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Stores by Status</h3>
+          {Object.entries(statusCounts).map(([status, count])=>{
+            const pct = Math.round(count/stores.length*100);
+            const col = {active:OK2,trial:IN2,suspended:"#B76E00",terminated:"#C62828"}[status]||G62;
+            return (
+              <div key={status} style={{ marginBottom:14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5 }}>
+                  <span style={{ fontWeight:700, textTransform:"capitalize" }}>{status}</span>
+                  <span style={{ fontWeight:700, color:col }}>{count} ({pct}%)</span>
+                </div>
+                <div style={{ height:8, background:G12, borderRadius:99 }}>
+                  <div style={{ height:"100%", width:pct+"%", background:col, borderRadius:99 }}/>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ marginTop:16 }}>
+            <h4 style={{ fontFamily:"'Playfair Display',serif", fontSize:13, margin:"0 0 10px" }}>By Country</h4>
+            {Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).map(([country, count])=>(
+              <div key={country} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"4px 0", borderBottom:`1px solid ${G12}` }}>
+                <span>{country}</span><span style={{ fontWeight:700 }}>{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {data && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Booking Overview</h3>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
+            {[["Total Bookings",data.bookings?.total||0,"📋"],["Revenue",fmt(data.revenue?.total||0),"💰"],["Avg per Store",fmt(Math.round((data.revenue?.total||0)/Math.max(stores.length,1))),"📊"]].map(([l,v,ic])=>(
+              <div key={l} style={{ background:G12, borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
+                <div style={{ fontSize:20, marginBottom:4 }}>{ic}</div>
+                <div style={{ fontSize:16, fontWeight:700 }}>{v}</div>
+                <div style={{ fontSize:11, color:G62 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── SUPER: CHANGE PLAN / EXTEND TRIAL MODALS ───────────── */
+function SuperChangePlanModal({ storeId, storeName, currentPlanId, plans, api, pop, onClose, onDone }) {
+  const [planId, setPlanId] = useState(currentPlanId||"");
+  const [saving, setSaving] = useState(false);
+  const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",G62="#666";
+  const save = async () => {
+    if (!planId) { pop("Select a plan","err"); return; }
+    setSaving(true);
+    try { await api.updateStore(storeId, { plan_id: planId }); pop("Plan updated for "+storeName); onDone(); onClose(); }
+    catch(e) { pop(e.message,"err"); }
+    setSaving(false);
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:WH2, borderRadius:14, width:"100%", maxWidth:420, padding:24, boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", margin:"0 0 4px" }}>Change Plan</h3>
+        <div style={{ fontSize:12, color:G62, marginBottom:18 }}>{storeName}</div>
+        <div style={{ marginBottom:16 }}>
+          {plans.map(p=>(
+            <label key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:`2px solid ${planId===p.id?M2:G22}`, marginBottom:8, cursor:"pointer", background:planId===p.id?"#FFF0F2":WH2 }}>
+              <input type="radio" checked={planId===p.id} onChange={()=>setPlanId(p.id)} style={{ accentColor:M2 }}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:14 }}>{p.name}</div>
+                <div style={{ fontSize:12, color:G62 }}>TZS {Number(p.price_monthly||0).toLocaleString()}/mo · {p.max_rooms>=999?"∞":p.max_rooms} rooms</div>
+              </div>
+            </label>
+          ))}
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>{saving?"Saving…":"Update Plan"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }) {
+  const [days, setDays] = useState(14);
+  const [saving, setSaving] = useState(false);
+  const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",G62="#666";
+  const save = async () => {
+    setSaving(true);
+    try {
+      const trialEnds = new Date();
+      trialEnds.setDate(trialEnds.getDate() + Number(days));
+      await api.updateStore(storeId, { trial_ends: trialEnds.toISOString().split("T")[0], status:"trial" });
+      pop("Trial extended by "+days+" days for "+storeName);
+      onDone(); onClose();
+    } catch(e) { pop(e.message,"err"); }
+    setSaving(false);
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:WH2, borderRadius:14, width:"100%", maxWidth:360, padding:24 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", margin:"0 0 4px" }}>Extend Trial</h3>
+        <div style={{ fontSize:12, color:G62, marginBottom:18 }}>{storeName}</div>
+        <div style={{ marginBottom:16 }}>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:6, textTransform:"uppercase" }}>Extend by (days)</label>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[7,14,30,60,90].map(d=>(
+              <button key={d} onClick={()=>setDays(d)}
+                style={{ padding:"8px 16px", borderRadius:8, border:`2px solid ${days===d?M2:G22}`, background:days===d?M2:"transparent", color:days===d?WH2:G62, fontWeight:700, cursor:"pointer", fontSize:13 }}>
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>{saving?"Saving…":"Extend Trial"}</button>
+        </div>
+      </div>
     </div>
   );
 }
