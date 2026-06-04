@@ -602,49 +602,114 @@ export default function App() {
 
   // ── BOOKING NOTIFICATIONS ──
   const notifPermission = useRef("default");
-  const lastBookCount   = useRef(0);
+  const lastBookCount   = useRef(-1); // -1 = first load, don't fire yet
+
+  // ── Web Audio chime (no file needed, works on all devices) ──
+  const playNotifSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const tone = (freq, start, dur, vol = 0.35) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = "sine"; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(vol, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        osc.start(start); osc.stop(start + dur);
+      };
+      const t = ctx.currentTime;
+      tone(880,  t,        0.18);  // A5
+      tone(1108, t + 0.16, 0.20); // C#6
+      tone(1318, t + 0.32, 0.38); // E6  — pleasant major arpeggio
+      setTimeout(() => ctx.close(), 1200);
+    } catch(e) {}
+  }, []);
 
   const requestNotifPermission = async () => {
-    if (!("Notification" in window)) return "denied";
+    if (!("Notification" in window)) {
+      pop("Notifications not supported on this browser", "err");
+      return "denied";
+    }
     const perm = await Notification.requestPermission();
     notifPermission.current = perm;
-    if (perm === "granted") pop("Notifications enabled! You will be alerted for new bookings.", "ok");
+    if (perm === "granted") {
+      playNotifSound();
+      pop("🔔 Notifications ON — you will be alerted for every new booking!", "ok");
+    } else {
+      pop("Notifications blocked. Go to browser Settings → Site Settings to enable.", "err");
+    }
     return perm;
   };
 
   const sendBookingNotif = useCallback((booking) => {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    try {
-      const n = new Notification("New Booking — " + (booking?.gName || booking?.guest_name || "Guest"), {
-        body: "Check-in: " + (booking?.ci || booking?.check_in || "—") + "  |  Total: TZS " + Number(booking?.total || booking?.total_amount || 0).toLocaleString(),
-        icon: "/icons/icon-192.png",
-        badge: "/icons/icon-72.png",
-        tag: "booking-" + (booking?.id || Date.now()),
-      });
-      n.onclick = () => { window.focus(); n.close(); };
-    } catch(e) {}
-  }, []);
+    // 1. Always play sound (works even without OS notification permission)
+    playNotifSound();
 
-  // Poll for new pending bookings every 60 seconds
+    // 2. In-app banner — always shown
+    const gName = booking?.gName || booking?.guest_name || "Guest";
+    const ci    = booking?.ci    || booking?.check_in   || "—";
+    const total = Number(booking?.total || booking?.total_amount || 0).toLocaleString();
+    pop("🛎️ New booking — " + gName + "  · Check-in " + ci + "  · TZS " + total, "ok");
+
+    // 3. OS push notification — persistent, shows even when app is in background
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const title = "🛎️ New Booking!";
+        const body  = "Guest: " + gName + "
+Check-in: " + ci + "
+Total: TZS " + total;
+        const opts  = {
+          body,
+          icon:    "/icons/icon-192.png",
+          badge:   "/icons/icon-72.png",
+          tag:     "booking-" + (booking?.id || Date.now()),
+          vibrate: [200, 80, 200, 80, 400],
+          requireInteraction: true,   // stays on screen until dismissed
+          actions: [
+            { action: "open",    title: "View Booking" },
+            { action: "dismiss", title: "Dismiss" },
+          ],
+        };
+        // ServiceWorker notification — shows even when browser is minimised
+        if (navigator.serviceWorker?.controller) {
+          navigator.serviceWorker.ready
+            .then(reg => reg.showNotification(title, opts))
+            .catch(() => new Notification(title, opts));
+        } else {
+          const n = new Notification(title, opts);
+          n.onclick = () => { window.focus(); n.close(); };
+        }
+      } catch(e) {}
+    }
+  }, [playNotifSound]);
+
+  // ── Poll every 20 seconds for new bookings ──
   useEffect(() => {
     const sid = owner?.store?.id || user?.storeId;
     if (!sid) return;
-    if (owner && Notification.permission === "default") {
-      setTimeout(() => requestNotifPermission(), 4000);
+    // Ask for permission shortly after login
+    if (Notification.permission === "default") {
+      setTimeout(() => requestNotifPermission(), 3000);
     }
     const poll = setInterval(async () => {
       try {
         const fresh = await api.getBookings(sid);
-        const pendingCount = fresh.filter(b => b.status === "pending").length;
-        if (lastBookCount.current > 0 && pendingCount > lastBookCount.current) {
-          const diff = pendingCount - lastBookCount.current;
-          pop(diff + " new booking" + (diff > 1 ? "s" : "") + " received!", "ok");
-          fresh.filter(b => b.status === "pending").slice(0, diff).forEach(b => sendBookingNotif(b));
+        const pending = fresh.filter(b => b.status === "pending");
+        const count   = pending.length;
+        if (lastBookCount.current === -1) {
+          // First load — just record baseline
+          lastBookCount.current = count;
+          return;
+        }
+        if (count > lastBookCount.current) {
+          const diff = count - lastBookCount.current;
+          // Notify for each new booking individually
+          pending.slice(-diff).forEach(b => sendBookingNotif(b));
           setBooks(fresh.map(mapBook));
         }
-        lastBookCount.current = pendingCount;
+        lastBookCount.current = count;
       } catch {}
-    }, 60000);
+    }, 20000); // every 20 seconds
     return () => clearInterval(poll);
   }, [owner?.store?.id, user?.storeId, sendBookingNotif]);
 
@@ -783,6 +848,8 @@ export default function App() {
 
   const isAvailableForDates = (roomId) => {
     if (!bD.ci || !bD.co) return true;
+    // Checkout is always 12:00 — so checkout day == next checkin day is NOT a conflict.
+    // Strict > on b.co means: if existing checkout = new checkin, no conflict (room free by noon).
     return !(bookedDates[roomId]||[]).some(b => b.ci < bD.co && b.co > bD.ci);
   };
 
@@ -1337,15 +1404,25 @@ export default function App() {
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select Your Dates</h2>
             <p style={{ color: G6, marginBottom: 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
             <Card>
+              <div style={{ fontSize: 12, color: G6, marginBottom: 14, background: G1, borderRadius: 8, padding: "8px 12px" }}>
+                ℹ️ Check-in from <strong>14:00</strong> · Checkout by <strong>12:00 noon</strong> — room available again from checkout day
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <Inp label="Check-in Date" type="date" value={bD.ci} min={td()}
-                  onChange={e => { const ci = e.target.value; const n = bD.co ? dd(ci, bD.co) : 1; setBD(d => ({ ...d, ci, nights: n, roomId: "" })); }} />
-                <Inp label="Check-out Date" type="date" value={bD.co} min={bD.ci || td()}
+                  onChange={e => {
+                    const ci = e.target.value;
+                    const minCo = ci ? new Date(new Date(ci).getTime()+86400000).toISOString().split("T")[0] : "";
+                    const co = bD.co > ci ? bD.co : minCo;
+                    const n = co ? dd(ci, co) : 1;
+                    setBD(d => ({ ...d, ci, co, nights: n, roomId: "" }));
+                  }} />
+                <Inp label="Check-out Date (12:00)" type="date" value={bD.co}
+                  min={bD.ci ? new Date(new Date(bD.ci).getTime()+86400000).toISOString().split("T")[0] : td()}
                   onChange={e => { const co = e.target.value; const n = bD.ci ? dd(bD.ci, co) : 1; setBD(d => ({ ...d, co, nights: n, roomId: "" })); }} />
               </div>
               {bD.ci && bD.co && (
                 <div style={{ background: MF, borderRadius: 8, padding: 13, marginTop: 4, fontSize: 14, color: M, fontWeight: 700 }}>
-                  📅 {bD.nights} night{bD.nights > 1 ? "s" : ""} · {bD.ci} → {bD.co}
+                  📅 {bD.nights} night{bD.nights > 1 ? "s" : ""} · Check-in {bD.ci} · Checkout {bD.co} by 12:00
                 </div>
               )}
             </Card>
@@ -3627,8 +3704,13 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
         <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value, roomId: "" }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
         <Sel label="Room" value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}><option value="">Select room…</option>{lr.map(r => <option key={r.id} value={r.id}>{r.name} — {fmt(r.price)}/night</option>)}</Sel>
-        <Inp label="Check-in" type="date" value={form.ci} min={td()} onChange={e => setForm(f => ({ ...f, ci: e.target.value }))} />
-        <Inp label="Check-out" type="date" value={form.co} min={form.ci} onChange={e => setForm(f => ({ ...f, co: e.target.value }))} />
+        <Inp label="Check-in" type="date" value={form.ci} min={td()} onChange={e => {
+          const ci = e.target.value;
+          // Auto-set checkout to next day (minimum 1 night, checkout 12:00)
+          const auto_co = ci ? new Date(new Date(ci).getTime() + 86400000).toISOString().split("T")[0] : "";
+          setForm(f => ({ ...f, ci, co: f.co && f.co > ci ? f.co : auto_co }));
+        }} />
+        <Inp label="Check-out (12:00 noon)" type="date" value={form.co} min={form.ci ? new Date(new Date(form.ci).getTime()+86400000).toISOString().split("T")[0] : td()} onChange={e => setForm(f => ({ ...f, co: e.target.value }))} />
         <Inp label="Guest Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
         <Inp label="Phone *" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
         <Inp label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />

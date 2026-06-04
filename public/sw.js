@@ -102,3 +102,40 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
+
+// ── Handle notification click actions ──
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  // Open or focus the app window
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      // If app is already open, focus it
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      return clients.openWindow('/');
+    })
+  );
+});
+
+// ── Handle push events (for future server-side push) ──
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  try {
+    const data = event.data.json();
+    event.waitUntil(
+      self.registration.showNotification(data.title || '🛎️ New Booking!', {
+        body:    data.body || 'A new booking has been received.',
+        icon:    '/icons/icon-192.png',
+        badge:   '/icons/icon-72.png',
+        vibrate: [200, 80, 200, 80, 400],
+        requireInteraction: true,
+        tag:     data.tag || 'bnbmis-booking',
+      })
+    );
+  } catch(e) {}
+});

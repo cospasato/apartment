@@ -43,6 +43,7 @@ module.exports = async function handler(req, res) {
         SELECT id, check_in, check_out, status FROM bookings
         WHERE room_id = ${check_room}
           AND status NOT IN ('cancelled','checkedOut')
+          -- Checkout is always 12:00 noon. check_out > ci means same-day checkout/checkin is allowed.
           AND check_in < ${co} AND check_out > ${ci}
       `;
       return res.status(200).json({ available: conflicts.length === 0, conflicts });
