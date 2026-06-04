@@ -1643,13 +1643,13 @@ export default function App() {
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin"/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
         {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
-        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop}/>}
+        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop} storeName={owner?.store?.name}/>}
         {!loading && aTab==="share"     && <ShareStoreTab owner={owner} storeId={sid} rooms={rooms} locs={locs} pop={pop}/>}
         {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
         {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
@@ -1733,13 +1733,13 @@ export default function App() {
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
-      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
       {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
       {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
       {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={user?.storeId} api={api} pop={pop}/>}
-      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop}/>}
+      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={user?.storeId} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="profile"   && <ProfileTab user={user} updateProfile={updateProfile}/>}
     </>
@@ -2032,8 +2032,8 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:2}
       @media print{.no-print{display:none}}
     </style></head><body>
-    <div class="logo">BNBMIS</div>
-    <div class="sub">BNB Management Information System</div>
+    <div class="logo">${storeName||"Property"}</div>
+    <div class="sub">Powered by BNBMIS</div>
     <hr/>
     <div class="title">${docType}</div>
     <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||"").split("T")[0]||""} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
@@ -2075,7 +2075,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     </div>
     <div class="footer">
       Thank you for choosing us!<br/>
-      BNBMIS · support@bnbmis.com · bnbmis.com
+      ${storeName||"Property"} · bnbmis.com
     </div>
     <br/>
     <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
@@ -2603,7 +2603,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole }) {
+function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
@@ -5911,7 +5911,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
 }
 
 /* ─── RECEIPTS TAB ───────────────────────────────────────── */
-function ReceiptsTab({ books, rooms, locs, user, pop }) {
+function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState("all"); // all | paid | balance | checkedIn
   const [selBook, setSelBook] = useState(null);
@@ -5977,7 +5977,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop }) {
 </style></head><body>
 <div class="page">
   <div class="header">
-    <div><div class="logo">BNBMIS</div><div class="logo-sub">BNB Management Information System</div></div>
+    <div><div class="logo">${storeName||"Property"}</div><div class="logo-sub">Powered by BNBMIS</div></div>
     <div class="doc-type">
       <h1>${docType}</h1>
       <div class="ref">Ref: ${b.id}</div>
@@ -6035,6 +6035,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop }) {
   <div class="footer">
     Thank you for choosing us! We hope to see you again.<br/>
     <strong>BNBMIS</strong> · support@bnbmis.com · bnbmis.com<br/>
+    ${storeName||"Property"} · bnbmis.com<br/>
     This ${docType.toLowerCase()} was generated on ${new Date().toLocaleString()}
   </div>
 
