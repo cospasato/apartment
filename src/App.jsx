@@ -601,117 +601,170 @@ export default function App() {
   const pop = (msg, t="ok") => { setToast({msg,t}); setTimeout(()=>setToast(null),3200); };
 
   // ── BOOKING NOTIFICATIONS ──
-  const notifPermission = useRef("default");
-  const lastBookCount   = useRef(-1); // -1 = first load, don't fire yet
+  const lastBookCount      = useRef(-1);
+  const lastBookIds        = useRef(new Set());
+  const [notifInbox, setNotifInbox] = useState([]);   // in-app notification inbox
+  const [notifOpen, setNotifOpen]   = useState(false); // inbox panel open
 
-  // ── Web Audio chime (no file needed, works on all devices) ──
+  // ── Rich chime sound via Web Audio (no file needed) ──
   const playNotifSound = useCallback(() => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const tone = (freq, start, dur, vol = 0.35) => {
-        const osc = ctx.createOscillator(), g = ctx.createGain();
+      const tone = (freq, start, dur, vol = 0.4, type = "sine") => {
+        const osc = ctx.createOscillator();
+        const g   = ctx.createGain();
         osc.connect(g); g.connect(ctx.destination);
-        osc.type = "sine"; osc.frequency.value = freq;
+        osc.type = type; osc.frequency.value = freq;
         g.gain.setValueAtTime(0, start);
-        g.gain.linearRampToValueAtTime(vol, start + 0.02);
+        g.gain.linearRampToValueAtTime(vol, start + 0.025);
         g.gain.exponentialRampToValueAtTime(0.001, start + dur);
-        osc.start(start); osc.stop(start + dur);
+        osc.start(start); osc.stop(start + dur + 0.05);
       };
       const t = ctx.currentTime;
-      tone(880,  t,        0.18);  // A5
-      tone(1108, t + 0.16, 0.20); // C#6
-      tone(1318, t + 0.32, 0.38); // E6  — pleasant major arpeggio
-      setTimeout(() => ctx.close(), 1200);
+      // Doorbell: ding dong
+      tone(1174, t,        0.25, 0.45); // D6 ding
+      tone(880,  t + 0.04, 0.25, 0.20); // A5 harmonic
+      tone(987,  t + 0.35, 0.35, 0.45); // B5 dong
+      tone(740,  t + 0.38, 0.35, 0.18); // F#5 harmonic
+      setTimeout(() => ctx.close(), 1500);
     } catch(e) {}
   }, []);
 
+  // ── Request OS notification permission ──
   const requestNotifPermission = async () => {
     if (!("Notification" in window)) {
-      pop("Notifications not supported on this browser", "err");
+      pop("Your browser does not support notifications", "err");
       return "denied";
     }
+    if (Notification.permission === "granted") {
+      playNotifSound();
+      pop("🔔 Notifications are already enabled!", "ok");
+      return "granted";
+    }
     const perm = await Notification.requestPermission();
-    notifPermission.current = perm;
     if (perm === "granted") {
       playNotifSound();
-      pop("🔔 Notifications ON — you will be alerted for every new booking!", "ok");
+      pop("🔔 Notifications enabled! You'll hear a sound and see a popup for every new booking.", "ok");
     } else {
-      pop("Notifications blocked. Go to browser Settings → Site Settings to enable.", "err");
+      pop("Notifications blocked. On iPhone: Settings → Safari → Notifications → Allow. On Android: tap the 🔒 lock icon in address bar.", "err");
     }
     return perm;
   };
 
+  // ── Send a full notification (sound + OS popup + in-app inbox) ──
   const sendBookingNotif = useCallback((booking) => {
-    // 1. Always play sound (works even without OS notification permission)
+    const gName = booking?.gName || booking?.guest_name  || "Guest";
+    const gPhone= booking?.gPhone|| booking?.guest_phone || "";
+    const ci    = booking?.ci    || booking?.check_in    || "—";
+    const co    = booking?.co    || booking?.check_out   || "—";
+    const total = Number(booking?.total || booking?.total_amount || 0);
+    const bId   = booking?.id    || ("b" + Date.now());
+    const rmName= booking?.room_name || "";
+    const now   = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+
+    // 1. Sound — always plays
     playNotifSound();
 
-    // 2. In-app banner — always shown
-    const gName = booking?.gName || booking?.guest_name || "Guest";
-    const ci    = booking?.ci    || booking?.check_in   || "—";
-    const total = Number(booking?.total || booking?.total_amount || 0).toLocaleString();
-    pop("🛎️ New booking — " + gName + "  · Check-in " + ci + "  · TZS " + total, "ok");
+    // 2. Add to in-app inbox
+    setNotifInbox(prev => [{
+      id: bId, gName, gPhone, ci, co, total, rmName,
+      time: now, read: false,
+    }, ...prev].slice(0, 50)); // keep last 50
 
-    // 3. OS push notification — persistent, shows even when app is in background
+    // 3. OS notification — rich, persistent
     if ("Notification" in window && Notification.permission === "granted") {
       try {
         const title = "🛎️ New Booking!";
-        const body  = "Guest: " + gName + "
-Check-in: " + ci + "
-Total: TZS " + total;
-        const opts  = {
-          body,
+        const lines = [
+          "👤 " + gName + (gPhone ? "  📞 " + gPhone : ""),
+          "📅 " + ci + " → " + co,
+          rmName ? "🛏️ " + rmName : "",
+          "💰 TZS " + total.toLocaleString(),
+        ].filter(Boolean).join("
+");
+
+        const opts = {
+          body:    lines,
           icon:    "/icons/icon-192.png",
           badge:   "/icons/icon-72.png",
-          tag:     "booking-" + (booking?.id || Date.now()),
-          vibrate: [200, 80, 200, 80, 400],
-          requireInteraction: true,   // stays on screen until dismissed
+          image:   "/icons/icon-192.png",  // large image in notification
+          tag:     "bnbmis-" + bId,
+          renotify: true,   // ring again even if same tag
+          requireInteraction: true,  // stay on screen until dismissed
+          vibrate: [300, 100, 300, 100, 600],
+          data:    { bookingId: bId, url: "/" },
           actions: [
-            { action: "open",    title: "View Booking" },
-            { action: "dismiss", title: "Dismiss" },
+            { action: "view",    title: "✅ View Booking" },
+            { action: "dismiss", title: "✕ Dismiss"      },
           ],
+          silent:  false,
         };
-        // ServiceWorker notification — shows even when browser is minimised
+
+        // Prefer ServiceWorker notification — works when browser is in background
+        const doShow = (reg) => {
+          if (reg) {
+            reg.showNotification(title, opts).catch(() => {
+              const n = new Notification(title, opts);
+              n.onclick = () => { window.focus(); n.close(); };
+            });
+          } else {
+            const n = new Notification(title, opts);
+            n.onclick = () => { window.focus(); n.close(); };
+          }
+        };
+
         if (navigator.serviceWorker?.controller) {
-          navigator.serviceWorker.ready
-            .then(reg => reg.showNotification(title, opts))
-            .catch(() => new Notification(title, opts));
+          navigator.serviceWorker.ready.then(doShow).catch(() => doShow(null));
         } else {
-          const n = new Notification(title, opts);
-          n.onclick = () => { window.focus(); n.close(); };
+          doShow(null);
         }
       } catch(e) {}
     }
+
+    // 4. In-app toast — show even without OS permission
+    pop("🛎️ New booking — " + gName + " · " + ci + " · TZS " + total.toLocaleString(), "ok");
   }, [playNotifSound]);
 
-  // ── Poll every 20 seconds for new bookings ──
+  // ── Polling: check for new bookings every 15 seconds ──
   useEffect(() => {
     const sid = owner?.store?.id || user?.storeId;
     if (!sid) return;
-    // Ask for permission shortly after login
+
+    // Auto-request permission 3 seconds after login
     if (Notification.permission === "default") {
       setTimeout(() => requestNotifPermission(), 3000);
     }
+
     const poll = setInterval(async () => {
       try {
-        const fresh = await api.getBookings(sid);
+        const fresh   = await api.getBookings(sid);
         const pending = fresh.filter(b => b.status === "pending");
-        const count   = pending.length;
+
+        // First run — record baseline IDs, don't notify
         if (lastBookCount.current === -1) {
-          // First load — just record baseline
-          lastBookCount.current = count;
+          lastBookCount.current = pending.length;
+          lastBookIds.current   = new Set(pending.map(b => b.id));
           return;
         }
-        if (count > lastBookCount.current) {
-          const diff = count - lastBookCount.current;
-          // Notify for each new booking individually
-          pending.slice(-diff).forEach(b => sendBookingNotif(b));
+
+        // Find genuinely new bookings (by ID, not just count)
+        const newBookings = pending.filter(b => !lastBookIds.current.has(b.id));
+        if (newBookings.length > 0) {
+          newBookings.forEach(b => sendBookingNotif(b));
           setBooks(fresh.map(mapBook));
+          lastBookIds.current = new Set(pending.map(b => b.id));
+          lastBookCount.current = pending.length;
+        } else {
+          lastBookCount.current = pending.length;
         }
-        lastBookCount.current = count;
       } catch {}
-    }, 20000); // every 20 seconds
+    }, 15000); // every 15 seconds
+
     return () => clearInterval(poll);
   }, [owner?.store?.id, user?.storeId, sendBookingNotif]);
+
+  // Unread notification count
+  const unreadNotifs = notifInbox.filter(n => !n.read).length;
 
   /* ── LOAD STORE DATA ── */
   const loadAll = useCallback(async (u, sid) => {
@@ -1762,6 +1815,7 @@ Total: TZS " + total;
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
       <>
+        {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
           storeName={owner.store.name} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
@@ -1801,7 +1855,15 @@ Total: TZS " + total;
             <div style={{ fontSize:10, color:"rgba(255,255,255,.3)", marginBottom:8 }}>ID: {sid}</div>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>↻</button>
-              <button onClick={requestNotifPermission} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.6)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>🔔</button>
+              <button onClick={() => { setNotifOpen(o => !o); setNotifInbox(prev => prev.map(n=>({...n,read:true}))); }}
+  style={{ position:"relative", background:"rgba(255,255,255,.1)", border:"1px solid rgba(255,255,255,.2)", color:"#FFF", borderRadius:7, padding:"6px 10px", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+  🔔
+  {unreadNotifs > 0 && (
+    <span style={{ position:"absolute", top:-6, right:-6, background:"#FF3B30", color:"#FFF", borderRadius:"50%", width:18, height:18, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #6B1B2A" }}>
+      {unreadNotifs > 9 ? "9+" : unreadNotifs}
+    </span>
+  )}
+</button>
               <button onClick={logout} style={{ background:"none", border:"1px solid rgba(255,255,255,.2)", color:"rgba(255,255,255,.7)", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Logout</button>
             </div>
           </div>
@@ -6272,5 +6334,89 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── NOTIFICATION INBOX PANEL ──────────────────────────── */
+function NotifInboxPanel({ notifs, onClose, onClear }) {
+  const M2 = "#6B1B2A", G22 = "#E8E8E8", G62 = "#666", G82 = "#333", WH2 = "#FFF", G12 = "#F5F5F5";
+  const OK2 = "#2E7D32", OKB2 = "#E8F5E9", IN2 = "#1565C0";
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9990, background:"rgba(0,0,0,.3)" }}/>
+      {/* Panel */}
+      <div style={{
+        position:"fixed", top:0, right:0, bottom:0, zIndex:9991,
+        width:"min(380px, 100vw)", background:WH2,
+        boxShadow:"-4px 0 32px rgba(0,0,0,.2)",
+        display:"flex", flexDirection:"column",
+      }}>
+        {/* Header */}
+        <div style={{ background:M2, color:WH2, padding:"16px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:"max(env(safe-area-inset-top),16px)", flexShrink:0 }}>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>🔔 Notifications</div>
+            <div style={{ fontSize:11, opacity:.7, marginTop:2 }}>{notifs.length} total · {notifs.filter(n=>!n.read).length} unread</div>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            {notifs.length > 0 && (
+              <button onClick={onClear} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH2, borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                Clear All
+              </button>
+            )}
+            <button onClick={onClose} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH2, borderRadius:6, padding:"5px 10px", fontSize:16, cursor:"pointer", lineHeight:1 }}>×</button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+          {notifs.length === 0 ? (
+            <div style={{ padding:40, textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🔕</div>
+              <div style={{ fontSize:15, fontWeight:700, color:G82, marginBottom:6 }}>No notifications yet</div>
+              <div style={{ fontSize:13, color:G62 }}>New bookings will appear here with sound alerts.</div>
+            </div>
+          ) : notifs.map((n, i) => (
+            <div key={i} style={{
+              padding:"14px 18px",
+              borderBottom:`1px solid ${G12}`,
+              background: n.read ? WH2 : "#FFFBF0",
+              borderLeft: n.read ? "none" : `4px solid #C9A84C`,
+            }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
+                    <span style={{ background:OKB2, color:OK2, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 8px" }}>
+                      🛎️ NEW BOOKING
+                    </span>
+                    {!n.read && <span style={{ background:"#FF3B30", color:WH2, borderRadius:99, fontSize:9, fontWeight:700, padding:"1px 6px" }}>NEW</span>}
+                  </div>
+                  <div style={{ fontWeight:700, fontSize:14, color:G82, marginBottom:3 }}>{n.gName}</div>
+                  {n.rmName && <div style={{ fontSize:12, color:G62, marginBottom:2 }}>🛏️ {n.rmName}</div>}
+                  <div style={{ fontSize:12, color:G62 }}>📅 {n.ci} → {n.co}</div>
+                  {n.gPhone && (
+                    <a href={"tel:"+n.gPhone} style={{ display:"inline-flex", alignItems:"center", gap:4, marginTop:5, fontSize:12, color:OK2, fontWeight:700, textDecoration:"none", background:OKB2, padding:"3px 9px", borderRadius:6 }}>
+                      📞 Call {n.gPhone}
+                    </a>
+                  )}
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <div style={{ fontWeight:700, color:M2, fontSize:14 }}>TZS {Number(n.total||0).toLocaleString()}</div>
+                  <div style={{ fontSize:11, color:G62, marginTop:2 }}>{n.time}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer tip */}
+        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"max(12px,env(safe-area-inset-bottom))" }}>
+          <div style={{ fontSize:11, color:G62, lineHeight:1.7 }}>
+            💡 Notifications work even when this tab is in the background. Make sure notifications are <strong>allowed</strong> in your browser settings for the best experience.
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
