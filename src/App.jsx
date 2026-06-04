@@ -1033,9 +1033,23 @@ export default function App() {
 
       {/* Hero */}
       <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
-        <div style={{ color:GOLD, fontSize:13, letterSpacing:".18em", textTransform:"uppercase", marginBottom:18 }}>✦ Find Your Perfect Stay ✦</div>
-        <p style={{ color:"rgba(255,255,255,.8)", fontSize:17, maxWidth:500, margin:"0 auto 32px", lineHeight:1.75 }}>
-          Browse hotels, lodges, BnBs, apartments and guesthouses worldwide. Book direct for the best rates.
+        <h1 style={{
+          color: WH,
+          fontSize: "clamp(32px, 8vw, 58px)",
+          fontWeight: 900,
+          fontFamily: "'Playfair Display',serif",
+          lineHeight: 1.15,
+          margin: "0 0 16px",
+          letterSpacing: "-.01em",
+        }}>
+          <span style={{ color: GOLD, display: "block", fontSize: "clamp(18px, 4vw, 28px)", fontWeight: 700, letterSpacing: ".22em", textTransform: "uppercase", marginBottom: 12, fontFamily: "'DM Sans',sans-serif" }}>
+            ✦ Find Your Perfect Stay ✦
+          </span>
+          The Smarter Way to<br/>
+          <span style={{ color: GOLD }}>Discover & Book</span>
+        </h1>
+        <p style={{ color:"rgba(255,255,255,.75)", fontSize:"clamp(14px,3vw,17px)", maxWidth:500, margin:"0 auto 32px", lineHeight:1.8 }}>
+          Hotels, lodges, BnBs, apartments and guesthouses worldwide.<br/>Book direct for the best rates.
         </p>
         <div style={{ display:"flex", gap:8, maxWidth:560, margin:"0 auto", background:WH, borderRadius:12, padding:8, flexWrap:"wrap" }}>
           <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city or country…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
@@ -1533,18 +1547,20 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
-      <MobilePortal
-        storeName={owner.store.name} role="Store Owner"
-        tabs={otabs} activeTab={aTab} setTab={setATab}
-        pendingCount={pendingBooks}
-        onNewBooking={()=>setModal("newBook")}
-        onNotif={requestNotifPermission}
-        onLogout={logout}
-        toast={toast}
-      >
-        {content}
+      <>
+        <MobilePortal
+          storeName={owner.store.name} role="Store Owner"
+          tabs={otabs} activeTab={aTab} setTab={setATab}
+          pendingCount={pendingBooks}
+          onNewBooking={()=>setModal("newBook")}
+          onNotif={requestNotifPermission}
+          onLogout={logout}
+          toast={toast}
+        >
+          {content}
+        </MobilePortal>
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
-      </MobilePortal>
+      </>
     );
 
     /* ── DESKTOP LAYOUT ── */
@@ -1619,18 +1635,20 @@ export default function App() {
   /* ── STAFF MOBILE LAYOUT ── */
   const staffTabs = ATABS.map(t=>({id:t.id, icon:t.icon, l:t.label}));
   if (isMobileAdmin) return (
-    <MobilePortal
-      storeName={user?.name||"Staff"} role={user?.role||"Staff"}
-      tabs={staffTabs} activeTab={aTab} setTab={setATab}
-      onNewBooking={()=>setModal("newBook")}
-      onLogout={logout}
-      toast={toast}
-      headerBg={G8}
-    >
-      {adminContent}
+    <>
+      <MobilePortal
+        storeName={user?.name||"Staff"} role={user?.role||"Staff"}
+        tabs={staffTabs} activeTab={aTab} setTab={setATab}
+        onNewBooking={()=>setModal("newBook")}
+        onLogout={logout}
+        toast={toast}
+        headerBg={G8}
+      >
+        {adminContent}
+      </MobilePortal>
       {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
       {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
-    </MobilePortal>
+    </>
   );
 
   /* ── STAFF DESKTOP LAYOUT ── */
