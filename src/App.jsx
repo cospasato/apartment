@@ -192,33 +192,40 @@ const Modal = ({ title, onClose, children, wide }) => (
       display: "flex",
       alignItems: "flex-end",
       justifyContent: "center",
-      padding: "0",
-      WebkitOverflowScrolling: "touch",
     }}>
     <div style={{
       background: WH,
       borderRadius: "16px 16px 0 0",
       width: "100%",
       maxWidth: wide ? 740 : 520,
-      maxHeight: "92dvh",
+      /* Use min() for broad iOS compatibility — dvh not supported on iOS < 16 */
+      maxHeight: "min(92vh, 92%)",
       height: "auto",
       overflow: "hidden",
       display: "flex",
       flexDirection: "column",
       boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
-      paddingBottom: "env(safe-area-inset-bottom)",
     }}>
-      {/* Header */}
+      {/* Sticky header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "16px 20px", borderBottom: `1px solid ${G2}`,
-        flexShrink: 0, background: WH,
+        flexShrink: 0, background: WH, zIndex: 1,
       }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif", paddingRight: 12 }}>{title}</h3>
         <button onClick={onClose} style={{ background: G1, border: "none", cursor: "pointer", fontSize: 18, color: G6, lineHeight: 1, padding: "4px 9px", borderRadius: 8, flexShrink: 0 }}>×</button>
       </div>
-      {/* Scrollable content */}
-      <div style={{ padding: "18px 20px 24px", overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1 }}>
+      {/* Scrollable content — extra bottom padding ensures save buttons are never hidden */}
+      <div style={{
+        padding: "18px 20px",
+        paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
+        overflowY: "auto",
+        overflowX: "hidden",
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain",
+        flex: 1,
+        minHeight: 0,  /* critical: allows flex child to shrink and scroll */
+      }}>
         {children}
       </div>
     </div>
@@ -1571,6 +1578,7 @@ export default function App() {
       {id:"locs",      icon:"📍", l:"Locations"},
       {id:"staff",     icon:"👥", l:"Staff"},
       {id:"customers", icon:"🧑‍🤝‍🧑", l:"Customers"},
+      {id:"share",     icon:"📤", l:"Share Store"},
       {id:"billing",   icon:"🧾", l:"Billing"},
       {id:"settings",  icon:"⚙️",  l:"Settings"},
     ];
@@ -1595,6 +1603,7 @@ export default function App() {
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
         {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
+        {!loading && aTab==="share"     && <ShareStoreTab owner={owner} storeId={sid} rooms={rooms} locs={locs} pop={pop}/>}
         {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
         {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
       </>
@@ -1947,6 +1956,83 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
 
   const selB = books.find(b => b.id === sel);
   const selR = rooms.find(r => r.id === selB?.roomId);
+
+  const printPaymentReceipt = (b, rm) => {
+    if (!b) return;
+    const w = window.open("", "_blank", "width=600,height=800");
+    const bal = (b.total||0) - (b.paid||0);
+    w.document.write(`<!DOCTYPE html><html><head><title>Payment Receipt</title><style>
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
+      .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
+      .sub{font-size:11px;color:#999;margin-bottom:2px}
+      .title{font-size:20px;font-weight:700;color:#6B1B2A;margin:18px 0 4px}
+      .ref{font-size:12px;color:#888;margin-bottom:14px}
+      hr{border:none;border-top:2px solid #6B1B2A;margin:14px 0}
+      .section{margin-bottom:16px}
+      .section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+      .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f2f2f2;font-size:13px}
+      .lbl{color:#666}.val{font-weight:600}
+      .total-box{background:#6B1B2A;color:#FFF;border-radius:10px;padding:14px 18px;margin:14px 0}
+      .total-box .lbl{color:rgba(255,255,255,.7)}
+      .total-box .val{font-size:22px;font-weight:900;color:#FFF}
+      .paid-box{background:#E8F5E9;border-radius:10px;padding:12px 18px;margin-bottom:8px}
+      .balance-box{background:${bal>0?"#FFEBEE":"#E8F5E9"};border-radius:10px;padding:12px 18px}
+      .badge{display:inline-block;background:#E8F5E9;color:#2E7D32;border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700;text-transform:uppercase}
+      .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:2}
+      @media print{.no-print{display:none}}
+    </style></head><body>
+    <div class="logo">BNBMIS</div>
+    <div class="sub">BNB Management Information System</div>
+    <hr/>
+    <div class="title">Payment Receipt</div>
+    <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||"").split("T")[0]||""} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
+    <div class="section">
+      <div class="section-title">Customer Information</div>
+      <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||"—"}</span></div>
+      <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||"—"}</span></div>
+      ${b.gEmail?`<div class="row"><span class="lbl">Email</span><span class="val">${b.gEmail}</span></div>`:""}
+      ${b.gNat?`<div class="row"><span class="lbl">Nationality</span><span class="val">${b.gNat}</span></div>`:""}
+    </div>
+    <div class="section">
+      <div class="section-title">Booking Details</div>
+      <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||b.room_name||"—"}</span></div>
+      <div class="row"><span class="lbl">Check-in</span><span class="val">${b.ci||"—"}</span></div>
+      <div class="row"><span class="lbl">Check-out</span><span class="val">${b.co||"—"}</span></div>
+      <div class="row"><span class="lbl">Duration</span><span class="val">${b.nights} night${b.nights!==1?"s":""}</span></div>
+      <div class="row"><span class="lbl">Payment Method</span><span class="val">${b.method||"—"}</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Payment Summary</div>
+      <div class="row"><span class="lbl">Room Rate</span><span class="val">TZS ${Number(rm?.price||0).toLocaleString()}/night</span></div>
+      <div class="row"><span class="lbl">Base Amount</span><span class="val">TZS ${Number(b.base||0).toLocaleString()}</span></div>
+      ${(b.disc&&b.disc>0)?`<div class="row"><span class="lbl">Discount</span><span class="val" style="color:#2E7D32">-${b.discT==="pct"?b.disc+"%":"TZS "+Number(b.disc).toLocaleString()}</span></div>`:""}
+    </div>
+    <div class="total-box">
+      <div class="row" style="border:none;padding:0"><span class="lbl">Total Amount</span><span class="val">TZS ${Number(b.total||0).toLocaleString()}</span></div>
+    </div>
+    <div class="paid-box">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#2E7D32;font-weight:600">Amount Paid</span>
+        <span style="font-size:18px;font-weight:900;color:#2E7D32">TZS ${Number(b.paid||0).toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="balance-box">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-weight:600;color:${bal>0?"#C62828":"#2E7D32"}">${bal>0?"Balance Due":"Fully Paid ✓"}</span>
+        <span style="font-size:18px;font-weight:900;color:${bal>0?"#C62828":"#2E7D32"}">TZS ${Number(bal).toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="footer">
+      Thank you for choosing us!<br/>
+      BNBMIS · support@bnbmis.com · bnbmis.com
+    </div>
+    <br/>
+    <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
+    <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+    </body></html>`);
+    w.document.close();
+  };
   useEffect(() => { if (selB) setPayMethod(selB.method || payMethods?.[0] || "Cash"); }, [sel]);
 
   // bookings due for checkout today (checkedIn and checkout date = today)
@@ -2191,6 +2277,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
             <div style={{ marginTop: 16, padding: "11px 14px", background: MF, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>Guest is currently checked in</span>
               <Btn onClick={() => { setSel(null); setCoModal(selB.id); }} style={{ fontSize: 12, padding: "6px 14px" }}>Check Out / Extend →</Btn>
+              <button onClick={() => printPaymentReceipt(selB, selR)} style={{ background:"#1565C0", color:"#FFF", border:"none", borderRadius:8, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>🖨 Print Receipt</button>
             </div>
           )}
           {(selB.total - selB.paid) > 0 && selB.status !== "cancelled" && (
@@ -5618,6 +5705,170 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
           <button onClick={save} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>{saving?"Saving…":"Extend Trial"}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── SHARE STORE TAB ────────────────────────────────────── */
+function ShareStoreTab({ owner, storeId, rooms, locs, pop }) {
+  const [mode, setMode]       = useState("store"); // "store" | "room"
+  const [selRoomId, setSelRoomId] = useState("");
+  const [copied, setCopied]   = useState(false);
+
+  const slug    = owner?.store?.slug || "";
+  const storeName = owner?.store?.name || "Our Store";
+  const storeImg  = owner?.store?.featured_image || "";
+  const baseUrl   = slug ? "https://" + slug + ".bnbmis.com" : "https://bnbmis.com";
+  const selRoom   = rooms.find(r => r.id === selRoomId);
+
+  // Build share data
+  const shareUrl  = mode === "store"
+    ? baseUrl
+    : (selRoomId ? baseUrl + "?room=" + selRoomId : "");
+
+  const shareText = mode === "store"
+    ? "🏨 " + storeName + "\n📍 " + (owner?.store?.city || "") + "\n\nView all rooms and book direct:\n" + shareUrl
+    : selRoom
+      ? "🛏️ " + selRoom.name + "\n📍 " + (locs.find(l => l.id === selRoom.locId)?.name || "") + "\n💰 TZS " + Number(selRoom.price||0).toLocaleString() + "/night\n\nView & book:\n" + shareUrl
+      : "";
+
+  const coverImg = mode === "store" ? storeImg : (selRoom?.photos?.[0] || storeImg || "");
+
+  const doShare = () => {
+    if (!shareUrl) { pop("Please select a room first", "err"); return; }
+    if (navigator.share) {
+      navigator.share({ title: mode === "store" ? storeName : (selRoom?.name || ""), text: shareText, url: shareUrl }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(shareText).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+        pop("Link copied to clipboard!");
+      }).catch(() => pop(shareUrl));
+    }
+  };
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const GOLD2="#C9A84C",OK2="#2E7D32",OKB2="#E8F5E9",IN2="#1565C0",INB2="#E3F2FD";
+
+  return (
+    <div style={{ maxWidth:600 }}>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 6px" }}>Share Store</h2>
+      <p style={{ fontSize:13, color:G62, marginBottom:22 }}>
+        Share your store or a specific room with customers. They land directly on the booking page.
+      </p>
+
+      {/* Mode selector */}
+      <div style={{ display:"flex", gap:0, marginBottom:24, borderRadius:10, overflow:"hidden", border:`1px solid ${G22}` }}>
+        {[["store","🏪 Whole Store","Share all rooms"], ["room","🛏️ Specific Room","Share one room"]].map(([id,label,sub])=>(
+          <button key={id} onClick={()=>{ setMode(id); setSelRoomId(""); setCopied(false); }}
+            style={{ flex:1, padding:"14px 12px", border:"none", background:mode===id?M2:WH2, color:mode===id?WH2:G82, cursor:"pointer", fontFamily:"inherit", borderRight:id==="store"?`1px solid ${G22}`:"none", transition:"background .15s" }}>
+            <div style={{ fontSize:15, fontWeight:700 }}>{label}</div>
+            <div style={{ fontSize:11, opacity:.75, marginTop:2 }}>{sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Room picker */}
+      {mode === "room" && (
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Select Room to Share</label>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+            {rooms.map(rm => {
+              const loc = locs.find(l => l.id === rm.locId);
+              const isSelected = selRoomId === rm.id;
+              return (
+                <div key={rm.id} onClick={()=>{ setSelRoomId(rm.id); setCopied(false); }}
+                  style={{ border:`2px solid ${isSelected?M2:G22}`, borderRadius:10, overflow:"hidden", cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  {/* Room thumbnail */}
+                  <div style={{ height:80, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
+                    {rm.photos?.[0]
+                      ? <img src={rm.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                      : <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", fontSize:28 }}>🛏️</div>
+                    }
+                    {isSelected && <div style={{ position:"absolute", top:6, right:6, background:M2, color:WH2, borderRadius:"50%", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12 }}>✓</div>}
+                  </div>
+                  <div style={{ padding:"8px 10px" }}>
+                    <div style={{ fontWeight:700, fontSize:12, color:G82, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{rm.name}</div>
+                    <div style={{ fontSize:11, color:G62 }}>{loc?.name||"—"}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color:M2, marginTop:2 }}>TZS {Number(rm.price||0).toLocaleString()}/night</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Preview card */}
+      {(mode === "store" || selRoomId) && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:14, overflow:"hidden", marginBottom:22 }}>
+          {/* Image preview */}
+          <div style={{ height:160, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
+            {coverImg
+              ? <img src={coverImg} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+              : <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", fontSize:48, opacity:.5 }}>🏨</div>
+            }
+            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 50%)" }}/>
+            <div style={{ position:"absolute", bottom:12, left:16, color:"#FFF" }}>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700 }}>
+                {mode==="store" ? storeName : selRoom?.name}
+              </div>
+              <div style={{ fontSize:12, opacity:.8 }}>
+                {mode==="store"
+                  ? (locs.length + " location" + (locs.length!==1?"s":"") + " · " + rooms.length + " rooms")
+                  : ("TZS " + Number(selRoom?.price||0).toLocaleString() + "/night")}
+              </div>
+            </div>
+          </div>
+          {/* URL preview */}
+          <div style={{ padding:"12px 16px", background:G12 }}>
+            <div style={{ fontSize:11, color:G62, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em", fontWeight:700 }}>Booking Link</div>
+            <div style={{ fontFamily:"monospace", fontSize:13, color:IN2, fontWeight:600, wordBreak:"break-all" }}>{shareUrl}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Share message preview */}
+      {shareText && (
+        <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:22, fontSize:13, color:G82, lineHeight:1.8, whiteSpace:"pre-line", fontFamily:"monospace" }}>
+          {shareText}
+        </div>
+      )}
+
+      {/* Share / Copy buttons */}
+      {(mode === "store" || selRoomId) && (
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+          <button onClick={doShare}
+            style={{ flex:1, minWidth:140, padding:"13px 20px", background:M2, color:WH2, border:"none", borderRadius:10, fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+            📤 {typeof navigator !== "undefined" && navigator.share ? "Share" : "Copy Link"}
+          </button>
+          <button onClick={()=>{
+            navigator.clipboard?.writeText(shareUrl).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2500); pop("Link copied!"); });
+          }}
+            style={{ padding:"13px 20px", background:copied?OKB2:WH2, color:copied?OK2:G62, border:`1px solid ${copied?OK2:G22}`, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {copied ? "✓ Copied!" : "📋 Copy Link"}
+          </button>
+          <button onClick={()=>{
+            const wa = "https://wa.me/?text=" + encodeURIComponent(shareText);
+            window.open(wa, "_blank");
+          }}
+            style={{ padding:"13px 20px", background:"#25D366", color:WH2, border:"none", borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            💬 WhatsApp
+          </button>
+        </div>
+      )}
+
+      {/* No rooms warning */}
+      {rooms.length === 0 && (
+        <div style={{ background:"#FFF8E1", border:"1px solid #F9A825", borderRadius:10, padding:"14px 18px", marginTop:16, fontSize:13, color:"#5D4037" }}>
+          ⚠️ No rooms added yet. Add rooms in the <strong>Rooms</strong> tab first, then share them here.
+        </div>
+      )}
+      {!slug && (
+        <div style={{ background:INB2, border:`1px solid ${IN2}33`, borderRadius:10, padding:"14px 18px", marginTop:16, fontSize:13, color:IN2 }}>
+          💡 Set up a <strong>subdomain</strong> in Settings → Subdomain for a cleaner booking link (e.g. <em>yourname.bnbmis.com</em>).
+        </div>
+      )}
     </div>
   );
 }
