@@ -264,3 +264,5 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
 -- MIGRATION: Add featured_image column if not exists
 -- ============================================================
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
+
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT '';

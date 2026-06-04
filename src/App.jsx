@@ -295,6 +295,34 @@ function LocStats({ lr, lrev, lexp, lb }) {
   );
 }
 
+
+/* ─── COUNTRIES + CITIES DATA ───────────────────────────── */
+const COUNTRY_CITIES = {
+  "Tanzania": ["Dar es Salaam","Dodoma","Arusha","Mwanza","Zanzibar","Mbeya","Morogoro","Tanga","Iringa","Kilimanjaro","Tabora","Kigoma","Moshi","Lindi","Mtwara","Ruvuma","Shinyanga","Kagera","Mara","Singida","Rukwa"],
+  "Kenya": ["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Malindi","Kitale","Garissa","Kakamega","Nyeri","Machakos","Meru","Embu","Lamu","Nanyuki","Kericho","Kisii","Bungoma","Homabay"],
+  "Uganda": ["Kampala","Gulu","Lira","Mbarara","Jinja","Bwizibwera","Mbale","Mukono","Kasese","Masaka","Entebbe","Soroti","Kabale","Arua","Fort Portal","Hoima","Moroto","Tororo","Njeru","Kitgum"],
+  "Rwanda": ["Kigali","Butare","Gitarama","Ruhengeri","Gisenyi","Byumba","Cyangugu","Kibungo","Kibuye","Nyanza","Rwamagana","Musanze","Rubavu","Karongi","Rusizi"],
+  "Ethiopia": ["Addis Ababa","Dire Dawa","Mekelle","Gondar","Hawassa","Bahir Dar","Dessie","Jimma","Jijiga","Shashamane","Bishoftu","Sodo","Arba Minch","Hosaena","Harar"],
+  "South Africa": ["Johannesburg","Cape Town","Durban","Pretoria","Port Elizabeth","Bloemfontein","East London","Polokwane","Nelspruit","Kimberley","Pietermaritzburg","George","Rustenburg","Witbank","Alberton"],
+  "Nigeria": ["Lagos","Abuja","Kano","Ibadan","Port Harcourt","Benin City","Maiduguri","Zaria","Aba","Jos","Ilorin","Oyo","Enugu","Abeokuta","Onitsha","Warri","Sokoto","Kaduna","Calabar","Uyo"],
+  "Ghana": ["Accra","Kumasi","Tamale","Sekondi-Takoradi","Cape Coast","Obuasi","Tema","Sunyani","Koforidua","Ho","Wa","Bolgatanga","Techiman","Nkoranza","Berekum"],
+  "Egypt": ["Cairo","Alexandria","Giza","Shubra El-Kheima","Port Said","Suez","Luxor","Aswan","Mansoura","Tanta","Ismailia","Hurghada","Zagazig","Faiyum","Asyut"],
+  "Morocco": ["Casablanca","Rabat","Fez","Marrakech","Agadir","Tangier","Meknes","Oujda","Kenitra","Tetouan","El Jadida","Safi","Beni Mellal","Nador","Khouribga"],
+  "United States": ["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio","San Diego","Dallas","San Jose","Austin","Jacksonville","Fort Worth","Columbus","Charlotte","Indianapolis","Seattle","Denver","Washington DC","Boston","Miami"],
+  "United Kingdom": ["London","Birmingham","Manchester","Glasgow","Liverpool","Bristol","Sheffield","Leeds","Edinburgh","Leicester","Bradford","Cardiff","Belfast","Nottingham","Kingston upon Hull","Newcastle","Southampton","Portsmouth","Oxford","Cambridge"],
+  "United Arab Emirates": ["Dubai","Abu Dhabi","Sharjah","Al Ain","Ajman","Ras Al Khaimah","Fujairah","Umm Al Quwain"],
+  "India": ["Mumbai","Delhi","Bengaluru","Hyderabad","Ahmedabad","Chennai","Kolkata","Pune","Jaipur","Surat","Lucknow","Kanpur","Nagpur","Visakhapatnam","Indore","Thane","Bhopal","Patna","Vadodara","Ludhiana","Agra","Nashik","Goa"],
+  "Australia": ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Gold Coast","Canberra","Hobart","Darwin","Cairns","Townsville","Geelong","Wollongong","Newcastle","Ballarat"],
+  "Germany": ["Berlin","Hamburg","Munich","Cologne","Frankfurt","Stuttgart","Dusseldorf","Dortmund","Essen","Leipzig","Bremen","Dresden","Hanover","Nuremberg","Duisburg"],
+  "France": ["Paris","Marseille","Lyon","Toulouse","Nice","Nantes","Montpellier","Strasbourg","Bordeaux","Lille","Rennes","Reims","Saint-Etienne","Toulon","Le Havre"],
+  "Canada": ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Victoria","Halifax","Oshawa","Windsor"],
+  "Singapore": ["Singapore"],
+  "Japan": ["Tokyo","Yokohama","Osaka","Nagoya","Sapporo","Kobe","Kyoto","Fukuoka","Kawasaki","Saitama","Hiroshima","Sendai","Chiba","Kitakyushu","Sakai"],
+  "Brazil": ["São Paulo","Rio de Janeiro","Brasília","Salvador","Fortaleza","Belo Horizonte","Manaus","Curitiba","Recife","Porto Alegre","Belém","Goiânia","Guarulhos","Campinas","São Luís"],
+  "Other": ["Other City"],
+};
+const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
+
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
   // ── SUBDOMAIN DETECTION ──
@@ -974,17 +1002,21 @@ export default function App() {
 
       {/* Hero */}
       <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
-        <div style={{ color:GOLD, fontSize:12, letterSpacing:".2em", textTransform:"uppercase", marginBottom:14 }}>✦ Find Your Perfect Stay ✦</div>
-        <h1 style={{ color:WH, fontSize:52, fontWeight:900, margin:"0 0 14px", fontFamily:"'Playfair Display',serif", lineHeight:1.15 }}>
-          Premium Apartments<br/><span style={{ color:GOLD }}>Across worldwide</span>
-        </h1>
-        <p style={{ color:"rgba(255,255,255,.7)", fontSize:17, maxWidth:480, margin:"0 auto 32px", lineHeight:1.7 }}>
+        <div style={{ color:GOLD, fontSize:13, letterSpacing:".18em", textTransform:"uppercase", marginBottom:18 }}>✦ Find Your Perfect Stay ✦</div>
+        <p style={{ color:"rgba(255,255,255,.8)", fontSize:17, maxWidth:500, margin:"0 auto 32px", lineHeight:1.75 }}>
           Browse hotels, lodges, BnBs, apartments and guesthouses worldwide. Book direct for the best rates.
         </p>
-        <div style={{ display:"flex", gap:8, maxWidth:520, margin:"0 auto", background:WH, borderRadius:12, padding:8 }}>
+        <div style={{ display:"flex", gap:8, maxWidth:560, margin:"0 auto", background:WH, borderRadius:12, padding:8, flexWrap:"wrap" }}>
           <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city or country…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
-            style={{ flex:1, border:"none", outline:"none", fontSize:14, color:BK, padding:"8px 12px", fontFamily:"inherit" }}/>
-          <button onClick={()=>loadMarketplace(mktCity)} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>Search</button>
+            style={{ flex:1, minWidth:160, border:"none", outline:"none", fontSize:14, color:BK, padding:"8px 12px", fontFamily:"inherit" }}/>
+          <select value={mktCity} onChange={e=>{ setMktCity(e.target.value); loadMarketplace(e.target.value); }}
+            style={{ border:"none", outline:"none", fontSize:13, color:G6, padding:"8px 6px", fontFamily:"inherit", background:"transparent", cursor:"pointer" }}>
+            <option value="">All Cities</option>
+            {[...new Set((mktStores||[]).map(s=>s.city).filter(Boolean))].sort().map(city=>(
+              <option key={city} value={city}>{city}</option>
+            ))}
+          </select>
+          <button onClick={()=>loadMarketplace(mktCity)} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"10px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>Search</button>
         </div>
       </div>
 
@@ -995,7 +1027,7 @@ export default function App() {
           <h2 style={{ fontSize:34, fontWeight:700, color:BK, fontFamily:"'Playfair Display',serif", margin:0 }}>Properties</h2>
         </div>
         {mktLoading ? <Spinner/> : (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap:18 }}>
             {mktStores.map(store => {
               const roomCount = store.room_count || 0;
               const hasImg = !!(store.featured_image && store.featured_image.trim());
@@ -1006,7 +1038,7 @@ export default function App() {
                   onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
                   style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
                   {/* Featured image — top banner */}
-                  <div style={{ height:200, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
+                  <div style={{ height:180, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
                     {hasImg && (
                       <img
                         src={store.featured_image}
@@ -2936,7 +2968,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", city: "", addr: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
+        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
         {locs.map(loc => {
@@ -2951,7 +2983,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
                   <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
                 </div>
                 <div style={{ display:"flex", gap:5 }}>
-                <button onClick={() => { setForm({ ...loc }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                <button onClick={() => { setForm({ ...loc, country: loc.country || "" }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
                 <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
               </div>
               </div>
@@ -2968,14 +3000,29 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
       </div>
       {modal && (
         <Modal title={form.id ? "Edit Location" : "Add Location"} onClose={() => setModal(false)}>
-          <Inp label="Location Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="BNC Masaki" />
-          <Inp label="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Dar es Salaam" />
-          <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="Masaki, DSM" />
+          <Inp label="Location Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. BNC Masaki Branch" />
+          {/* Country selector */}
+          <Sel label="Country *" value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value, city: "" }))}>
+            <option value="">— Select Country —</option>
+            {ALL_COUNTRIES.map(country => <option key={country} value={country}>{country}</option>)}
+          </Sel>
+          {/* City selector — appears after country chosen */}
+          {form.country && (
+            <Sel label="City / Region *" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}>
+              <option value="">— Select City —</option>
+              {(COUNTRY_CITIES[form.country] || []).map(city => <option key={city} value={city}>{city}</option>)}
+              <option value="__other__">Other (type below)</option>
+            </Sel>
+          )}
+          {(form.city === "__other__" || (form.country && !COUNTRY_CITIES[form.country]?.includes(form.city) && form.city && form.city !== "")) && (
+            <Inp label="City Name" value={form.city === "__other__" ? "" : form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Enter city name" />
+          )}
+          <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="e.g. Masaki Peninsula, Plot 12" />
           <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-            <Btn onClick={save} disabled={!form.name || !form.city} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
+            <Btn onClick={save} disabled={!form.name || !form.city || form.city === "__other__"} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
           </div>
         </Modal>
       )}
@@ -4796,7 +4843,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
   const selectTab = (id) => { setTab(id); setDrawerOpen(false); };
 
   return (
-    <div style={{ height:"100vh", background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column", overflow:"hidden", position:"fixed", inset:0 }}>
+    <div style={{ background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, right:0, bottom:0 }}>
       {/* ── TOP BAR ── */}
       <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),12px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
         {/* Left: hamburger + title */}
@@ -4861,12 +4908,12 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       )}
 
       {/* ── CONTENT ── */}
-      <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"14px 14px calc(70px + env(safe-area-inset-bottom))", WebkitOverflowScrolling:"touch" }}>
+      <div style={{ flex:1, overflowY:"scroll", overflowX:"hidden", padding:"14px 14px calc(72px + env(safe-area-inset-bottom))", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         {children}
       </div>
 
       {/* ── BOTTOM NAV (4 tabs + menu) ── */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)" }}>
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)", WebkitTransform:"translateZ(0)" }}>
         {bottomTabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>

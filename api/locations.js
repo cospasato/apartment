@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const token = verifyToken(req);
       if (!token || !['super','owner','staff'].includes(token.type)) return res.status(401).json({ error: 'Auth required' });
-      const { store_id: sid, name, city, address, icon, description } = req.body || {};
+      const { store_id: sid, name, city, country, address, icon, description } = req.body || {};
       if (!sid || !name || !city) return res.status(400).json({ error: 'store_id, name and city are required' });
       const rows = await sql`
         INSERT INTO locations (store_id, name, city, address, icon, description)
