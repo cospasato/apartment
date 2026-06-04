@@ -1017,6 +1017,7 @@ export default function App() {
   const canStaff   = isAdmin || isManager;
   const canLocs    = isAdmin || isManager;
   const canCustomers = isAdmin || isManager || isAcct || isRecept;
+  const canShare   = true; // all staff can share
   const canDelete  = isAdmin; // only admin can delete bookings
 
   const ATABS = [
@@ -1029,7 +1030,9 @@ export default function App() {
     ...(canLocs    ? [{ id:"locs",label:"Locations",icon:"📍" }] : []),
     ...(canStaff   ? [{ id:"staff",label:"Staff",icon:"👥" }] : []),
     ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"🧑‍🤝‍🧑" }] : []),
-    { id:"profile",label:"My Profile",icon:"👤" },
+    { id:"receipts",label:"Receipts",icon:"🧾" },
+    { id:"share",   label:"Share",   icon:"📤" },
+    { id:"profile", label:"My Profile",icon:"👤" },
   ];
 
   const NavBar = () => {
@@ -1734,6 +1737,8 @@ export default function App() {
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
       {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
       {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={user?.storeId} api={api} pop={pop}/>}
+      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop}/>}
+      {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={user?.storeId} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="profile"   && <ProfileTab user={user} updateProfile={updateProfile}/>}
     </>
   );
@@ -5731,12 +5736,12 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
 }
 
 /* ─── SHARE STORE TAB ────────────────────────────────────── */
-function ShareStoreTab({ owner, storeId, rooms, locs, pop }) {
+function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }) {
   const [mode, setMode]       = useState("store"); // "store" | "room"
   const [selRoomId, setSelRoomId] = useState("");
   const [copied, setCopied]   = useState(false);
 
-  const slug    = owner?.store?.slug || "";
+  const slug    = slugProp || owner?.store?.slug || "";
   const storeName = owner?.store?.name || "Our Store";
   const storeImg  = owner?.store?.featured_image || "";
   const baseUrl   = slug ? "https://" + slug + ".bnbmis.com" : "https://bnbmis.com";
@@ -5890,6 +5895,221 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop }) {
           💡 Set up a <strong>subdomain</strong> in Settings → Subdomain for a cleaner booking link (e.g. <em>yourname.bnbmis.com</em>).
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── RECEIPTS TAB ───────────────────────────────────────── */
+function ReceiptsTab({ books, rooms, locs, user, pop }) {
+  const [search, setSearch]   = useState("");
+  const [filter, setFilter]   = useState("all"); // all | paid | balance | checkedIn
+  const [selBook, setSelBook] = useState(null);
+  const [invoiceMode, setInvoiceMode] = useState(false);
+
+  const filtered = books
+    .filter(b => b.status !== "cancelled")
+    .filter(b => {
+      if (filter === "paid")     return b.paid >= b.total;
+      if (filter === "balance")  return b.paid < b.total;
+      if (filter === "checkedIn")return b.status === "checkedIn";
+      return true;
+    })
+    .filter(b => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return b.gName?.toLowerCase().includes(q) || b.id?.toLowerCase().includes(q) || b.gPhone?.includes(q);
+    })
+    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
+
+  const printReceipt = (b, isInvoice) => {
+    const rm  = rooms.find(r => r.id === b.roomId);
+    const loc = locs.find(l => l.id === b.locId);
+    const bal = (b.total||0) - (b.paid||0);
+    const docType = isInvoice ? "INVOICE" : "RECEIPT";
+    const w = window.open("", "_blank", "width=650,height=900");
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType} – ${b.id}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF;padding:0}
+  .page{max-width:600px;margin:0 auto;padding:36px 40px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #6B1B2A}
+  .logo{font-family:Georgia,serif;font-size:32px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
+  .logo-sub{font-size:11px;color:#999;margin-top:3px}
+  .doc-type{text-align:right}
+  .doc-type h1{font-size:28px;font-weight:900;color:#6B1B2A;text-transform:uppercase;letter-spacing:.05em}
+  .doc-type .ref{font-size:12px;color:#888;margin-top:4px}
+  .doc-type .date{font-size:12px;color:#888}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+  .info-box h3{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+  .info-box p{font-size:13px;color:#333;line-height:1.8;margin:0}
+  .info-box strong{color:#111}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px}
+  thead tr{background:#6B1B2A;color:#FFF}
+  thead th{padding:10px 12px;text-align:left;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  tbody tr{border-bottom:1px solid #F0F0F0}
+  tbody td{padding:10px 12px;font-size:13px}
+  tbody tr:nth-child(even){background:#FAFAFA}
+  .totals{margin-left:auto;width:260px;margin-bottom:24px}
+  .total-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px solid #F0F0F0}
+  .total-row.grand{border-top:2px solid #6B1B2A;border-bottom:none;padding-top:12px;font-size:16px;font-weight:900;color:#6B1B2A}
+  .status-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px}
+  .paid-val{color:#2E7D32;font-weight:700}
+  .bal-val{color:${bal>0?"#C62828":"#2E7D32"};font-weight:700}
+  .badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;background:${b.status==="checkedOut"||b.paid>=b.total?"#E8F5E9":"#FFF3E0"};color:${b.status==="checkedOut"||b.paid>=b.total?"#2E7D32":"#B76E00"}}
+  .footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #EEE;font-size:11px;color:#AAA;line-height:2}
+  .footer strong{color:#6B1B2A}
+  .no-print{margin-top:24px;display:flex;gap:10px;justify-content:center}
+  .btn{padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none}
+  .btn-pri{background:#6B1B2A;color:#FFF}
+  .btn-sec{background:#EEE;color:#333}
+  @media print{.no-print{display:none}body{padding:0}.page{padding:20px 24px}}
+</style></head><body>
+<div class="page">
+  <div class="header">
+    <div><div class="logo">BNBMIS</div><div class="logo-sub">BNB Management Information System</div></div>
+    <div class="doc-type">
+      <h1>${docType}</h1>
+      <div class="ref">Ref: ${b.id}</div>
+      <div class="date">Date: ${(b.created||"").split("T")[0]||new Date().toISOString().split("T")[0]}</div>
+      <div class="date" style="margin-top:6px"><span class="badge">${b.status}</span></div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="info-box">
+      <h3>Guest Information</h3>
+      <p>
+        <strong>${b.gName||"—"}</strong><br/>
+        ${b.gPhone ? "📞 " + b.gPhone + "<br/>" : ""}
+        ${b.gEmail ? "✉ " + b.gEmail + "<br/>" : ""}
+        ${b.gNat   ? "🌍 " + b.gNat : ""}
+      </p>
+    </div>
+    <div class="info-box">
+      <h3>Property Details</h3>
+      <p>
+        <strong>${rm?.name||"—"}</strong><br/>
+        ${loc?.name||""}${loc?.city ? " · " + loc.city : ""}<br/>
+        ${rm?.type||""} · ${rm?.beds||""} bed(s)<br/>
+        Rate: TZS ${Number(rm?.price||0).toLocaleString()}/night
+      </p>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Description</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th style="text-align:right">Amount</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>${rm?.name||"Room"} – ${rm?.type||"Accommodation"}</td>
+        <td>${b.ci||"—"}</td>
+        <td>${b.co||"—"}</td>
+        <td style="text-align:center">${b.nights||1}</td>
+        <td style="text-align:right">TZS ${Number(b.base||0).toLocaleString()}</td>
+      </tr>
+      ${(b.disc&&b.disc>0)?`<tr><td colspan="4" style="color:#2E7D32">Discount (${b.discT==="pct"?b.disc+"%":"fixed"})</td><td style="text-align:right;color:#2E7D32">− TZS ${Number(b.discT==="pct"?(b.base*b.disc/100):b.disc).toLocaleString()}</td></tr>`:""}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="total-row grand"><span>TOTAL</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
+    <div class="status-row"><span>Amount Paid</span><span class="paid-val">TZS ${Number(b.paid||0).toLocaleString()}</span></div>
+    <div class="status-row"><span>${bal>0?"Balance Due":"✓ Fully Paid"}</span><span class="bal-val">TZS ${Number(bal).toLocaleString()}</span></div>
+    <div class="status-row"><span>Payment Method</span><span>${b.method||"—"}</span></div>
+  </div>
+
+  ${b.notes?`<div style="background:#F9F9F9;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#555"><strong>Notes:</strong> ${b.notes}</div>`:""}
+
+  <div class="footer">
+    Thank you for choosing us! We hope to see you again.<br/>
+    <strong>BNBMIS</strong> · support@bnbmis.com · bnbmis.com<br/>
+    This ${docType.toLowerCase()} was generated on ${new Date().toLocaleString()}
+  </div>
+
+  <div class="no-print">
+    <button class="btn btn-pri" onclick="window.print()">🖨 Print ${docType}</button>
+    <button class="btn btn-sec" onclick="window.close()">Close</button>
+  </div>
+</div>
+</body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 6px" }}>Receipts & Invoices</h2>
+      <p style={{ fontSize:13, color:G6, marginBottom:20 }}>Generate and print receipts or invoices for guest bookings.</p>
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search guest name, phone or booking ID…"
+          style={{ flex:1, minWidth:200, padding:"9px 13px", border:`1px solid ${G2}`, borderRadius:8, fontSize:13, outline:"none", fontFamily:"inherit" }}/>
+        {["all","paid","balance","checkedIn"].map(f=>(
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:`1px solid ${filter===f?M:G2}`, background:filter===f?M:WH, color:filter===f?WH:G6 }}>
+            {f==="all"?"All":f==="paid"?"Paid":f==="balance"?"Has Balance":"Checked In"}
+          </button>
+        ))}
+      </div>
+
+      {/* Booking list */}
+      <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:12, overflow:"hidden" }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding:40, textAlign:"center", color:G4, fontSize:14 }}>No bookings found</div>
+        ) : filtered.map((b, i) => {
+          const rm  = rooms.find(r => r.id === b.roomId);
+          const bal = (b.total||0) - (b.paid||0);
+          return (
+            <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:`1px solid ${G1}`, flexWrap:"wrap", gap:10 }}>
+              <div style={{ flex:1, minWidth:200 }}>
+                <div style={{ fontWeight:700, fontSize:14 }}>{b.gName}</div>
+                <div style={{ fontSize:12, color:G6, marginTop:2 }}>
+                  {rm?.name||"—"} · {b.ci} → {b.co} · {b.nights} nights
+                </div>
+                <div style={{ fontSize:12, color:G6 }}>{b.gPhone} · ID: {b.id}</div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontWeight:700, color:M, fontSize:15 }}>TZS {Number(b.total||0).toLocaleString()}</div>
+                <div style={{ fontSize:12, color:bal>0?ER:OK, fontWeight:700 }}>
+                  {bal>0 ? "Balance: TZS "+Number(bal).toLocaleString() : "✓ Fully paid"}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                <button onClick={()=>printReceipt(b, false)}
+                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  🧾 Receipt
+                </button>
+                <button onClick={()=>printReceipt(b, true)}
+                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${M}`, background:MF, color:M, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  📄 Invoice
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Summary */}
+      <div style={{ marginTop:16, display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12 }}>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
+          <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Bookings</div>
+          <div style={{ fontSize:22, fontWeight:700, color:BK }}>{filtered.length}</div>
+        </div>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
+          <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Billed</div>
+          <div style={{ fontSize:18, fontWeight:700, color:M }}>TZS {filtered.reduce((s,b)=>s+Number(b.total||0),0).toLocaleString()}</div>
+        </div>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
+          <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Collected</div>
+          <div style={{ fontSize:18, fontWeight:700, color:OK }}>TZS {filtered.reduce((s,b)=>s+Number(b.paid||0),0).toLocaleString()}</div>
+        </div>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
+          <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Outstanding</div>
+          <div style={{ fontSize:18, fontWeight:700, color:ER }}>TZS {filtered.reduce((s,b)=>s+Math.max(0,(b.total||0)-(b.paid||0)),0).toLocaleString()}</div>
+        </div>
+      </div>
     </div>
   );
 }
