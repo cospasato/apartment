@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import { api } from "./api";
+import { COUNTRY_CITIES, ALL_COUNTRIES } from "./countryCities.js";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
 function PWAInstallBanner() {
@@ -392,32 +393,6 @@ function LocStats({ lr, lrev, lexp, lb }) {
 }
 
 
-/* ─── COUNTRIES + CITIES DATA ───────────────────────────── */
-const COUNTRY_CITIES = {
-  "Tanzania": ["Dar es Salaam","Dodoma","Arusha","Mwanza","Zanzibar","Mbeya","Morogoro","Tanga","Iringa","Kilimanjaro","Tabora","Kigoma","Moshi","Lindi","Mtwara","Ruvuma","Shinyanga","Kagera","Mara","Singida","Rukwa"],
-  "Kenya": ["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Malindi","Kitale","Garissa","Kakamega","Nyeri","Machakos","Meru","Embu","Lamu","Nanyuki","Kericho","Kisii","Bungoma","Homabay"],
-  "Uganda": ["Kampala","Gulu","Lira","Mbarara","Jinja","Bwizibwera","Mbale","Mukono","Kasese","Masaka","Entebbe","Soroti","Kabale","Arua","Fort Portal","Hoima","Moroto","Tororo","Njeru","Kitgum"],
-  "Rwanda": ["Kigali","Butare","Gitarama","Ruhengeri","Gisenyi","Byumba","Cyangugu","Kibungo","Kibuye","Nyanza","Rwamagana","Musanze","Rubavu","Karongi","Rusizi"],
-  "Ethiopia": ["Addis Ababa","Dire Dawa","Mekelle","Gondar","Hawassa","Bahir Dar","Dessie","Jimma","Jijiga","Shashamane","Bishoftu","Sodo","Arba Minch","Hosaena","Harar"],
-  "South Africa": ["Johannesburg","Cape Town","Durban","Pretoria","Port Elizabeth","Bloemfontein","East London","Polokwane","Nelspruit","Kimberley","Pietermaritzburg","George","Rustenburg","Witbank","Alberton"],
-  "Nigeria": ["Lagos","Abuja","Kano","Ibadan","Port Harcourt","Benin City","Maiduguri","Zaria","Aba","Jos","Ilorin","Oyo","Enugu","Abeokuta","Onitsha","Warri","Sokoto","Kaduna","Calabar","Uyo"],
-  "Ghana": ["Accra","Kumasi","Tamale","Sekondi-Takoradi","Cape Coast","Obuasi","Tema","Sunyani","Koforidua","Ho","Wa","Bolgatanga","Techiman","Nkoranza","Berekum"],
-  "Egypt": ["Cairo","Alexandria","Giza","Shubra El-Kheima","Port Said","Suez","Luxor","Aswan","Mansoura","Tanta","Ismailia","Hurghada","Zagazig","Faiyum","Asyut"],
-  "Morocco": ["Casablanca","Rabat","Fez","Marrakech","Agadir","Tangier","Meknes","Oujda","Kenitra","Tetouan","El Jadida","Safi","Beni Mellal","Nador","Khouribga"],
-  "United States": ["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio","San Diego","Dallas","San Jose","Austin","Jacksonville","Fort Worth","Columbus","Charlotte","Indianapolis","Seattle","Denver","Washington DC","Boston","Miami"],
-  "United Kingdom": ["London","Birmingham","Manchester","Glasgow","Liverpool","Bristol","Sheffield","Leeds","Edinburgh","Leicester","Bradford","Cardiff","Belfast","Nottingham","Kingston upon Hull","Newcastle","Southampton","Portsmouth","Oxford","Cambridge"],
-  "United Arab Emirates": ["Dubai","Abu Dhabi","Sharjah","Al Ain","Ajman","Ras Al Khaimah","Fujairah","Umm Al Quwain"],
-  "India": ["Mumbai","Delhi","Bengaluru","Hyderabad","Ahmedabad","Chennai","Kolkata","Pune","Jaipur","Surat","Lucknow","Kanpur","Nagpur","Visakhapatnam","Indore","Thane","Bhopal","Patna","Vadodara","Ludhiana","Agra","Nashik","Goa"],
-  "Australia": ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Gold Coast","Canberra","Hobart","Darwin","Cairns","Townsville","Geelong","Wollongong","Newcastle","Ballarat"],
-  "Germany": ["Berlin","Hamburg","Munich","Cologne","Frankfurt","Stuttgart","Dusseldorf","Dortmund","Essen","Leipzig","Bremen","Dresden","Hanover","Nuremberg","Duisburg"],
-  "France": ["Paris","Marseille","Lyon","Toulouse","Nice","Nantes","Montpellier","Strasbourg","Bordeaux","Lille","Rennes","Reims","Saint-Etienne","Toulon","Le Havre"],
-  "Canada": ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Victoria","Halifax","Oshawa","Windsor"],
-  "Singapore": ["Singapore"],
-  "Japan": ["Tokyo","Yokohama","Osaka","Nagoya","Sapporo","Kobe","Kyoto","Fukuoka","Kawasaki","Saitama","Hiroshima","Sendai","Chiba","Kitakyushu","Sakai"],
-  "Brazil": ["São Paulo","Rio de Janeiro","Brasília","Salvador","Fortaleza","Belo Horizonte","Manaus","Curitiba","Recife","Porto Alegre","Belém","Goiânia","Guarulhos","Campinas","São Luís"],
-  "Other": ["Other City"],
-};
-const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
@@ -675,7 +650,6 @@ export default function App() {
       if (s?.length) setStaff(s.map(mapStaff));
       if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
     } catch {
-      console.warn("DB not reachable");
     } finally {
       setLoading(false);
     }
@@ -1757,6 +1731,9 @@ export default function App() {
   const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
   const isMobileAdmin = window.innerWidth < 768;
 
+  // Memoize expensive sorts
+  const sortedBooks = useMemo(() => [...books].sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)), [books]);
+
   const adminContent = (
     <>
       {loading && <Spinner/>}
@@ -1869,7 +1846,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+const DashTab = memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   return (
     <div>
@@ -2004,7 +1981,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
+const BooksTab = memo(function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -2403,7 +2380,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
 }
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
+const RoomsTab = memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2640,7 +2617,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+const PaysTab = memo(function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
@@ -2836,7 +2813,7 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
 
 /* ─── REPORTS TAB ────────────────────────────────────────── */
 /* ─── REPORTS TAB ────────────────────────────────────────── */
-function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, api: apiProp, user: userProp }) {
+const ReportsTab = memo(function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, api: apiProp, user: userProp }) {
   const props = { storeId };
   const [rt, setRt]             = useState("financial");
   const [dateFrom, setDateFrom] = useState("");
@@ -3333,7 +3310,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
 }
 
 /* ─── STAFF TAB ──────────────────────────────────────────── */
-function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser, storeId: tabStoreId }) {
+const StaffTab = memo(function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, currentUser, storeId: tabStoreId }) {
   const [modal, setModal] = useState(false);
   const [form, setForm]   = useState({ id: null, name: "", email: "", phone: "", role: "Receptionist", locId: "", pin: "", active: true });
 
@@ -4874,7 +4851,7 @@ function SuperLoginModal({ onLogin, onClose, pop }) {
 }
 
 /* ─── OWNER SETTINGS TAB ────────────────────────────────── */
-function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
+const OwnerSettingsTab = memo(function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
   const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",WH2="#FFF",G12="#F5F5F5";
   const [storeData, setStoreData] = useState(null);
   const [saving, setSaving]       = useState(false);
@@ -5258,7 +5235,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
 }
 
 /* ─── OWNER BILLING TAB ──────────────────────────────────── */
-function OwnerBillingTab({ owner, storeId, api, pop }) {
+const OwnerBillingTab = memo(function OwnerBillingTab({ owner, storeId, api, pop }) {
   const [plans,    setPlans]    = useState([]);
   const [payments, setPayments] = useState([]);
   const [store,    setStore]    = useState(null);
@@ -5391,7 +5368,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
 }
 
 /* ─── CUSTOMERS TAB ─────────────────────────────────────── */
-function CustomersTab({ storeId, api, pop }) {
+const CustomersTab = memo(function CustomersTab({ storeId, api, pop }) {
   const [customers, setCustomers] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState("");
@@ -5818,7 +5795,7 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
 }
 
 /* ─── SHARE STORE TAB ────────────────────────────────────── */
-function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }) {
+const ShareStoreTab = memo(function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }) {
   const [mode, setMode]       = useState("store"); // "store" | "room"
   const [selRoomId, setSelRoomId] = useState("");
   const [copied, setCopied]   = useState(false);
@@ -5982,7 +5959,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
 }
 
 /* ─── RECEIPTS TAB ───────────────────────────────────────── */
-function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
+const ReceiptsTab = memo(function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState("all"); // all | paid | balance | checkedIn
   const [selBook, setSelBook] = useState(null);
