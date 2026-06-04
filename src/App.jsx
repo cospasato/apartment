@@ -1033,35 +1033,34 @@ export default function App() {
 
       {/* Hero */}
       <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
+        <div style={{ marginBottom:8, color:GOLD, fontSize:14, letterSpacing:".25em", textTransform:"uppercase", fontWeight:600 }}>✦ &nbsp; ✦</div>
         <h1 style={{
           color: WH,
-          fontSize: "clamp(32px, 8vw, 58px)",
+          fontSize: "clamp(34px, 9vw, 64px)",
           fontWeight: 900,
           fontFamily: "'Playfair Display',serif",
-          lineHeight: 1.15,
-          margin: "0 0 16px",
-          letterSpacing: "-.01em",
+          lineHeight: 1.1,
+          margin: "0 0 20px",
+          letterSpacing: "-.02em",
+          textShadow: "0 2px 24px rgba(0,0,0,.3)",
         }}>
-          <span style={{ color: GOLD, display: "block", fontSize: "clamp(18px, 4vw, 28px)", fontWeight: 700, letterSpacing: ".22em", textTransform: "uppercase", marginBottom: 12, fontFamily: "'DM Sans',sans-serif" }}>
-            ✦ Find Your Perfect Stay ✦
-          </span>
-          The Smarter Way to<br/>
-          <span style={{ color: GOLD }}>Discover & Book</span>
+          Find Your<br/>
+          <span style={{ color: GOLD }}>Perfect Stay</span>
         </h1>
-        <p style={{ color:"rgba(255,255,255,.75)", fontSize:"clamp(14px,3vw,17px)", maxWidth:500, margin:"0 auto 32px", lineHeight:1.8 }}>
-          Hotels, lodges, BnBs, apartments and guesthouses worldwide.<br/>Book direct for the best rates.
+        <p style={{ color:"rgba(255,255,255,.75)", fontSize:"clamp(14px,3vw,17px)", maxWidth:480, margin:"0 auto 32px", lineHeight:1.8 }}>
+          Hotels, lodges, BnBs, apartments and guesthouses worldwide. Book direct for the best rates.
         </p>
-        <div style={{ display:"flex", gap:8, maxWidth:560, margin:"0 auto", background:WH, borderRadius:12, padding:8, flexWrap:"wrap" }}>
-          <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search by city or country…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
-            style={{ flex:1, minWidth:160, border:"none", outline:"none", fontSize:14, color:BK, padding:"8px 12px", fontFamily:"inherit" }}/>
+        <div style={{ display:"flex", gap:0, maxWidth:540, margin:"0 auto", background:WH, borderRadius:12, padding:6, alignItems:"center" }}>
+          <input value={mktCity} onChange={e=>setMktCity(e.target.value)} placeholder="Search city or country…" onKeyDown={e=>e.key==="Enter"&&loadMarketplace(mktCity)}
+            style={{ flex:1, minWidth:0, border:"none", outline:"none", fontSize:14, color:BK, padding:"8px 10px", fontFamily:"inherit", background:"transparent" }}/>
           <select value={mktCity} onChange={e=>{ setMktCity(e.target.value); loadMarketplace(e.target.value); }}
-            style={{ border:"none", outline:"none", fontSize:13, color:G6, padding:"8px 6px", fontFamily:"inherit", background:"transparent", cursor:"pointer" }}>
-            <option value="">All Cities</option>
+            style={{ flexShrink:0, border:"none", outline:"none", fontSize:13, color:G6, padding:"8px 4px", fontFamily:"inherit", background:"transparent", cursor:"pointer", maxWidth:90 }}>
+            <option value="">All</option>
             {[...new Set((mktStores||[]).map(s=>s.city).filter(Boolean))].sort().map(city=>(
-              <option key={city} value={city}>{city}</option>
+              <option key={city} value={city}>{city.length>10?city.slice(0,9)+"…":city}</option>
             ))}
           </select>
-          <button onClick={()=>loadMarketplace(mktCity)} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"10px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>Search</button>
+          <button onClick={()=>loadMarketplace(mktCity)} style={{ flexShrink:0, background:M, color:WH, border:"none", borderRadius:8, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer" }}>Search</button>
         </div>
       </div>
 
