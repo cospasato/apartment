@@ -192,20 +192,23 @@ const Modal = ({ title, onClose, children, wide }) => (
       display: "flex",
       alignItems: "flex-end",
       justifyContent: "center",
+      /* Prevent iOS from scrolling the backdrop */
+      touchAction: "none",
     }}>
-    <div style={{
-      background: WH,
-      borderRadius: "16px 16px 0 0",
-      width: "100%",
-      maxWidth: wide ? 740 : 520,
-      /* Use min() for broad iOS compatibility — dvh not supported on iOS < 16 */
-      maxHeight: "min(92vh, 92%)",
-      height: "auto",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
-    }}>
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        background: WH,
+        borderRadius: "16px 16px 0 0",
+        width: "100%",
+        maxWidth: wide ? 740 : 520,
+        height: "90vh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
+        touchAction: "auto",
+      }}>
       {/* Sticky header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -215,18 +218,19 @@ const Modal = ({ title, onClose, children, wide }) => (
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif", paddingRight: 12 }}>{title}</h3>
         <button onClick={onClose} style={{ background: G1, border: "none", cursor: "pointer", fontSize: 18, color: G6, lineHeight: 1, padding: "4px 9px", borderRadius: 8, flexShrink: 0 }}>×</button>
       </div>
-      {/* Scrollable content — extra bottom padding ensures save buttons are never hidden */}
+      {/* Scrollable body */}
       <div style={{
-        padding: "18px 20px",
-        paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
-        overflowY: "auto",
+        padding: "18px 20px 0",
+        overflowY: "scroll",
         overflowX: "hidden",
         WebkitOverflowScrolling: "touch",
-        overscrollBehavior: "contain",
         flex: 1,
-        minHeight: 0,  /* critical: allows flex child to shrink and scroll */
+        minHeight: 0,
+        touchAction: "pan-y",
       }}>
         {children}
+        {/* Spacer so the last element (Save button) is always above safe area */}
+        <div style={{ height: "max(40px, calc(20px + env(safe-area-inset-bottom)))", flexShrink: 0 }}/>
       </div>
     </div>
   </div>
