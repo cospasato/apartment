@@ -1753,23 +1753,28 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
             })} />
         )}
       </Card>
-      {!isReceptDash && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-        {locs.map(loc => {
-          const lr = allRooms.filter(r => r.locId === loc.id);
-          const lb = books.filter(b => b.locId === loc.id);
-          const lrev = lb.reduce((s, b) => s + b.paid, 0);
-          const lexp = exps.filter(e => e.locId === loc.id).reduce((s, e) => s + e.amt, 0);
-          return (
-            <Card key={loc.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                <span style={{ fontSize: 22 }}>{loc.icon}</span>
-                <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div><div style={{ fontSize: 11, color: G6 }}>{loc.city}</div></div>
-              </div>
-              <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
-            </Card>
-          );
-        })}
-      </div>
+      {isReceptDash ? null : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+          {locs.map(function(loc) {
+            var lr = allRooms.filter(function(r) { return r.locId === loc.id; });
+            var lb = books.filter(function(b) { return b.locId === loc.id; });
+            var lrev = lb.reduce(function(s, b) { return s + b.paid; }, 0);
+            var lexp = exps.filter(function(e) { return e.locId === loc.id; }).reduce(function(s, e) { return s + e.amt; }, 0);
+            return (
+              <Card key={loc.id}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                  <span style={{ fontSize: 22 }}>{loc.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div>
+                    <div style={{ fontSize: 11, color: G6 }}>{loc.city}</div>
+                  </div>
+                </div>
+                <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
