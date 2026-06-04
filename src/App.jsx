@@ -183,13 +183,44 @@ const Btn = ({ children, onClick, v = "pri", style, disabled }) => {
   return <button onClick={onClick} disabled={disabled} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity .15s", ...VS[v], ...style }}>{children}</button>;
 };
 const Modal = ({ title, onClose, children, wide }) => (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-    <div style={{ background: WH, borderRadius: 16, width: "100%", maxWidth: wide ? 740 : 500, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.22)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", borderBottom: `1px solid ${G2}`, position: "sticky", top: 0, background: WH, zIndex: 1 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{title}</h3>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, color: G4, lineHeight: 1, padding: 0 }}>×</button>
+  <div
+    onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,.6)",
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      padding: "0",
+      WebkitOverflowScrolling: "touch",
+    }}>
+    <div style={{
+      background: WH,
+      borderRadius: "16px 16px 0 0",
+      width: "100%",
+      maxWidth: wide ? 740 : 520,
+      maxHeight: "92dvh",
+      height: "auto",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      boxShadow: "0 -8px 40px rgba(0,0,0,.25)",
+      paddingBottom: "env(safe-area-inset-bottom)",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "16px 20px", borderBottom: `1px solid ${G2}`,
+        flexShrink: 0, background: WH,
+      }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif", paddingRight: 12 }}>{title}</h3>
+        <button onClick={onClose} style={{ background: G1, border: "none", cursor: "pointer", fontSize: 18, color: G6, lineHeight: 1, padding: "4px 9px", borderRadius: 8, flexShrink: 0 }}>×</button>
       </div>
-      <div style={{ padding: 22 }}>{children}</div>
+      {/* Scrollable content */}
+      <div style={{ padding: "18px 20px 24px", overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1 }}>
+        {children}
+      </div>
     </div>
   </div>
 );
@@ -1604,7 +1635,7 @@ export default function App() {
 
   /* ── STAFF DESKTOP LAYOUT ── */
   return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
+    <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <NavBar/>
       <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
@@ -4843,9 +4874,18 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
   const selectTab = (id) => { setTab(id); setDrawerOpen(false); };
 
   return (
-    <div style={{ background:"#F5F5F5", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, right:0, bottom:0 }}>
+    <div style={{
+      background:"#F5F5F5",
+      fontFamily:"'DM Sans',sans-serif",
+      display:"flex",
+      flexDirection:"column",
+      position:"fixed",
+      top: 0, left: 0, right: 0, bottom: 0,
+      height: "100%",
+      maxHeight: "-webkit-fill-available",
+    }}>
       {/* ── TOP BAR ── */}
-      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", paddingTop:"max(env(safe-area-inset-top),12px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
+      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:"max(env(safe-area-inset-top), 14px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
         {/* Left: hamburger + title */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setDrawerOpen(true)}
@@ -4908,12 +4948,12 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       )}
 
       {/* ── CONTENT ── */}
-      <div style={{ flex:1, overflowY:"scroll", overflowX:"hidden", padding:"14px 14px calc(72px + env(safe-area-inset-bottom))", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+      <div style={{ flex:1, overflowY:"scroll", overflowX:"hidden", padding:"14px", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         {children}
       </div>
 
       {/* ── BOTTOM NAV (4 tabs + menu) ── */}
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"env(safe-area-inset-bottom)", WebkitTransform:"translateZ(0)" }}>
+      <div style={{ flexShrink:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"max(env(safe-area-inset-bottom), 4px)" }}>
         {bottomTabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
