@@ -1623,8 +1623,9 @@ export default function App() {
       {id:"locs",      icon:"📍", l:"Locations"},
       {id:"staff",     icon:"👥", l:"Staff"},
       {id:"customers", icon:"🧑‍🤝‍🧑", l:"Customers"},
+      {id:"receipts",  icon:"🧾", l:"Receipts"},
       {id:"share",     icon:"📤", l:"Share Store"},
-      {id:"billing",   icon:"🧾", l:"Billing"},
+      {id:"billing",   icon:"💰", l:"Billing"},
       {id:"settings",  icon:"⚙️",  l:"Settings"},
     ];
     const totRev2   = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
@@ -1648,6 +1649,7 @@ export default function App() {
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
         {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
+        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop}/>}
         {!loading && aTab==="share"     && <ShareStoreTab owner={owner} storeId={sid} rooms={rooms} locs={locs} pop={pop}/>}
         {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
         {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
@@ -2004,11 +2006,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const selB = books.find(b => b.id === sel);
   const selR = rooms.find(r => r.id === selB?.roomId);
 
-  const printPaymentReceipt = (b, rm) => {
+  const printPaymentReceipt = (b, rm, isInvoice=false) => {
     if (!b) return;
+    const docType = isInvoice ? "INVOICE" : "RECEIPT";
     const w = window.open("", "_blank", "width=600,height=800");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(`<!DOCTYPE html><html><head><title>Payment Receipt</title><style>
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
       *{box-sizing:border-box}
       body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
       .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
@@ -2032,7 +2035,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     <div class="logo">BNBMIS</div>
     <div class="sub">BNB Management Information System</div>
     <hr/>
-    <div class="title">Payment Receipt</div>
+    <div class="title">${docType}</div>
     <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||"").split("T")[0]||""} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
     <div class="section">
       <div class="section-title">Customer Information</div>
@@ -2321,12 +2324,20 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
             </div>
           </div>
           {selB.status === "checkedIn" && (
-            <div style={{ marginTop: 16, padding: "11px 14px", background: MF, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ marginTop: 16, padding: "11px 14px", background: MF, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "space-between", gap:8, flexWrap:"wrap" }}>
               <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>Guest is currently checked in</span>
               <Btn onClick={() => { setSel(null); setCoModal(selB.id); }} style={{ fontSize: 12, padding: "6px 14px" }}>Check Out / Extend →</Btn>
-              <button onClick={() => printPaymentReceipt(selB, selR)} style={{ background:"#1565C0", color:"#FFF", border:"none", borderRadius:8, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>🖨 Print Receipt</button>
             </div>
           )}
+          {/* Print actions — always shown */}
+          <div style={{ marginTop:14, display:"flex", gap:8, flexWrap:"wrap" }}>
+            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              🧾 Print Receipt
+            </button>
+            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+              📄 Print Invoice
+            </button>
+          </div>
           {(selB.total - selB.paid) > 0 && selB.status !== "cancelled" && (
             <div style={{ marginTop: 18, padding: 14, background: G1, borderRadius: 10 }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12 }}>Record Payment</div>
