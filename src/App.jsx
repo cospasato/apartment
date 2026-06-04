@@ -299,62 +299,56 @@ function VideoModal({ room, onClose, fmt }) {
 
 /* ─── INSTAGRAM EMBED ────────────────────────────────────── */
 function IGEmbed({ url }) {
-  const [thumbLoaded, setThumbLoaded] = useState(false);
-  // Clean URL - remove query params
+  // Instagram completely blocks external video playback.
+  // Best UX: show the embed iframe (works for posts/reels display on desktop),
+  // with a fallback open-in-app button for mobile.
   const cleanUrl = url.split("?")[0].replace(/\/$/, "");
-  // Extract shortcode from reel/post URL
   const match = cleanUrl.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[2] : null;
-  // oEmbed thumbnail (works without auth)
-  const thumbUrl = shortcode
-    ? "https://www.instagram.com/p/" + shortcode + "/media/?size=l"
+  const embedUrl = shortcode
+    ? "https://www.instagram.com/p/" + shortcode + "/embed/captioned/"
     : null;
-  // Deep link: opens Instagram app on mobile, website on desktop
-  const appLink = shortcode
-    ? "instagram://media?id=" + shortcode
-    : cleanUrl;
 
+  // Open in Instagram app on mobile, web on desktop
   const openIG = () => {
-    // Try app deep link first, fall back to web URL
-    const start = Date.now();
-    window.location = appLink;
-    setTimeout(() => {
-      if (Date.now() - start < 1500) {
-        window.open(cleanUrl, "_blank");
-      }
-    }, 800);
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      // Try app first, fall back to web after 800ms
+      window.location.href = cleanUrl;
+    } else {
+      window.open(cleanUrl, "_blank");
+    }
   };
 
+  if (!embedUrl) {
+    return (
+      <div style={{ textAlign:"center", padding:20 }}>
+        <a href={cleanUrl} target="_blank" rel="noopener noreferrer"
+          style={{ display:"inline-block", padding:"12px 24px", background:"linear-gradient(135deg,#833AB4,#FD1D1D)", color:"#FFF", borderRadius:10, fontWeight:700, textDecoration:"none" }}>
+          📸 Open on Instagram
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ borderRadius:12, overflow:"hidden", background:"#000", position:"relative" }}>
-      {/* Thumbnail */}
-      <div style={{ position:"relative", paddingBottom:"100%", background:"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)" }}>
-        {thumbUrl && (
-          <img
-            src={thumbUrl}
-            alt="Instagram Reel"
-            onLoad={() => setThumbLoaded(true)}
-            onError={() => setThumbLoaded(false)}
-            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", display:thumbLoaded?"block":"none" }}
-          />
-        )}
-        {/* Play overlay */}
-        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.35)" }}>
-          <button onClick={openIG} style={{ width:64, height:64, borderRadius:"50%", background:"rgba(255,255,255,.95)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 4px 20px rgba(0,0,0,.4)" }}>
-            <span style={{ fontSize:28, marginLeft:4 }}>▶</span>
-          </button>
-          <div style={{ color:"#FFF", fontWeight:700, fontSize:13, textShadow:"0 1px 4px rgba(0,0,0,.8)" }}>Tap to watch on Instagram</div>
-        </div>
-        {/* Instagram badge */}
-        <div style={{ position:"absolute", top:10, right:10, background:"linear-gradient(135deg,#833AB4,#FD1D1D)", borderRadius:8, padding:"4px 10px", display:"flex", alignItems:"center", gap:5 }}>
-          <span style={{ fontSize:14 }}>📸</span>
-          <span style={{ color:"#FFF", fontSize:11, fontWeight:700 }}>Instagram</span>
-        </div>
+    <div>
+      {/* Embed iframe — shows the post on desktop, limited on mobile */}
+      <div style={{ borderRadius:12, overflow:"hidden", border:"1px solid #E8E8E8", marginBottom:12 }}>
+        <iframe
+          src={embedUrl}
+          style={{ width:"100%", height:500, border:"none", display:"block" }}
+          scrolling="no"
+          allowTransparency
+          allowFullScreen
+          title="Instagram post"
+        />
       </div>
-      <div style={{ padding:"10px 14px", background:"#111", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontSize:11, color:"#888", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%" }}>{cleanUrl}</span>
-        <a href={cleanUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:"#C9A84C", fontWeight:700, textDecoration:"none", flexShrink:0 }}>Open →</a>
-      </div>
+      {/* Open in app button - essential for mobile */}
+      <button onClick={openIG}
+        style={{ width:"100%", padding:"13px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)", color:"#FFF", fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+        <span style={{ fontSize:18 }}>📸</span>
+        Open & Play in Instagram
+      </button>
     </div>
   );
 }
@@ -592,6 +586,14 @@ export default function App() {
   const [availLoading, setAvailLoading] = useState(false);
   const [pendingBookLoc, setPendingBookLoc] = useState(null);
   const [videoModal, setVideoModal] = useState(null);
+  // Wrap setVideoModal to push/pop history so back button closes it
+  const openVideoModal = (id) => {
+    window.history.pushState({ videoModal: id }, "");
+    setVideoModal(id);
+  };
+  const closeVideoModal = () => {
+    setVideoModal(null);
+  };
   const [roomDetail, setRoomDetail] = useState(null);
   const [loginF, setLoginF] = useState({ email:"", pin:"" });
   const [loginErr, setLoginErr] = useState("");
@@ -750,6 +752,11 @@ export default function App() {
     window.history.replaceState({ view, step: bStep }, "");
     const onPop = (e) => {
       const state = e.state;
+      // Close video modal on back
+      if (state?.videoModal === undefined && videoModal) {
+        setVideoModal(null);
+        return;
+      }
       if (!state) { setView("land"); return; }
       setView(state.view || "land");
       if (state.view === "book") setBStep(state.step || 1);
@@ -1334,7 +1341,7 @@ export default function App() {
                           🔍 Details
                         </button>
                         {rm.video && (
-                          <button onClick={e=>{e.stopPropagation();setVideoModal(rm.id);}}
+                          <button onClick={e=>{e.stopPropagation();openVideoModal(rm.id);}}
                             style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:BK, color:WH, border:"none", borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                             {rm.video.includes("instagram") ? "📸 Reel" : "🎬 Video"}
                           </button>
@@ -1519,7 +1526,7 @@ export default function App() {
       {videoModal && rooms.find(r => r.id === videoModal) && (
         <VideoModal
           room={rooms.find(r => r.id === videoModal)}
-          onClose={() => setVideoModal(null)}
+          onClose={() => { if (window.history.state?.videoModal) window.history.back(); else closeVideoModal(); }}
           fmt={fmt}
         />
       )}
@@ -2444,7 +2451,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                         style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
                         <option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option>
                       </select>
-                      {rm.video && <button onClick={()=>setVideoModal(rm.id)} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${G2}`, background:"none", cursor:"pointer", color:G6, fontFamily:"inherit" }}>{rm.video.includes("instagram")?"📸":"🎬"}</button>}
+                      {rm.video && <button onClick={()=>openVideoModal(rm.id)} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${G2}`, background:"none", cursor:"pointer", color:G6, fontFamily:"inherit" }}>{rm.video.includes("instagram")?"📸":"🎬"}</button>}
                       <button onClick={()=>{
                         const base = storeSlug ? "https://"+storeSlug+".bnbmis.com" : "https://bnbmis.com";
                         const url  = base+"?room="+rm.id;
