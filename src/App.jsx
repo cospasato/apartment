@@ -299,21 +299,62 @@ function VideoModal({ room, onClose, fmt }) {
 
 /* ─── INSTAGRAM EMBED ────────────────────────────────────── */
 function IGEmbed({ url }) {
-  // Instagram blocks iframe embedding — open directly in Instagram app/browser
+  const [thumbLoaded, setThumbLoaded] = useState(false);
+  // Clean URL - remove query params
   const cleanUrl = url.split("?")[0].replace(/\/$/, "");
+  // Extract shortcode from reel/post URL
+  const match = cleanUrl.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
+  const shortcode = match ? match[2] : null;
+  // oEmbed thumbnail (works without auth)
+  const thumbUrl = shortcode
+    ? "https://www.instagram.com/p/" + shortcode + "/media/?size=l"
+    : null;
+  // Deep link: opens Instagram app on mobile, website on desktop
+  const appLink = shortcode
+    ? "instagram://media?id=" + shortcode
+    : cleanUrl;
+
+  const openIG = () => {
+    // Try app deep link first, fall back to web URL
+    const start = Date.now();
+    window.location = appLink;
+    setTimeout(() => {
+      if (Date.now() - start < 1500) {
+        window.open(cleanUrl, "_blank");
+      }
+    }, 800);
+  };
+
   return (
-    <div style={{ textAlign:"center", padding:"20px 0" }}>
-      <div style={{ width:72, height:72, borderRadius:18, background:"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, margin:"0 auto 16px" }}>📸</div>
-      <div style={{ fontWeight:700, fontSize:16, color:"#111", marginBottom:8 }}>Instagram Reel</div>
-      <div style={{ fontSize:13, color:"#666", marginBottom:20, lineHeight:1.6 }}>
-        Instagram does not allow videos to play inside other apps.<br/>
-        Tap below to open and watch it directly on Instagram.
+    <div style={{ borderRadius:12, overflow:"hidden", background:"#000", position:"relative" }}>
+      {/* Thumbnail */}
+      <div style={{ position:"relative", paddingBottom:"100%", background:"linear-gradient(135deg,#833AB4,#FD1D1D,#FCB045)" }}>
+        {thumbUrl && (
+          <img
+            src={thumbUrl}
+            alt="Instagram Reel"
+            onLoad={() => setThumbLoaded(true)}
+            onError={() => setThumbLoaded(false)}
+            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", display:thumbLoaded?"block":"none" }}
+          />
+        )}
+        {/* Play overlay */}
+        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.35)" }}>
+          <button onClick={openIG} style={{ width:64, height:64, borderRadius:"50%", background:"rgba(255,255,255,.95)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 4px 20px rgba(0,0,0,.4)" }}>
+            <span style={{ fontSize:28, marginLeft:4 }}>▶</span>
+          </button>
+          <div style={{ color:"#FFF", fontWeight:700, fontSize:13, textShadow:"0 1px 4px rgba(0,0,0,.8)" }}>Tap to watch on Instagram</div>
+        </div>
+        {/* Instagram badge */}
+        <div style={{ position:"absolute", top:10, right:10, background:"linear-gradient(135deg,#833AB4,#FD1D1D)", borderRadius:8, padding:"4px 10px", display:"flex", alignItems:"center", gap:5 }}>
+          <span style={{ fontSize:14 }}>📸</span>
+          <span style={{ color:"#FFF", fontSize:11, fontWeight:700 }}>Instagram</span>
+        </div>
       </div>
-      <a href={cleanUrl} target="_blank" rel="noopener noreferrer"
-        style={{ display:"inline-block", padding:"13px 32px", borderRadius:10, fontWeight:700, fontSize:15, textDecoration:"none", color:"#FFF", background:"linear-gradient(135deg,#833AB4,#FD1D1D)", boxShadow:"0 4px 16px rgba(131,58,180,.35)" }}>
-        Watch on Instagram →
-      </a>
-      <div style={{ marginTop:12, fontSize:11, color:"#aaa" }}>{cleanUrl}</div>
+      <div style={{ padding:"10px 14px", background:"#111", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <span style={{ fontSize:11, color:"#888", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%" }}>{cleanUrl}</span>
+        <a href={cleanUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:"#C9A84C", fontWeight:700, textDecoration:"none", flexShrink:0 }}>Open →</a>
+      </div>
     </div>
   );
 }
@@ -2426,56 +2467,58 @@ Book here: "+url;
         );
       })}
 
-      {/* ── EDIT / ADD — full page overlay (works on all devices) ── */}
+      {/* ── EDIT / ADD — centered popup dialog ── */}
       {modal === "f" && (
-        <div style={{ position:"fixed", inset:0, zIndex:9999, background:G1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-          {/* Top bar */}
-          <div style={{ background:M, color:WH, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", paddingTop:"max(env(safe-area-inset-top),14px)", paddingBottom:12, position:"sticky", top:0, zIndex:1 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{form.id ? "Edit Room" : "Add Room"}</div>
-            <button onClick={() => setModal(null)} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH, borderRadius:8, padding:"6px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Cancel</button>
-          </div>
-          {/* Form body */}
-          <div style={{ padding:"20px 16px", maxWidth:600, margin:"0 auto" }}>
-            <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-            <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Deluxe Suite" />
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
-              <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
-              <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
-              <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
-              <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px" }}>
+          <div style={{ background:WH, borderRadius:16, width:"100%", maxWidth:560, maxHeight:"85vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+            {/* Dialog header */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G2}`, flexShrink:0 }}>
+              <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>{form.id ? "Edit Room" : "Add Room"}</h3>
+              <button onClick={() => setModal(null)} style={{ background:G1, border:"none", color:G6, borderRadius:8, padding:"4px 10px", fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
             </div>
-            <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
-            <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
-            <Inp label="Room Video / Reel URL (optional)" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="YouTube or Instagram Reel link" />
-            {form.video && (
-              <div style={{ fontSize:12, color:G6, marginTop:-10, marginBottom:12 }}>
-                {form.video.includes("youtube") || form.video.includes("youtu.be") ? "✓ YouTube" : form.video.includes("instagram") ? "✓ Instagram Reel" : "✓ Video link"}
-                <button onClick={() => setForm(f=>({...f,video:""}))} style={{ marginLeft:10, background:"none", border:"none", color:ER, cursor:"pointer", fontSize:12 }}>Remove</button>
+            {/* Scrollable body */}
+            <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"18px 20px", flex:1, minHeight:0 }}>
+              <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+              <Inp label="Room Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Deluxe Suite" />
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+                <Sel label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{["Standard","Deluxe","Suite","Apartment","Studio","Cottage","Penthouse"].map(t => <option key={t}>{t}</option>)}</Sel>
+                <Sel label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}><option value="available">Available</option><option value="maintenance">Maintenance</option></Sel>
+                <Inp label="Beds" type="number" value={form.beds} onChange={e => setForm(f => ({ ...f, beds: e.target.value }))} min={1} />
+                <Inp label="Max Guests" type="number" value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))} min={1} />
               </div>
-            )}
-            {/* Photos */}
-            <div style={{ marginBottom:16 }}>
-              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Room Photos</label>
-              {form.photos && form.photos.length > 0 && (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))", gap:8, marginBottom:10 }}>
-                  {form.photos.map((src, i) => (
-                    <div key={i} style={{ position:"relative", borderRadius:8, overflow:"hidden", height:80 }}>
-                      <img src={src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                      <button onClick={() => removePhoto(i)} style={{ position:"absolute", top:3, right:3, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.65)", border:"none", color:WH, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                      {i === 0 && <div style={{ position:"absolute", bottom:3, left:3, background:M, color:WH, fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:99 }}>COVER</div>}
-                    </div>
-                  ))}
+              <Inp label="Price per Night (TZS)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+              <Inp label="Amenities (comma separated)" value={form.amen} onChange={e => setForm(f => ({ ...f, amen: e.target.value }))} placeholder="WiFi, AC, Kitchen, Pool" />
+              <Inp label="Room Video / Reel URL (optional)" value={form.video||""} onChange={e => setForm(f => ({ ...f, video: e.target.value }))} placeholder="YouTube or Instagram Reel link" />
+              {form.video && (
+                <div style={{ fontSize:12, color:G6, marginTop:-10, marginBottom:12 }}>
+                  {form.video.includes("youtube") || form.video.includes("youtu.be") ? "✓ YouTube" : form.video.includes("instagram") ? "✓ Instagram Reel" : "✓ Video link"}
+                  <button onClick={() => setForm(f=>({...f,video:""}))} style={{ marginLeft:10, background:"none", border:"none", color:ER, cursor:"pointer", fontSize:12 }}>Remove</button>
                 </div>
               )}
-              <label style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px", border:`2px dashed ${G2}`, borderRadius:8, cursor:"pointer", fontSize:13, color:G6, background:WH }}>
-                <span style={{ fontSize:20 }}>📷</span>
-                <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
-                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display:"none" }} />
-              </label>
-              <div style={{ fontSize:11, color:G4, marginTop:4 }}>First photo is the cover image. Auto-compressed.</div>
+              {/* Photos */}
+              <div style={{ marginBottom:16 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Room Photos</label>
+                {form.photos && form.photos.length > 0 && (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))", gap:8, marginBottom:10 }}>
+                    {form.photos.map((src, i) => (
+                      <div key={i} style={{ position:"relative", borderRadius:8, overflow:"hidden", height:80 }}>
+                        <img src={src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                        <button onClick={() => removePhoto(i)} style={{ position:"absolute", top:3, right:3, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.65)", border:"none", color:WH, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                        {i === 0 && <div style={{ position:"absolute", bottom:3, left:3, background:M, color:WH, fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:99 }}>COVER</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px", border:`2px dashed ${G2}`, borderRadius:8, cursor:"pointer", fontSize:13, color:G6, background:G1 }}>
+                  <span style={{ fontSize:20 }}>📷</span>
+                  <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
+                  <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display:"none" }} />
+                </label>
+                <div style={{ fontSize:11, color:G4, marginTop:4 }}>First photo is the cover. Auto-compressed.</div>
+              </div>
             </div>
-            {/* Save button */}
-            <div style={{ display:"flex", gap:10, paddingBottom:"max(24px, env(safe-area-inset-bottom))" }}>
+            {/* Sticky footer buttons */}
+            <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:`1px solid ${G2}`, flexShrink:0, background:WH, borderRadius:"0 0 16px 16px" }}>
               <Btn v="ghost" onClick={() => setModal(null)} style={{ flex:1, justifyContent:"center" }}>Cancel</Btn>
               <Btn onClick={save} style={{ flex:1, justifyContent:"center" }}>Save Room</Btn>
             </div>
