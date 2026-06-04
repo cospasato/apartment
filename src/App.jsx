@@ -680,8 +680,7 @@ export default function App() {
           "📅 " + ci + " → " + co,
           rmName ? "🛏️ " + rmName : "",
           "💰 TZS " + total.toLocaleString(),
-        ].filter(Boolean).join("
-");
+        ].filter(Boolean).join("\n");
 
         const opts = {
           body:    lines,
