@@ -1106,12 +1106,8 @@ export default function App() {
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <nav style={{ background:BK, height:62, display:"flex", alignItems:"center", padding:"0 24px", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:36, height:36, background:M, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <span style={{ color:WH, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
-          </div>
-          <div>
-            <div style={{ color:WH, fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>BNBMIS</div>
-            <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Property Management Information System</div>
+          <div style={{ width:40, height:40, background:M, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span style={{ color:GOLD, fontWeight:900, fontSize:13, fontFamily:"'Playfair Display',serif", letterSpacing:"-0.5px" }}>BNB</span>
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
@@ -1293,7 +1289,9 @@ export default function App() {
                     <div style={{ padding: 14 }}>
                       <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
-                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} rooms available</div>
+                      {loc.desc && <div style={{ fontSize: 12, color: G6, marginBottom: 8, lineHeight: 1.5 }}>{loc.desc.length > 80 ? loc.desc.slice(0,78)+"…" : loc.desc}</div>}
+                      {loc.addr && <div style={{ fontSize: 11, color: G4, marginBottom: 6 }}>📍 {loc.addr}</div>}
+                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
                     </div>
                   </div>
                 );
@@ -2032,7 +2030,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:2}
       @media print{.no-print{display:none}}
     </style></head><body>
-    <div class="logo">${storeName||"Property"}</div>
+    <div class="logo">${storeName||"Property Name"}</div>
     <div class="sub">Powered by BNBMIS</div>
     <hr/>
     <div class="title">${docType}</div>
@@ -2075,7 +2073,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     </div>
     <div class="footer">
       Thank you for choosing us!<br/>
-      ${storeName||"Property"} · bnbmis.com
+      ${storeName||"Property Name"} · bnbmis.com
     </div>
     <br/>
     <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
@@ -5977,7 +5975,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </style></head><body>
 <div class="page">
   <div class="header">
-    <div><div class="logo">${storeName||"Property"}</div><div class="logo-sub">Powered by BNBMIS</div></div>
+    <div><div class="logo">${storeName||"Property Name"}</div><div class="logo-sub">Powered by BNBMIS</div></div>
     <div class="doc-type">
       <h1>${docType}</h1>
       <div class="ref">Ref: ${b.id}</div>
@@ -6035,7 +6033,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
   <div class="footer">
     Thank you for choosing us! We hope to see you again.<br/>
     <strong>BNBMIS</strong> · support@bnbmis.com · bnbmis.com<br/>
-    ${storeName||"Property"} · bnbmis.com<br/>
+    ${storeName||"Property Name"} · bnbmis.com<br/>
     This ${docType.toLowerCase()} was generated on ${new Date().toLocaleString()}
   </div>
 
