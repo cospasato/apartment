@@ -958,6 +958,14 @@ export default function App() {
     } catch (err) { pop(err.message || "Extension failed", "err"); }
   };
 
+  const modifyBooking = async (id, changes) => {
+    try {
+      const updated = await api.updateBooking(id, changes);
+      setBooks(prev => prev.map(b => b.id === id ? { ...b, ...mapBook(updated) } : b));
+      pop("Booking updated", "ok");
+    } catch(e) { pop(e?.message || "Failed to update", "err"); }
+  };
+
   const updBook = async (id, status) => {
     try {
       const updated = await api.updateBooking(id, { status });
@@ -1796,7 +1804,7 @@ export default function App() {
       <>
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -1826,7 +1834,7 @@ export default function App() {
         >
           {content}
         </MobilePortal>
-        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       </>
     );
 
@@ -1877,7 +1885,7 @@ export default function App() {
             {content}
           </div>
         </div>
-        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
         {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       </div>
     );
@@ -1895,7 +1903,7 @@ export default function App() {
     <>
       {loading && <Spinner/>}
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
-      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
@@ -1923,7 +1931,7 @@ export default function App() {
       >
         {adminContent}
       </MobilePortal>
-      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
     </>
   );
@@ -1947,7 +1955,7 @@ export default function App() {
       <div style={{ flex:1, overflow:"auto", padding:22 }}>
         {adminContent}
       </div>
-      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods}/>}
+      {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
     </div>
@@ -2138,12 +2146,13 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, onNew, pop, user, payMethods }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
   const [locFilter, setLocFilter]   = useState("");   // filter by location
   const [roomFilter, setRoomFilter] = useState("");   // filter by room
+  const [editBook, setEditBook]     = useState(null); // booking being modified
   const [sel, setSel] = useState(null);
   const [payAmt, setPayAmt] = useState("");
   const [payMethod, setPayMethod] = useState("");
@@ -2460,6 +2469,21 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       )}
 
       {/* ── BOOKING DETAIL MODAL ── */}
+      {/* ── EDIT BOOKING MODAL ── */}
+      {editBook && (
+        <EditBookingModal
+          booking={editBook}
+          rooms={rooms}
+          locs={locs}
+          bookedDates={bookedDates || {}}
+          onClose={() => setEditBook(null)}
+          onSave={async (changes) => {
+            await modifyBooking(editBook.id, changes);
+            setEditBook(null);
+          }}
+        />
+      )}
+
       {sel && selB && (
         <Modal title={`Booking ${selB.id}`} onClose={() => { setSel(null); setPayAmt(""); }} wide>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
@@ -2493,8 +2517,17 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
               <Btn onClick={() => { setSel(null); setCoModal(selB.id); }} style={{ fontSize: 12, padding: "6px 14px" }}>Check Out / Extend →</Btn>
             </div>
           )}
+          {/* Modify booking — Admin/Manager only */}
+          {["confirmed","pending","checkedIn"].includes(selB.status) && (user?.role==="Admin"||user?.role==="Manager"||!user) && modifyBooking && (
+            <div style={{ marginTop:14 }}>
+              <button onClick={() => { setEditBook(selB); setSel(null); }}
+                style={{ width:"100%", background:"#E3F2FD", color:"#1565C0", border:"1px solid #1565C0", borderRadius:8, padding:"10px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                ✏️ Modify Booking (Change Room / Dates)
+              </button>
+            </div>
+          )}
           {/* Print actions — always shown */}
-          <div style={{ marginTop:14, display:"flex", gap:8, flexWrap:"wrap" }}>
+          <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
             <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               🧾 Print Receipt
             </button>
@@ -3745,56 +3778,136 @@ function ProfileTab({ user, updateProfile }) {
 }
 
 /* ─── NEW BOOKING MODAL ──────────────────────────────────── */
-function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods }) {
-  const [form, setForm] = useState({ locId: locs[0]?.id || "", roomId: "", name: "", phone: "", email: "", nat: "", ci: td(), co: "", nights: 1, disc: 0, discT: "pct", method: payMethods?.[0]||"Cash", notes: "", paid: 0 });
+function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDatesMap }) {
+  const [form, setForm] = useState({
+    locId: locs[0]?.id || "", roomId: "", name: "", phone: "", email: "", nat: "",
+    ci: "", co: "", nights: 1, disc: 0, discT: "pct",
+    method: payMethods?.[0] || "Cash", notes: "", paid: 0,
+  });
+
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
-  const lr = rooms.filter(r => r.locId === form.locId && r.status === "available");
-  const sr = rooms.find(r => r.id === form.roomId);
+
+  // Compute checkout min = checkin + 1 day
+  const minCo = form.ci ? new Date(new Date(form.ci).getTime() + 86400000).toISOString().split("T")[0] : "";
+
+  // Rooms for selected location — filtered by availability after dates chosen
+  const isRoomAvailable = (r) => {
+    if (r.status !== "available") return false;
+    if (!form.ci || !form.co) return true; // no dates yet — show all
+    const booked = (bookedDatesMap || {})[r.id] || [];
+    // checkout is 12:00 — strict > means same-day checkout/checkin is allowed
+    return !booked.some(b => b.ci < form.co && b.co > form.ci);
+  };
+
+  const locRooms     = rooms.filter(r => r.locId === form.locId);
+  const availRooms   = locRooms.filter(isRoomAvailable);
+  const unavailRooms = locRooms.filter(r => !isRoomAvailable(r));
+  const sr   = rooms.find(r => r.id === form.roomId);
   const base = sr ? sr.price * form.nights : 0;
-  const da = form.discT === "pct" ? base * form.disc / 100 : Number(form.disc);
+  const da   = form.discT === "pct" ? base * form.disc / 100 : Number(form.disc);
   const total = base - da;
+
   useEffect(() => {
-    if (form.ci && form.co) { const n = dd(form.ci, form.co); if (n > 0) setForm(f => ({ ...f, nights: n })); }
+    if (form.ci && form.co) {
+      const n = dd(form.ci, form.co);
+      if (n > 0) setForm(f => ({ ...f, nights: n }));
+      // Clear room if it's no longer available for new dates
+      if (form.roomId && !isRoomAvailable(rooms.find(r => r.id === form.roomId))) {
+        setForm(f => ({ ...f, roomId: "" }));
+      }
+    }
   }, [form.ci, form.co]);
+
   const save = () => {
     if (!form.roomId || !form.name || !form.phone || !form.ci || !form.co) return;
     onSave(form, base, da, total);
   };
+
+  const datesSet = !!(form.ci && form.co);
+
   return (
     <Modal title="New Booking" onClose={onClose} wide>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-        <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value, roomId: "" }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
-        <Sel label="Room" value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}><option value="">Select room…</option>{lr.map(r => <option key={r.id} value={r.id}>{r.name} — {fmt(r.price)}/night</option>)}</Sel>
-        <Inp label="Check-in" type="date" value={form.ci} min={td()} onChange={e => {
-          const ci = e.target.value;
-          // Auto-set checkout to next day (minimum 1 night, checkout 12:00)
-          const auto_co = ci ? new Date(new Date(ci).getTime() + 86400000).toISOString().split("T")[0] : "";
-          setForm(f => ({ ...f, ci, co: f.co && f.co > ci ? f.co : auto_co }));
-        }} />
-        <Inp label="Check-out (12:00 noon)" type="date" value={form.co} min={form.ci ? new Date(new Date(form.ci).getTime()+86400000).toISOString().split("T")[0] : td()} onChange={e => setForm(f => ({ ...f, co: e.target.value }))} />
-        <Inp label="Guest Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" />
-        <Inp label="Phone *" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
-        <Inp label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-        <Inp label="Nationality" value={form.nat} onChange={e => setForm(f => ({ ...f, nat: e.target.value }))} />
-        <Sel label="Discount Type" value={form.discT} onChange={e => setForm(f => ({ ...f, discT: e.target.value }))}><option value="pct">Percentage (%)</option><option value="fix">Fixed Amount (TZS)</option></Sel>
-        <Inp label={form.discT === "pct" ? "Discount %" : "Discount (TZS)"} type="number" value={form.disc} onChange={e => setForm(f => ({ ...f, disc: e.target.value }))} min={0} />
-        <Sel label="Payment Method" value={form.method} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>{(payMethods?.length?payMethods:["Cash"]).map(pm=><option key={pm}>{pm}</option>)}</Sel>
-        <Inp label="Initial Payment (TZS)" type="number" value={form.paid} onChange={e => setForm(f => ({ ...f, paid: e.target.value }))} placeholder="0" />
+      {/* ── STEP 1: Location & Dates ── */}
+      <div style={{ background:"#F0F4FF", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:IN, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>① Location & Dates</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value, roomId: "" }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>
+          </div>
+          <Inp label="Check-in Date" type="date" value={form.ci} min={td()} onChange={e => {
+            const ci = e.target.value;
+            const auto_co = ci ? new Date(new Date(ci).getTime() + 86400000).toISOString().split("T")[0] : "";
+            setForm(f => ({ ...f, ci, co: f.co > ci ? f.co : auto_co, roomId: "" }));
+          }}/>
+          <Inp label="Check-out (12:00)" type="date" value={form.co} min={minCo || td()} onChange={e => setForm(f => ({ ...f, co: e.target.value, roomId: "" }))}/>
+        </div>
+        {datesSet && (
+          <div style={{ fontSize:12, color:IN, fontWeight:700, marginTop:6 }}>
+            📅 {form.nights} night{form.nights!==1?"s":""} · {form.ci} → {form.co} (checkout 12:00)
+          </div>
+        )}
       </div>
+
+      {/* ── STEP 2: Room ── */}
+      <div style={{ background:datesSet?"#F0FFF4":"#F5F5F5", borderRadius:10, padding:"12px 14px", marginBottom:16, opacity:datesSet?1:.6 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:datesSet?OK:G6, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
+          ② Room {datesSet ? "— " + availRooms.length + " available" : "— select dates first"}
+        </div>
+        {!datesSet ? (
+          <div style={{ fontSize:13, color:G6, fontStyle:"italic" }}>Choose check-in and check-out dates above to see available rooms.</div>
+        ) : (
+          <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
+            style={{ width:"100%", padding:"9px 12px", border:`1px solid ${form.roomId?OK:G2}`, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH }}>
+            <option value="">Select a room…</option>
+            {availRooms.map(r => (
+              <option key={r.id} value={r.id}>{r.name} — TZS {Number(r.price).toLocaleString()}/night</option>
+            ))}
+            {unavailRooms.length > 0 && <option disabled>── Unavailable for these dates ──</option>}
+            {unavailRooms.map(r => (
+              <option key={r.id} value={r.id} disabled>✕ {r.name} (taken)</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* ── STEP 3: Guest Info ── */}
+      <div style={{ background:"#FFF8F0", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#B76E00", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>③ Guest Info</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <Inp label="Guest Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+          <Inp label="Phone *" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+255 7XX…" />
+          <Inp label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          <Inp label="Nationality" value={form.nat} onChange={e => setForm(f => ({ ...f, nat: e.target.value }))} />
+        </div>
+      </div>
+
+      {/* ── STEP 4: Payment ── */}
+      <div style={{ background:"#F8F0FF", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#6A1B9A", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>④ Payment</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <Sel label="Discount Type" value={form.discT} onChange={e => setForm(f => ({ ...f, discT: e.target.value }))}><option value="pct">Percentage (%)</option><option value="fix">Fixed Amount (TZS)</option></Sel>
+          <Inp label={form.discT === "pct" ? "Discount %" : "Discount (TZS)"} type="number" value={form.disc} onChange={e => setForm(f => ({ ...f, disc: e.target.value }))} min={0} />
+          <Sel label="Payment Method" value={form.method} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>{(payMethods?.length?payMethods:["Cash"]).map(pm=><option key={pm}>{pm}</option>)}</Sel>
+          <Inp label="Initial Payment (TZS)" type="number" value={form.paid} onChange={e => setForm(f => ({ ...f, paid: e.target.value }))} placeholder="0" />
+        </div>
+      </div>
+
       <Inp label="Notes / Special Requests" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Special requests…" />
+
+      {/* Summary */}
       {sr && form.nights > 0 && (
-        <div style={{ background: BK, borderRadius: 10, padding: 13, marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {[["Nights × Rate", `${form.nights} × ${fmt(sr.price)}`], ["Discount", da > 0 ? `- ${fmt(da)}` : "None"], ["TOTAL", fmt(total)]].map(([k, v], i) => (
+        <div style={{ background:BK, borderRadius:10, padding:13, marginTop:4, display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+          {[["Nights × Rate", form.nights + " × TZS " + Number(sr.price).toLocaleString()], ["Discount", da > 0 ? "- " + fmt(da) : "None"], ["TOTAL", fmt(total)]].map(([k, v], i) => (
             <div key={i} style={{ textAlign: i === 2 ? "right" : "left" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,.45)", marginBottom: 2 }}>{k}</div>
-              <div style={{ fontSize: i === 2 ? 17 : 13, fontWeight: 700, color: i === 2 ? GOLD : WH, fontFamily: i === 2 ? "'Playfair Display',serif" : "inherit" }}>{v}</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,.45)", marginBottom:2 }}>{k}</div>
+              <div style={{ fontSize: i===2?17:13, fontWeight:700, color: i===2?GOLD:WH, fontFamily: i===2?"'Playfair Display',serif":"inherit" }}>{v}</div>
             </div>
           ))}
         </div>
       )}
-      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-        <Btn v="ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
-        <Btn onClick={save} disabled={!form.roomId || !form.name || !form.phone || !form.ci || !form.co} style={{ flex: 1, justifyContent: "center" }}>Create Booking</Btn>
+      <div style={{ display:"flex", gap:10, marginTop:14 }}>
+        <Btn v="ghost" onClick={onClose} style={{ flex:1, justifyContent:"center" }}>Cancel</Btn>
+        <Btn onClick={save} disabled={!form.roomId||!form.name||!form.phone||!form.ci||!form.co} style={{ flex:1, justifyContent:"center" }}>Create Booking</Btn>
       </div>
     </Modal>
   );
@@ -6417,5 +6530,145 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         </div>
       </div>
     </>
+  );
+}
+
+/* ─── EDIT BOOKING MODAL ────────────────────────────────── */
+function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }) {
+  const [form, setForm] = useState({
+    roomId: booking.roomId || "",
+    ci:     booking.ci     || "",
+    co:     booking.co     || "",
+    nights: booking.nights || 1,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const minCo = form.ci
+    ? new Date(new Date(form.ci).getTime() + 86400000).toISOString().split("T")[0]
+    : "";
+
+  // Check if a room is available for the selected dates, excluding this booking
+  const isRoomFree = (r) => {
+    if (r.status !== "available" && r.id !== booking.roomId) return false;
+    if (!form.ci || !form.co) return true;
+    const booked = (bookedDates[r.id] || []).filter(b => b.id !== booking.id); // exclude self
+    return !booked.some(b => b.ci < form.co && b.co > form.ci);
+  };
+
+  const locRooms     = rooms.filter(r => r.locId === (booking.locId));
+  const availRooms   = locRooms.filter(isRoomFree);
+  const unavailRooms = locRooms.filter(r => !isRoomFree(r));
+
+  useEffect(() => {
+    if (form.ci && form.co) {
+      const n = Math.max(1, Math.round((new Date(form.co) - new Date(form.ci)) / 86400000));
+      setForm(f => ({ ...f, nights: n }));
+    }
+  }, [form.ci, form.co]);
+
+  const curRoom = rooms.find(r => r.id === form.roomId);
+  const changed = form.roomId !== booking.roomId || form.ci !== booking.ci || form.co !== booking.co;
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const IN2="#1565C0",INB2="#E3F2FD",OK2="#2E7D32",OKB2="#E8F5E9",WA2="#B76E00",WAB2="#FFF3E0";
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:WH2, borderRadius:16, width:"100%", maxWidth:520, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G22}`, flexShrink:0 }}>
+          <div>
+            <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Modify Booking</h3>
+            <div style={{ fontSize:12, color:G62, marginTop:2 }}>ID: {booking.id} · {booking.gName}</div>
+          </div>
+          <button onClick={onClose} style={{ background:G12, border:"none", color:G62, borderRadius:8, padding:"4px 10px", fontSize:18, cursor:"pointer" }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"18px 20px", flex:1 }}>
+
+          {/* Current booking info */}
+          <div style={{ background:G12, borderRadius:8, padding:"10px 14px", marginBottom:18, fontSize:13 }}>
+            <div style={{ fontWeight:700, color:G82, marginBottom:4 }}>Current booking:</div>
+            <div style={{ color:G62 }}>🛏️ {rooms.find(r=>r.id===booking.roomId)?.name||"—"} · 📅 {booking.ci} → {booking.co} ({booking.nights} nights)</div>
+          </div>
+
+          {/* New dates */}
+          <div style={{ background:INB2, borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:IN2, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>Change Dates</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Check-in</label>
+                <input type="date" value={form.ci}
+                  onChange={e => {
+                    const ci = e.target.value;
+                    const auto_co = ci ? new Date(new Date(ci).getTime()+86400000).toISOString().split("T")[0] : "";
+                    setForm(f => ({ ...f, ci, co: f.co > ci ? f.co : auto_co, roomId: f.roomId }));
+                  }}
+                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Check-out (12:00)</label>
+                <input type="date" value={form.co} min={minCo}
+                  onChange={e => setForm(f => ({ ...f, co: e.target.value }))}
+                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+            </div>
+            {form.ci && form.co && (
+              <div style={{ fontSize:12, color:IN2, fontWeight:700 }}>
+                📅 {form.nights} night{form.nights!==1?"s":""} · checkout {form.co} by 12:00
+              </div>
+            )}
+          </div>
+
+          {/* New room */}
+          <div style={{ background:OKB2, borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:OK2, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
+              Change Room {form.ci && form.co ? "— " + availRooms.length + " available" : "— set dates first"}
+            </div>
+            <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${form.roomId===booking.roomId?G22:OK2}`, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
+              {availRooms.map(r => (
+                <option key={r.id} value={r.id}>
+                  {r.id === booking.roomId ? "✓ " : ""}{r.name} — TZS {Number(r.price).toLocaleString()}/night{r.id===booking.roomId?" (current)":""}
+                </option>
+              ))}
+              {unavailRooms.length > 0 && <option disabled>── Taken for these dates ──</option>}
+              {unavailRooms.map(r => (
+                <option key={r.id} disabled>✕ {r.name} (unavailable)</option>
+              ))}
+            </select>
+            {curRoom && form.roomId !== booking.roomId && (
+              <div style={{ marginTop:8, fontSize:12, color:OK2, fontWeight:700 }}>
+                ✓ Changing to: {curRoom.name}
+              </div>
+            )}
+          </div>
+
+          {/* What will change */}
+          {changed && (
+            <div style={{ background:WAB2, border:`1px solid ${WA2}33`, borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13 }}>
+              <div style={{ fontWeight:700, color:WA2, marginBottom:6 }}>Changes to be saved:</div>
+              {form.roomId !== booking.roomId && <div style={{ color:G82 }}>🛏️ Room: {rooms.find(r=>r.id===booking.roomId)?.name} → <strong>{rooms.find(r=>r.id===form.roomId)?.name}</strong></div>}
+              {(form.ci !== booking.ci || form.co !== booking.co) && <div style={{ color:G82, marginTop:3 }}>📅 Dates: {booking.ci}→{booking.co} → <strong>{form.ci}→{form.co}</strong></div>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:`1px solid ${G22}`, flexShrink:0 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+          <button onClick={async()=>{
+            if (!changed) { onClose(); return; }
+            setSaving(true);
+            await onSave({ room_id: form.roomId, check_in: form.ci, check_out: form.co, nights: form.nights });
+            setSaving(false);
+          }} disabled={saving || !form.roomId || !form.ci || !form.co}
+            style={{ flex:2, padding:"10px", borderRadius:8, border:"none", background:saving?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
+            {saving ? "Saving…" : changed ? "✓ Save Changes" : "No Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

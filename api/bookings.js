@@ -135,14 +135,53 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { status, paid_amount, add_payment, payment_method: pm } = req.body || {};
+      const { status, paid_amount, add_payment, payment_method: pm,
+              room_id: new_room_id, check_in, check_out, nights } = req.body || {};
       let rows;
+
       if (add_payment !== undefined) {
+        // Record a payment
         rows = pm
           ? await sql`UPDATE bookings SET paid_amount=LEAST(total_amount,paid_amount+${Number(add_payment)}), payment_method=${pm} WHERE id=${id} RETURNING *`
           : await sql`UPDATE bookings SET paid_amount=LEAST(total_amount,paid_amount+${Number(add_payment)}) WHERE id=${id} RETURNING *`;
+
       } else if (status === 'cancelled') {
         rows = await sql`UPDATE bookings SET status='cancelled', total_amount=paid_amount WHERE id=${id} RETURNING *`;
+
+      } else if (new_room_id || check_in || check_out) {
+        // ── MODIFY BOOKING: change room and/or dates ──
+        // Check availability for new room (exclude current booking)
+        if (new_room_id && (check_in || check_out)) {
+          const existing = await sql`SELECT check_in, check_out FROM bookings WHERE id=${id}`;
+          const ci = check_in  || existing[0]?.check_in;
+          const co = check_out || existing[0]?.check_out;
+          const conflicts = await sql`
+            SELECT id FROM bookings
+            WHERE room_id = ${new_room_id}
+              AND id != ${id}
+              AND status NOT IN ('cancelled','checkedOut')
+              AND check_in < ${co} AND check_out > ${ci}
+          `;
+          if (conflicts.length > 0) {
+            return res.status(409).json({ error: 'Room is not available for those dates' });
+          }
+        }
+        // Get old room for status reset
+        const oldBooking = await sql`SELECT room_id, check_in, check_out FROM bookings WHERE id=${id}`;
+        const oldRoomId  = oldBooking[0]?.room_id;
+
+        rows = await sql`
+          UPDATE bookings SET
+            room_id    = COALESCE(${new_room_id ?? null}, room_id),
+            check_in   = COALESCE(${check_in   ?? null}, check_in),
+            check_out  = COALESCE(${check_out  ?? null}, check_out),
+            nights     = COALESCE(${nights     ?? null}, nights)
+          WHERE id = ${id} RETURNING *
+        `;
+        // Reset old room to available if room changed
+        if (new_room_id && oldRoomId && new_room_id !== oldRoomId) {
+          await sql`UPDATE rooms SET status='available' WHERE id=${oldRoomId}`;
+        }
       } else {
         rows = await sql`
           UPDATE bookings SET
@@ -151,6 +190,7 @@ module.exports = async function handler(req, res) {
           WHERE id = ${id} RETURNING *
         `;
       }
+
       if (!rows.length) return res.status(404).json({ error: 'Booking not found' });
       const b = rows[0];
       if (b.status === 'checkedIn')  await sql`UPDATE rooms SET status='occupied'  WHERE id=${b.room_id}`;
