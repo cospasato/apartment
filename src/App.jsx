@@ -3838,8 +3838,18 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
     ci: "", co: "", nights: 1, disc: 0, discT: "pct",
     method: payMethods?.[0] || "Cash", notes: "", paid: 0,
   });
+  // Load booked dates per location so we can check real overlap
+  const [localBookedDates, setLocalBookedDates] = useState(bookedDatesMap || {});
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
+
+  // Reload booked dates whenever location changes
+  useEffect(() => {
+    if (!form.locId) return;
+    api.getBookedDates(form.locId)
+      .then(data => setLocalBookedDates(data || {}))
+      .catch(() => {});
+  }, [form.locId]);
 
   // Compute checkout min = checkin + 1 day
   const minCo = form.ci ? new Date(new Date(form.ci).getTime() + 86400000).toISOString().split("T")[0] : "";
@@ -3848,13 +3858,12 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
   const isRoomAvailable = (r) => {
     // "maintenance" always blocks
     if (r.status === "maintenance") return false;
-    // "occupied" always blocks in the add-booking form
-    // Staff must first check out the current guest before booking the same room
-    if (r.status === "occupied") return false;
-    // No dates selected: only show available rooms
+    // No dates selected yet: show only currently-available rooms
     if (!form.ci || !form.co) return r.status === "available";
-    // Dates selected: also check booking overlap via bookedDatesMap if available
-    const booked = (bookedDatesMap || {})[r.id] || [];
+    // Dates selected: check actual booking overlap regardless of current room status
+    // This allows booking an "occupied" room for future dates after current guest checks out
+    const booked = (localBookedDates[r.id] || []);
+    // Checkout is 12:00 — strict > means same-day checkout/checkin is fine
     return !booked.some(b => b.ci < form.co && b.co > form.ci);
   };
 
