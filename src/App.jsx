@@ -238,7 +238,7 @@ const Tbl = ({ hdr, rows }) => (
     </table>
   </div>
 );
-const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: `4px solid ${M}`, paddingLeft: 11, color: BK }}>{children}</h3>;
+const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: "4px solid #6B1B2A", paddingLeft: 11, color: "#111" }}>{children}</h3>;
 
 const Spinner = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, color: G4, fontSize: 14 }}>
@@ -974,7 +974,7 @@ export default function App() {
 
   /* ── ADMIN ACTIONS (original BNC — now store-scoped) ── */
   const deleteBooking = async (id, guestName) => {
-    if (!window.confirm(`Permanently delete booking for "${guestName}"? This cannot be undone.`)) return;
+    if (!window.confirm("Permanently delete booking for \""+guestName+"\"? This cannot be undone.")) return;
     try { await api.deleteBooking(id); setBooks(p => p.filter(b => b.id !== id)); pop("Booking deleted"); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
@@ -983,7 +983,7 @@ export default function App() {
     try {
       const updated = await api.extendBooking(id, { extra_nights: extraNights, extra_amount: extraAmount, new_checkout: newCheckout });
       setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
-      pop(`Stay extended by ${extraNights} night${extraNights > 1 ? "s" : ""} — new checkout: ${newCheckout}`);
+      pop("Stay extended by "+extraNights+" night"+extraNights > 1 ? "s" : ""+" — new checkout: "+newCheckout);
     } catch (err) { pop(err.message || "Extension failed", "err"); }
   };
 
@@ -1040,8 +1040,8 @@ export default function App() {
   };
 
   const deleteRoom = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    try { await api.deleteRoom(id); setRooms(p => p.filter(r => r.id !== id)); pop(`"${name}" deleted`); }
+    if (!window.confirm("Delete \""+name+"\"? This cannot be undone.")) return;
+    try { await api.deleteRoom(id); setRooms(p => p.filter(r => r.id !== id)); pop("\""+name+"\" deleted"); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
@@ -1070,7 +1070,7 @@ export default function App() {
       } else {
         const created = await api.createStaff(payload);
         setStaff(p => [...p, mapStaff(created)]);
-        pop(`Account created for ${form.name}`);
+        pop("Account created for "+form.name);
       }
     } catch (err) { pop(err.message || "Operation failed", "err"); }
   };
@@ -1084,14 +1084,14 @@ export default function App() {
   };
 
   const deleteStaff = async (s) => {
-    if (!window.confirm(`Permanently delete "${s.name}"'s account?`)) return;
-    try { await api.deleteStaff(s.id); setStaff(p => p.filter(x => x.id !== s.id)); pop(`${s.name} deleted`); }
+    if (!window.confirm("Permanently delete \""+s.name+"\"'s account?")) return;
+    try { await api.deleteStaff(s.id); setStaff(p => p.filter(x => x.id !== s.id)); pop(s.name+" deleted"); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
   const deleteLoc = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This hides it. Rooms and bookings are kept.`)) return;
-    try { await api.deleteLocation(id); setLocs(p => p.filter(l => l.id !== id)); pop(`"${name}" deleted`); }
+    if (!window.confirm("Delete \""+name+"\"? This hides it. Rooms and bookings are kept.")) return;
+    try { await api.deleteLocation(id); setLocs(p => p.filter(l => l.id !== id)); pop("\""+name+"\" deleted"); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
@@ -2113,7 +2113,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
                 const nextBook = books.filter(b=>b.roomId===r.id && ["pending","confirmed"].includes(b.status) && b.ci >= td())
                   .sort((a,b)=>a.ci.localeCompare(b.ci))[0];
                 return (
-                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid "+G1,fontSize:13}}>
                     <div>
                       <div style={{fontWeight:700,color:BK}}>{r.name}</div>
                       <div style={{fontSize:11,color:G6}}>{loc?.name||"—"} · {fmt(r.price)}/night</div>
@@ -2831,7 +2831,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   };
 
   const removePayMethod = async (pm) => {
-    if (!window.confirm(`Remove "${pm}" as a payment method?`)) return;
+    if (!window.confirm("Remove \""+pm+"\" as a payment method?")) return;
     try {
       const full = await api.getPayMethods(storeId);
       const found = full.find(p => p.name === pm);
@@ -3010,12 +3010,12 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
     if (p==="all")       { setDateFrom(""); setDateTo(""); }
     else if (p==="today"){ const t=fmtD(now); setDateFrom(t); setDateTo(t); }
     else if (p==="week") { const s=new Date(now); s.setDate(now.getDate()-7); setDateFrom(fmtD(s)); setDateTo(fmtD(now)); }
-    else if (p==="month"){ setDateFrom(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`); setDateTo(fmtD(now)); }
+    else if (p==="month"){ setDateFrom(now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01"); setDateTo(fmtD(now)); }
     else if (p==="lastmonth") {
       const lm=new Date(now.getFullYear(),now.getMonth()-1,1), lmE=new Date(now.getFullYear(),now.getMonth(),0);
       setDateFrom(fmtD(lm)); setDateTo(fmtD(lmE));
     }
-    else if (p==="year") { setDateFrom(`${now.getFullYear()}-01-01`); setDateTo(fmtD(now)); }
+    else if (p==="year") { setDateFrom(now.getFullYear()+"-01-01"); setDateTo(fmtD(now)); }
   };
 
   useEffect(() => {
@@ -3914,7 +3914,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
       {/* Photo gallery */}
       {photos.length > 0 && (
         <div style={{ borderRadius: 10, overflow: "hidden", marginBottom: 16, position: "relative", background: BK }}>
-          <img src={photos[photoIdx]} alt={`${dr.name} photo ${photoIdx + 1}`}
+          <img src={photos[photoIdx]} alt={dr.name+" photo "+photoIdx + 1}
             style={{ width: "100%", height: "min(380px, 55vw)", objectFit: "cover", display: "block" }} />
           {photos.length > 1 && (
             <>
@@ -3938,7 +3938,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
           {photos.map((src, i) => (
             <img key={i} src={src} alt="" onClick={() => setPhotoIdx(i)}
               style={{ width: 68, height: 52, objectFit: "cover", borderRadius: 7, cursor: "pointer", flexShrink: 0,
-                border: `2px solid ${i === photoIdx ? M : "transparent"}`, transition: "border-color .15s" }} />
+                border: "2px solid "+i === photoIdx ? M : "transparent", transition: "border-color .15s" }} />
           ))}
         </div>
       )}
@@ -3947,7 +3947,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 10 }}>
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 4px", color: BK }}>{dr.name}</h2>
-          <div style={{ fontSize: 13, color: G6 }}>{loc?.icon} {loc?.name}{loc?.city ? ` · ${loc.city}` : ""}</div>
+          <div style={{ fontSize: 13, color: G6 }}>{loc?.icon} {loc?.name}{loc?.city ? " · "+loc.city : ""}</div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(dr.price)}</div>
@@ -3957,7 +3957,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
 
       {/* Room specs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 10, marginBottom: 16 }}>
-        {[["🛏️", `${dr.beds} bed${dr.beds > 1 ? "s" : ""}`], ["👥", `Up to ${dr.guests} guests`], ["🏠", dr.type]].map(([icon, val]) => (
+        {[["🛏️", dr.beds+" bed"+dr.beds > 1 ? "s" : ""], ["👥", "Up to "+dr.guests+" guests"], ["🏠", dr.type]].map(([icon, val]) => (
           <div key={val} style={{ background: G1, borderRadius: 9, padding: "10px 12px", textAlign: "center" }}>
             <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: BK }}>{val}</div>
@@ -4173,7 +4173,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
               </div>
               <div style={{ fontSize:12, color:G6, marginTop:2 }}>
                 {b.location_icon} {b.location_name}
-                {b.location_city ? ` · ${b.location_city}` : ""}
+                {b.location_city ? " · "+b.location_city : ""}
               </div>
             </div>
             {photos.length === 0 && (
@@ -4578,7 +4578,7 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}{required&&<span style={{color:ER}}> *</span>}</label>
       <input type={type} value={f[key]||""} onChange={e=>setF(d=>({...d,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"10px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
@@ -4756,7 +4756,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
   );
   const [detailStore, setDetailStore] = useState(null);
   const updateStatus = async (id, status) => {
-    try { await api.updateStore(id, {status}); onRefresh(); pop(`Store ${status}`); } catch(e) { pop(e.message,"err"); }
+    try { await api.updateStore(id, {status}); onRefresh(); pop("Store "+status); } catch(e) { pop(e.message,"err"); }
   };
   const [planModal, setPlanModal]   = useState(null);
   const [trialModal, setTrialModal] = useState(null);
@@ -5177,7 +5177,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
@@ -5948,7 +5948,7 @@ function SuperReports({ stores, api, pop, fmt, fmtDate }) {
   const OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",OKB2="#E8F5E9";
 
   const kpi = (label, value, color, icon) => (
-    <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+    <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
       <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{icon} {label}</div>
       <div style={{ fontSize:22, fontWeight:700, color:color||G82 }}>{value}</div>
     </div>
@@ -6508,7 +6508,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
     <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:WH2, borderRadius:16, width:"100%", maxWidth:520, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G22}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid "+G22, flexShrink:0 }}>
           <div>
             <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Modify Booking</h3>
             <div style={{ fontSize:12, color:G62, marginTop:2 }}>ID: {booking.id} · {booking.gName}</div>
@@ -6537,13 +6537,13 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
                     const auto_co = ci ? new Date(new Date(ci).getTime()+86400000).toISOString().split("T")[0] : "";
                     setForm(f => ({ ...f, ci, co: f.co > ci ? f.co : auto_co, roomId: f.roomId }));
                   }}
-                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                  style={{ width:"100%", padding:"8px 10px", border:"1px solid "+G22, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
               <div style={{ marginBottom:12 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Check-out (12:00)</label>
                 <input type="date" value={form.co} min={minCo}
                   onChange={e => setForm(f => ({ ...f, co: e.target.value }))}
-                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                  style={{ width:"100%", padding:"8px 10px", border:"1px solid "+G22, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
             </div>
             {form.ci && form.co && (
@@ -6559,7 +6559,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
               Change Room {form.ci && form.co ? "— " + availRooms.length + " available" : "— set dates first"}
             </div>
             <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
-              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${form.roomId===booking.roomId?G22:OK2}`, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
+              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+form.roomId===booking.roomId?G22:OK2, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
               {availRooms.map(r => (
                 <option key={r.id} value={r.id}>
                   {r.id === booking.roomId ? "✓ " : ""}{r.name} — TZS {Number(r.price).toLocaleString()}/night{r.id===booking.roomId?" (current)":""}
@@ -6836,7 +6836,7 @@ function SuperGateways({ api, pop }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={settings[key]||""} onChange={e=>setSettings(s=>({...s,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}/>
     </div>
   );
 
@@ -7194,7 +7194,7 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
