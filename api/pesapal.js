@@ -58,7 +58,7 @@ module.exports = async function handler(req, res) {
 
   try {
     // ── Load Pesapal credentials from platform_settings ──
-    const settings = await sql`SELECT key, value FROM platform_settings WHERE key IN ('pesapal_consumer_key','pesapal_consumer_secret','pesapal_env') LIMIT 10`;
+    const settings = await sql`SELECT key, value FROM platform_settings WHERE key IN ('pesapal_consumer_key','pesapal_consumer_secret','pesapal_env','payment_currency','platform_currency') LIMIT 10`;
     const cfg = {};
     settings.forEach(r => { cfg[r.key] = r.value; });
 
@@ -110,7 +110,7 @@ module.exports = async function handler(req, res) {
       // Submit order to Pesapal
       const order = {
         id:               merchantRef,
-        currency:         'KES', // Pesapal defaults; TZS supported too
+        currency:         cfg.payment_currency || 'TZS',
         amount:           Number(amount),
         description:      `BNBMIS ${plan.name} subscription (${billing_cycle||'monthly'})`,
         callback_url:     callbackUrl,

@@ -7348,8 +7348,11 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
           <button onClick={doPesapal} disabled={loading || !defaultPlanId}
             style={{ padding:"13px 20px", borderRadius:10, background:loading?"#aaa":OK2, color:WH2, fontWeight:700, fontSize:14, border:"none", cursor:loading||!defaultPlanId?"not-allowed":"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:10, opacity:!defaultPlanId?0.6:1 }}>
             <span style={{ fontSize:20 }}>🟢</span>
-            {loading ? "Redirecting to Pesapal…" : "Pay with Pesapal"}
-            {!loading && <span style={{ fontSize:12, opacity:.8 }}>(Cards, M-Pesa, Airtel, Tigo)</span>}
+            <span>
+              {loading ? "Redirecting to Pesapal…" : "Pay with Pesapal"}
+              {!loading && amount > 0 && <span style={{ fontSize:12, opacity:.9 }}> — TZS {Number(amount).toLocaleString()}</span>}
+            </span>
+            {!loading && <span style={{ fontSize:11, opacity:.7 }}>(Cards, M-Pesa, Airtel, Tigo)</span>}
           </button>
         )}
 
