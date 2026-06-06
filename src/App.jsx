@@ -2898,7 +2898,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
           {!hideFinance && <button onClick={()=>{
             const w=window.open("","_blank","width=800,height=700");
             const rows=books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
-            w.document.write(getPaymentReportHTML(storeName, tableRows, rooms, dateFrom, dateTo))w.document.close();
+            w.document.write(getPaymentReportHTML(storeName, tableRows, rooms, dateFrom, dateTo)); w.document.close();
           }} style={{background:"#1565C0",color:"#FFF",border:"none",borderRadius:7,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             🖨 Print Report
           </button>}
