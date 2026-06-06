@@ -2079,7 +2079,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
         <Card>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-            <SecTitle>🟢 Available Rooms</SecTitle>
+            <SuperSecTitle>🟢 Available Rooms</SuperSecTitle>
             <span style={{ fontSize:13, fontWeight:700, color:OK }}>{allRooms.filter(r=>r.status==="available").length}</span>
           </div>
           {allRooms.filter(r=>r.status==="available").length===0
@@ -2105,7 +2105,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         </Card>
         <Card>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-            <SecTitle>🔴 Occupied Rooms</SecTitle>
+            <SuperSecTitle>🔴 Occupied Rooms</SuperSecTitle>
             <span style={{ fontSize:13, fontWeight:700, color:M }}>{allRooms.filter(r=>r.status==="occupied").length}</span>
           </div>
           {allRooms.filter(r=>r.status==="occupied").length===0
@@ -2136,7 +2136,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 
       <Card style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <SecTitle>Recent Bookings</SecTitle>
+          <SuperSecTitle>Recent Bookings</SuperSecTitle>
           <button onClick={() => setATab("books")} style={{ background: "none", border: "none", color: M, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>View all →</button>
         </div>
         {isReceptDash ? (
@@ -2891,7 +2891,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
       {(payMethods.length ? payMethods : ["Cash"]).map(pm => (
         <button key={pm} onClick={()=>onSelect(pm)}
           style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
-            border:`2px solid ${selected===pm?M:G2}`,background:selected===pm?MF:WH,color:selected===pm?M:G6,transition:"all .15s"}}>
+            border:(selected===pm?"2px solid #6B1B2A":"2px solid #E8E8E8"),background:selected===pm?MF:WH,color:selected===pm?M:G6,transition:"all .15s"}}>
           {pm}
         </button>
       ))}
@@ -3117,7 +3117,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
   const occ     = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
   const avgRate = rooms.length ? Math.round(rooms.reduce((s,r)=>s+r.price,0)/rooms.length) : 0;
 
-  const ST = ({c}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:`4px solid ${M}`,paddingLeft:11,color:BK}}>{c}</h3>;
+  const ST = ({c}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:"4px solid #6B1B2A",paddingLeft:11,color:"#111"}}>{c}</h3>;
 
   const [locFilter, setLocFilter] = useState(""); // filter all reports by location
 
@@ -4197,7 +4197,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
     const canCancel = ["pending","confirmed"].includes(b.status);
 
     return (
-      <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:14, marginBottom:14, overflow:"hidden",
+      <div style={{ background:WH, border:"1px solid #E8E8E8", borderRadius:14, marginBottom:14, overflow:"hidden",
         boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
 
         {/* Cover photo — full width on mobile */}
@@ -4760,9 +4760,11 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
 }
 
 /* ─── SUPER ADMIN SUB-COMPONENTS ─────────────────────────── */
-function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
-  const SecTitle = ({children}) => <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 13px", borderLeft:`4px solid #6B1B2A`, paddingLeft:11, color:"#111" }}>{children}</h3>;
-  const KPI2 = ({label,value,sub,color,icon}) => (
+function SuperSecTitle({children}) {
+  return <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 13px", borderLeft:"4px solid #6B1B2A", paddingLeft:11, color:"#111" }}>{children}</h3>;
+}
+function SuperKPI2({label,value,sub,color,icon}) {
+  return (
     <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:"16px 18px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
         <span style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em" }}>{label}</span>
@@ -4772,6 +4774,8 @@ function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
       {sub&&<div style={{ fontSize:12, color:"#666", marginTop:3 }}>{sub}</div>}
     </div>
   );
+}
+function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
   const sC2 = s => ({active:"#2E7D32",trial:"#1565C0",suspended:"#B76E00",terminated:"#C62828"}[s]||"#666");
   const sB2 = s => ({active:"#E8F5E9",trial:"#E3F2FD",suspended:"#FFF3E0",terminated:"#FFEBEE"}[s]||"#F5F5F5");
   return (
@@ -4781,16 +4785,16 @@ function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
       </div>
       {platStats && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:14, marginBottom:28 }}>
-          <KPI2 label="Total Stores" value={stores.length} icon="🏪"/>
-          <KPI2 label="Active" value={stores.filter(s=>s.status==="active").length} color="#2E7D32" icon="✅"/>
-          <KPI2 label="On Trial" value={stores.filter(s=>s.status==="trial").length} color="#1565C0" icon="⏱"/>
-          <KPI2 label="Suspended" value={stores.filter(s=>s.status==="suspended").length} color="#B76E00" icon="⚠️"/>
-          <KPI2 label="Sub Revenue" value={fmt(platStats?.revenue?.total_sub_revenue||0)} color="#2E7D32" icon="💰"/>
-          <KPI2 label="Total Bookings" value={platStats?.bookings?.total||0} icon="📅"/>
+          <SuperKPI2 label="Total Stores" value={stores.length} icon="🏪"/>
+          <SuperKPI2 label="Active" value={stores.filter(s=>s.status==="active").length} color="#2E7D32" icon="✅"/>
+          <SuperKPI2 label="On Trial" value={stores.filter(s=>s.status==="trial").length} color="#1565C0" icon="⏱"/>
+          <SuperKPI2 label="Suspended" value={stores.filter(s=>s.status==="suspended").length} color="#B76E00" icon="⚠️"/>
+          <SuperKPI2 label="Sub Revenue" value={fmt(platStats?.revenue?.total_sub_revenue||0)} color="#2E7D32" icon="💰"/>
+          <SuperKPI2 label="Total Bookings" value={platStats?.bookings?.total||0} icon="📅"/>
         </div>
       )}
       <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:20, marginBottom:20 }}>
-        <SecTitle>Recent Stores</SecTitle>
+        <SuperSecTitle>Recent Stores</SuperSecTitle>
         <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
           <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
             {["Store","Owner","City","Status","Plan","Rooms","Joined"].map((h,i)=><th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
