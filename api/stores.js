@@ -159,20 +159,45 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(rows);
     }
 
-    // ── SUPER ADMIN: Get single store ──
+    // ── SUPER ADMIN or OWNER: Get single store ──
     if (req.method === 'GET' && id) {
       const token = verifyToken(req);
-      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin access required' });
+      if (!token) return res.status(401).json({ error: 'Authentication required' });
+      // Owners can only fetch their own store
+      if (token.type === 'owner' && token.storeId !== id)
+        return res.status(403).json({ error: 'Access denied' });
+      if (token.type !== 'super' && token.type !== 'owner')
+        return res.status(403).json({ error: 'Access denied' });
       const rows = await sql`
         SELECT s.*, o.name AS owner_name, o.email AS owner_email, o.phone AS owner_phone,
-          p.name AS plan_name, p.price_monthly, p.price_yearly
+          p.name AS plan_name, p.price_monthly, p.price_yearly, p.max_rooms, p.max_locations, p.max_staff,
+          sub.status AS sub_status, sub.current_period_end, sub.billing_cycle,
+          COALESCE(sp_total.total_paid, 0) AS total_paid
         FROM stores s
         JOIN store_owners o ON o.id = s.owner_id
         LEFT JOIN subscription_plans p ON p.id = s.plan_id
+        LEFT JOIN subscriptions sub ON sub.store_id = s.id AND sub.status IN ('active','trialing')
+        LEFT JOIN (
+          SELECT store_id, COALESCE(SUM(amount),0) AS total_paid
+          FROM subscription_payments GROUP BY store_id
+        ) sp_total ON sp_total.store_id = s.id
         WHERE s.id = ${id} LIMIT 1
       `;
       if (!rows.length) return res.status(404).json({ error: 'Store not found' });
       return res.status(200).json(rows[0]);
+    }
+
+    // ── OWNER: Toggle marketplace visibility (suspend/activate own store) ──
+    if (req.method === 'PUT' && action === 'toggle_visibility') {
+      const token = verifyToken(req);
+      if (!token || token.type !== 'owner') return res.status(401).json({ error: 'Owner login required' });
+      if (token.storeId !== id) return res.status(403).json({ error: 'Access denied' });
+      const { visibility } = req.body || {};
+      // Owners can only toggle between active and suspended (their own store only)
+      const allowed = ['active', 'suspended'];
+      if (!allowed.includes(visibility)) return res.status(400).json({ error: 'Invalid visibility value' });
+      await sql`UPDATE stores SET status = ${visibility} WHERE id = ${id}`;
+      return res.status(200).json({ id, status: visibility });
     }
 
     // ── SUPER ADMIN or OWNER: Update store ──

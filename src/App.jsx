@@ -5484,8 +5484,6 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       flexDirection:"column",
       position:"fixed",
       top: 0, left: 0, right: 0, bottom: 0,
-      height: "100%",
-      maxHeight: "-webkit-fill-available",
     }}>
       {/* ── TOP BAR ── */}
       <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:"max(env(safe-area-inset-top), 14px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
@@ -5595,17 +5593,28 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   const [platSettings, setPlatSettings] = useState({});
 
   useEffect(()=>{
-    Promise.all([
-      api.getPlans(),
-      api.getSubPayments(storeId),
-      api.getStore(storeId),
-      api.getPlatformSettings().catch(()=>({})),
-    ]).then(([pl, pay, st, ps])=>{
-      setPlans(pl||[]);
-      setPayments(pay||[]);
-      setStore(st);
-      setPlatSettings(ps||{});
-    }).catch(()=>{}).finally(()=>setLoading(false));
+    if (!storeId) { setLoading(false); return; }
+    const loadAll = async () => {
+      try {
+        // Load plans (public), settings (public), store (now owner-accessible), payments (owner-accessible)
+        const [pl, ps, st] = await Promise.all([
+          api.getPlans().catch(()=>[]),
+          api.getPlatformSettings().catch(()=>({})),
+          api.getStore(storeId).catch(()=>null),
+        ]);
+        setPlans(pl||[]);
+        setPlatSettings(ps||{});
+        if (st) setStore(st);
+        // Payments separately (can fail gracefully)
+        const pay = await api.getSubPayments(storeId).catch(()=>[]);
+        setPayments(pay||[]);
+      } catch(e) {
+        console.error('Billing load error:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAll();
   },[storeId]);
 
   if (loading) return <div style={{padding:40,textAlign:"center",color:G62}}>Loading billing info…</div>;
@@ -5657,8 +5666,16 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
             </a>
             <button onClick={async()=>{
               const newStatus = store?.status==="active"?"suspended":"active";
-              try { await api.updateStore(storeId,{status:newStatus}); setStore(s=>({...s,status:newStatus})); pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace"); }
-              catch(e){ pop(e.message,"err"); }
+              try {
+                // Use a dedicated owner action for marketplace visibility
+                await fetch("/api/stores?id="+storeId+"&action=toggle_visibility", {
+                  method:"PUT",
+                  headers:{"Content-Type":"application/json","Authorization":"Bearer "+((s)=>{try{return JSON.parse(s||"{}").token||"";}catch{return "";}})(localStorage.getItem("bnbmis_owner"))},
+                  body: JSON.stringify({visibility: newStatus})
+                });
+                setStore(s=>({...s, status:newStatus}));
+                pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace");
+              } catch(e){ pop(e.message||"Failed","err"); }
             }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:`1px solid ${store?.status==="active"?WA2:OK2}`, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
               {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
             </button>
