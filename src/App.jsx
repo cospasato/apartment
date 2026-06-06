@@ -491,7 +491,16 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => {
+    try {
+      const s = localStorage.getItem("bnbmis_owner");
+      if (!s) return null;
+      const parsed = JSON.parse(s);
+      // Ensure store object exists — corrupted data causes blank screen
+      if (!parsed?.store?.id) return null;
+      return parsed;
+    } catch { return null; }
+  });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -1385,7 +1394,7 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u?.store?.id){pop("Login error: store not found","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
         onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
@@ -1529,19 +1538,21 @@ export default function App() {
             {availLoading && <div style={{padding:"8px 0",fontSize:13,color:G6}}>Checking availability…</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {rooms.filter(r => r.locId === bD.locId).map(rm => {
-                const occupied = rm.status !== "available";
+                // "occupied" = currently has a guest but CAN be booked for future dates
+                // "maintenance" = blocked for all dates
+                const maintenance = rm.status === "maintenance";
                 const dateTaken = !isAvailableForDates(rm.id);
-                const unavail = occupied || dateTaken;
+                const unavail = maintenance || dateTaken;
                 return (
                 <div key={rm.id}
-                  onClick={() => !unavail && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: unavail ? "default" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
+                  onClick={() => !maintenance && setBD(d => ({ ...d, roomId: rm.id }))}
+                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
                   onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
                     <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
                       onClick={e => { e.stopPropagation(); setRoomDetail(rm.id); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: unavail ? "grayscale(60%)" : "none" }} />
+                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(60%)" : "none" }} />
                       <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: WH, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, display:"flex", alignItems:"center", gap:5 }}>
                         🔍 View {rm.photos.length > 1 ? rm.photos.length + " photos" : "photo"}{rm.video ? " · 🎬" : ""}
                       </div>
@@ -1553,11 +1564,13 @@ export default function App() {
                         <span style={{ fontSize: 15, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif" }}>{rm.name}</span>
                         {unavail
                           ? <span style={{background:dateTaken?"#FFF3E0":"#FFEBEE", color:dateTaken?WA:ER, padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700}}>
-                              {dateTaken ? "📅 Dates Taken" : "🚫 Unavailable"}
+                              {dateTaken ? "📅 Dates Taken" : "🔧 Under Maintenance"}
                             </span>
                           : bD.roomId === rm.id
                             ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
-                            : <Badge s={rm.status}/>
+                            : rm.status === "occupied"
+                              ? <span style={{background:"#FFF3E0",color:"#B76E00",padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied Now</span>
+                              : <Badge s={rm.status}/>
                         }
                       </div>
                       <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
@@ -1596,9 +1609,18 @@ export default function App() {
                       </button>
                     </div>
                   )}
-                  {occupied && !dateTaken && (
+                  {rm.status === "occupied" && !dateTaken && (
+                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, fontSize: 12, color: WA, fontWeight: 600, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                      <span>🏠 Currently occupied — free from checkout date</span>
+                      <button onClick={e=>{e.stopPropagation(); setBD(d=>({...d,roomId:rm.id})); goStep(2);}}
+                        style={{ background:WA, color:WH, border:"none", borderRadius:7, padding:"6px 12px", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0, whiteSpace:"nowrap" }}>
+                        📅 Pick Dates
+                      </button>
+                    </div>
+                  )}
+                  {maintenance && (
                     <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
-                      🚫 Currently occupied — check back later
+                      🔧 Under maintenance — not available for booking
                     </div>
                   )}
                 </div>
@@ -1797,7 +1819,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner) {
+  if (view === "owner_dash" && owner && owner.store) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -1847,7 +1869,7 @@ export default function App() {
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store.name} role="Store Owner"
+          storeName={owner.store?.name||"My Store"} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -1868,7 +1890,7 @@ export default function App() {
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store?.name||"My Store"}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
