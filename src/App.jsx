@@ -1387,21 +1387,13 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{
-  const u=await api.loginOwner(email,pw);
-  if (!u?.store?.id) { pop("Login error: store data missing. Please try again.", "err"); return; }
-  setOwner(u);
-  try { localStorage.setItem("bnbmis_owner", JSON.stringify(u)); } catch {}
-  setModal(null);
-  await loadAll(null, u.store.id);
-  setView("owner_dash");
-}}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u?.store?.id){pop("Login error — store data missing","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
         onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
-      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ if(u?.store?.id){setOwner(u);try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); setView("owner_dash");}else{pop("Registration error","err");} pop("Welcome! Your 14-day trial has started."); }}/>}
+      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       <PWAInstallBanner/>
@@ -1820,8 +1812,8 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner && owner.store?.id) {
-    const sid = owner.store.id; // safe: guarded by owner.store?.id check above
+  if (view === "owner_dash" && owner?.store?.id) {
+    const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
       {id:"books",     icon:"📋", l:"Bookings"},
@@ -7398,91 +7390,15 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
                 </div>
               )}
               <div style={{ marginTop:8, fontSize:11, color:G62, lineHeight:1.7 }}>
-                Use your Store ID <strong>{storeId}</strong> as payment reference.
+                Use your Store ID <strong>{storeId}</strong> as payment reference. Then email proof to{" "}
+                <a href={"mailto:"+(platSettings.support_email||"support@bnbmis.com")} style={{ color:IN2 }}>
+                  {platSettings.support_email||"support@bnbmis.com"}
+                </a> — activated within 24 hours.
               </div>
-              {/* I have paid section */}
-              <BankPaymentForm storeId={storeId} selPlan={selPlan} amount={amount} cycle={cycle} platSettings={platSettings} pop={pop}/>
             </div>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/* ─── BANK PAYMENT SUBMISSION FORM ──────────────────────── */
-function BankPaymentForm({ storeId, selPlan, amount, cycle, platSettings, pop }) {
-  const [open, setOpen]       = useState(false);
-  const [ref,  setRef]        = useState("");
-  const [note, setNote]       = useState("");
-  const [file, setFile]       = useState(null);
-  const [sending, setSending] = useState(false);
-  const G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
-  const OK2="#2E7D32",OKB2="#E8F5E9",IN2="#1565C0",INB2="#E3F2FD",M2="#6B1B2A";
-
-  const submit = async () => {
-    if (!ref.trim()) { pop("Please enter a payment reference", "err"); return; }
-    setSending(true);
-    try {
-      // Send notification email via mailto (opens email client with pre-filled details)
-      const subject = encodeURIComponent("Payment Confirmation — " + storeId + " — " + (selPlan?.name||"Plan"));
-      const body    = encodeURIComponent(
-        "Store ID: " + storeId + "
-" +
-        "Plan: " + (selPlan?.name||"—") + "
-" +
-        "Billing Cycle: " + cycle + "
-" +
-        "Amount Paid: TZS " + Number(amount||0).toLocaleString() + "
-" +
-        "Payment Reference: " + ref + "
-" +
-        (note ? "Notes: " + note + "
-" : "") +
-        "
-Please activate my subscription. Thank you."
-      );
-      const email = platSettings.support_email || "support@bnbmis.com";
-      window.open("mailto:" + email + "?subject=" + subject + "&body=" + body);
-      pop("Email opened — send it to complete your payment notification!");
-      setOpen(false); setRef(""); setNote("");
-    } catch(e) { pop("Failed to open email", "err"); }
-    setSending(false);
-  };
-
-  return (
-    <div style={{ marginTop:12, borderTop:"1px solid "+G22, paddingTop:12 }}>
-      {!open ? (
-        <button onClick={() => setOpen(true)}
-          style={{ width:"100%", padding:"11px", borderRadius:8, border:"2px solid "+OK2, background:OKB2, color:OK2, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-          ✅ I Have Paid — Submit Payment Confirmation
-        </button>
-      ) : (
-        <div style={{ background:OKB2, borderRadius:10, padding:"14px 16px" }}>
-          <div style={{ fontWeight:700, color:OK2, fontSize:13, marginBottom:12 }}>📋 Submit Payment Confirmation</div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Payment Reference / Transaction ID *</label>
-            <input value={ref} onChange={e=>setRef(e.target.value)} placeholder="e.g. TXN123456789 or M-Pesa confirmation code"
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:7, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", outline:"none" }}/>
-          </div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Additional Notes (optional)</label>
-            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="e.g. Paid via CRDB bank transfer on June 5"
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:7, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", resize:"none", outline:"none" }}/>
-          </div>
-          <div style={{ background:WH2, borderRadius:7, padding:"9px 12px", marginBottom:12, fontSize:12, color:G62 }}>
-            📧 This will open your email app pre-filled with your payment details to send to{" "}
-            <strong>{platSettings.support_email||"support@bnbmis.com"}</strong>.
-            Your account will be activated within 24 hours of confirmation.
-          </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <button onClick={()=>setOpen(false)} style={{ flex:1, padding:"9px", borderRadius:7, border:"1px solid "+G22, background:WH2, color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
-            <button onClick={submit} disabled={sending} style={{ flex:2, padding:"9px", borderRadius:7, border:"none", background:sending?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-              {sending ? "Opening…" : "📧 Send Confirmation Email"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -7569,7 +7485,7 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
             </div>
           </div>
 
-          {/* Owner info + subscription (read-only) */}
+          {/* Owner info (read-only) */}
           <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
             <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner & Subscription</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
@@ -7580,17 +7496,23 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
               <div><span style={{ color:G62 }}>Revenue: </span><strong style={{ color:OK2 }}>TZS {Number(store.total_revenue||0).toLocaleString()}</strong></div>
               <div>
                 <span style={{ color:G62 }}>Plan Expires: </span>
-                {store.current_period_end ? (
-                  <strong style={{ color: new Date(store.current_period_end) < new Date() ? ER2 : new Date(store.current_period_end) < new Date(Date.now()+7*86400000) ? WA2 : OK2 }}>
-                    {String(store.current_period_end).split("T")[0]}
-                    {new Date(store.current_period_end) < new Date() && " ⚠️ EXPIRED"}
-                    {new Date(store.current_period_end) >= new Date() && new Date(store.current_period_end) < new Date(Date.now()+7*86400000) && " ⚠️ Soon"}
-                  </strong>
-                ) : store.trial_ends ? (
-                  <strong style={{ color:WA2 }}>Trial: {String(store.trial_ends).split("T")[0]}</strong>
-                ) : (
-                  <strong style={{ color:G62 }}>—</strong>
-                )}
+                {(store.current_period_end || store.trial_ends) ? (
+                  (() => {
+                    const exp = store.current_period_end || store.trial_ends;
+                    const expDate = new Date(exp);
+                    const now = new Date();
+                    const soon = new Date(Date.now() + 7*86400000);
+                    const expired = expDate < now;
+                    const expiringSoon = !expired && expDate < soon;
+                    return (
+                      <strong style={{ color: expired?ER2 : expiringSoon?WA2 : OK2 }}>
+                        {String(exp).split("T")[0]}
+                        {expired && <span style={{ marginLeft:5, background:ERB2, color:ER2, borderRadius:99, fontSize:10, fontWeight:700, padding:"1px 6px" }}>EXPIRED</span>}
+                        {expiringSoon && <span style={{ marginLeft:5, background:WAB2, color:WA2, borderRadius:99, fontSize:10, fontWeight:700, padding:"1px 6px" }}>EXPIRING SOON</span>}
+                      </strong>
+                    );
+                  })()
+                ) : <strong style={{ color:G62 }}>—</strong>}
               </div>
             </div>
           </div>
