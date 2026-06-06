@@ -63,6 +63,10 @@ export const api = {
   // ── Platform settings (merged into stores.js) ──
   getPlatformSettings:  () => get('/stores?action=settings'),
   savePlatformSettings: d  => put('/stores?action=settings', d),
+
+  // ── Pesapal ──
+  pesapalInitiate: d  => post('/pesapal?action=initiate', d),
+  pesapalStatus:   id => get('/pesapal?action=status&tracking_id=' + id),
   changeAdminPassword:  d  => post('/stores?action=change_password', d),
 
   // ── Subscriptions ──

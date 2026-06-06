@@ -267,3 +267,8 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
 
 ALTER TABLE locations ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT '';
 ALTER TABLE locations ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
+
+-- ── Pesapal: add order_tracking_id column to subscription_payments ──
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS order_tracking_id TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS billing_cycle TEXT NOT NULL DEFAULT 'monthly';
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS confirmation_code TEXT;

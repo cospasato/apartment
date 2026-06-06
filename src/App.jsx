@@ -431,7 +431,26 @@ export default function App() {
     const host = window.location.hostname;
     const parts = host.split(".");
     const params = new URLSearchParams(window.location.search);
-    const deepRoomId = params.get("room"); // ?room=ROOM_ID deep link
+    const deepRoomId   = params.get("room");
+    const paymentDone  = params.get("payment");
+
+    // ── Handle return from Pesapal ──
+    if (paymentDone === "done") {
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      // If owner is logged in, refresh their store data and show success
+      const ownerData = localStorage.getItem("bnbmis_owner");
+      if (ownerData) {
+        try {
+          const od = JSON.parse(ownerData);
+          setTimeout(() => {
+            pop("🎉 Payment received! Your subscription is now active.", "ok");
+            // Reload the page to reflect new status
+            setTimeout(() => window.location.reload(), 2000);
+          }, 500);
+        } catch {}
+      }
+    }
 
     const handleStore = (store) => {
       setSubdomainStoreId(store.id);
@@ -1726,13 +1745,15 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "super" && superAdmin) {
     const stabs=[
-      {id:"dash",    l:"📊 Dashboard"},
-      {id:"stores",  l:"🏪 Stores"},
-      {id:"billing", l:"💳 Billing"},
-      {id:"plans",   l:"📋 Plans"},
-      {id:"comms",   l:"📣 Announcements"},
-      {id:"reports", l:"📈 Platform Reports"},
-      {id:"settings",l:"⚙️ Settings"},
+      {id:"dash",      l:"📊 Dashboard"},
+      {id:"stores",    l:"🏪 Stores"},
+      {id:"billing",   l:"💳 Billing"},
+      {id:"plans",     l:"📋 Plans"},
+      {id:"payments",  l:"💰 Payments"},
+      {id:"gateways",  l:"🔗 Gateways"},
+      {id:"comms",     l:"📣 Announcements"},
+      {id:"reports",   l:"📈 Reports"},
+      {id:"settings",  l:"⚙️ Settings"},
     ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
@@ -1757,10 +1778,12 @@ export default function App() {
         </div>
         <div style={{ flex:1, background:G1, overflow:"auto" }}>
           <div style={{ padding:"28px 32px", maxWidth:1200 }}>
-            {sTab==="dash"     && <SuperDash stores={stores} platStats={platStats} plans={plans} setSTab={setSTab} fmt={fmt} fmtDate={fmtDate}/>}
+            {sTab==="dash"      && <SuperDash stores={stores} platStats={platStats} plans={plans} setSTab={setSTab} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="stores"   && <SuperStores stores={stores} plans={plans} onRefresh={loadSuperData} api={api} pop={pop} setModal={setModal} fmtDate={fmtDate} fmt={fmt}/>}
             {sTab==="billing"  && <SuperBilling stores={stores} plans={plans} api={api} pop={pop} setModal={setModal} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="plans"    && <SuperPlans plans={plans} onRefresh={loadSuperData} api={api} pop={pop} fmt={fmt}/>}
+            {sTab==="payments" && <SuperPayments stores={stores} plans={plans} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
+            {sTab==="gateways" && <SuperGateways api={api} pop={pop}/>}
             {sTab==="comms"    && <SuperComms stores={stores} api={api} pop={pop}/>}
             {sTab==="reports"  && <SuperReports stores={stores} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="settings" && <SuperSettings superAdmin={superAdmin} api={api} pop={pop}/>}
@@ -5511,6 +5534,8 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
 
 /* ─── OWNER BILLING TAB ──────────────────────────────────── */
 function OwnerBillingTab({ owner, storeId, api, pop }) {
+  const [payLoading, setPayLoading] = useState(false);
+
   const [plans,    setPlans]    = useState([]);
   const [payments, setPayments] = useState([]);
   const [store,    setStore]    = useState(null);
@@ -5520,15 +5545,19 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   const fmt2 = n => "TZS " + Number(n||0).toLocaleString();
   const fmtD2 = d => d ? String(d).split("T")[0] : "—";
 
+  const [platSettings, setPlatSettings] = useState({});
+
   useEffect(()=>{
     Promise.all([
       api.getPlans(),
       api.getSubPayments(storeId),
       api.getStore(storeId),
-    ]).then(([pl, pay, st])=>{
+      api.getPlatformSettings().catch(()=>({})),
+    ]).then(([pl, pay, st, ps])=>{
       setPlans(pl||[]);
       setPayments(pay||[]);
       setStore(st);
+      setPlatSettings(ps||{});
     }).catch(()=>{}).finally(()=>setLoading(false));
   },[storeId]);
 
@@ -5578,6 +5607,68 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
           <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", marginTop:12, background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
             Contact Support
           </a>
+          {/* Pay Now section */}
+          {(platSettings.pesapal_consumer_key || platSettings.selcom_api_key || platSettings.paypal_client_id || platSettings.bank_name || platSettings.mobile_money) && (
+            <div style={{ marginTop:14, borderTop:`1px solid ${G22}`, paddingTop:14 }}>
+              <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>Pay Your Subscription</div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {platSettings.pesapal_consumer_key && currentPlan && (
+                  <button onClick={async () => {
+                    setPayLoading(true);
+                    try {
+                      const resp = await fetch("/api/pesapal?action=initiate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (localStorage.getItem("bnbmis_owner") ? JSON.parse(localStorage.getItem("bnbmis_owner")).token : "") },
+                        body: JSON.stringify({
+                          store_id:      storeId,
+                          plan_id:       store?.plan_id,
+                          billing_cycle: "monthly",
+                          owner_email:   owner?.email   || "",
+                          owner_phone:   owner?.phone   || "",
+                          owner_name:    owner?.name    || "",
+                        }),
+                      });
+                      const data = await resp.json();
+                      if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                      } else {
+                        pop(data.error || "Failed to initiate payment", "err");
+                      }
+                    } catch(e) { pop("Payment initiation failed", "err"); }
+                    setPayLoading(false);
+                  }} disabled={payLoading}
+                    style={{ padding:"10px 20px", borderRadius:8, background:payLoading?"#aaa":"#2E7D32", color:"#FFF", fontWeight:700, fontSize:13, border:"none", cursor:payLoading?"not-allowed":"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:8 }}>
+                    {payLoading ? "Redirecting…" : "🟢 Pay via Pesapal"}
+                  </button>
+                )}
+                {platSettings.selcom_api_key && (
+                  <a href="https://checkout.selcom.net" target="_blank" rel="noopener noreferrer"
+                    style={{ padding:"9px 16px", borderRadius:8, background:"#E3F2FD", color:"#1565C0", fontWeight:700, fontSize:13, textDecoration:"none", border:"1px solid #1565C0" }}>
+                    🔵 Pay via Selcom
+                  </a>
+                )}
+                {platSettings.paypal_client_id && (
+                  <a href="https://www.paypal.com" target="_blank" rel="noopener noreferrer"
+                    style={{ padding:"9px 16px", borderRadius:8, background:"#EBF0F9", color:"#003087", fontWeight:700, fontSize:13, textDecoration:"none", border:"1px solid #003087" }}>
+                    🔷 Pay via PayPal
+                  </a>
+                )}
+              </div>
+              {/* Bank / Manual payment info */}
+              {(platSettings.bank_name || platSettings.mobile_money) && (
+                <div style={{ marginTop:12, background:G12, borderRadius:8, padding:"12px 14px", fontSize:13 }}>
+                  <div style={{ fontWeight:700, color:G82, marginBottom:8 }}>🏦 Bank / Mobile Money Payment</div>
+                  {platSettings.bank_name && <div style={{ color:G62, marginBottom:4 }}>Bank: <strong style={{ color:G82 }}>{platSettings.bank_name}</strong></div>}
+                  {platSettings.bank_account_name && <div style={{ color:G62, marginBottom:4 }}>Account Name: <strong style={{ color:G82 }}>{platSettings.bank_account_name}</strong></div>}
+                  {platSettings.bank_account_number && <div style={{ color:G62, marginBottom:4 }}>Account Number: <strong style={{ color:G82, fontFamily:"monospace" }}>{platSettings.bank_account_number}</strong></div>}
+                  {platSettings.mobile_money && <div style={{ color:G62, marginBottom:4 }}>Mobile Money: <strong style={{ color:G82 }}>{platSettings.mobile_money}</strong></div>}
+                  <div style={{ marginTop:8, fontSize:11, color:G62 }}>
+                    After payment, email your receipt to <a href={"mailto:"+(platSettings.support_email||"support@bnbmis.com")} style={{ color:"#1565C0" }}>{platSettings.support_email||"support@bnbmis.com"}</a> — your account will be activated within 24 hours.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -6667,6 +6758,408 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
             style={{ flex:2, padding:"10px", borderRadius:8, border:"none", background:saving?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
             {saving ? "Saving…" : changed ? "✓ Save Changes" : "No Changes"}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SUPER: PAYMENT MANAGEMENT ─────────────────────────── */
+function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
+  const [payments, setPayments]   = useState([]);
+  const [loading,  setLoading]    = useState(true);
+  const [filter,   setFilter]     = useState("all");
+  const [search,   setSearch]     = useState("");
+  const [showManual, setShowManual] = useState(false);
+  const [mf, setMf] = useState({ storeId:"", planId:"", amount:"", method:"Manual", reference:"", cycle:"monthly", notes:"" });
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",IN2="#1565C0",INB2="#E3F2FD",ER2="#C62828",ERB2="#FFEBEE",WA2="#B76E00",WAB2="#FFF3E0";
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      // Fetch all subscription payments across all stores
+      const results = [];
+      for (const s of stores.slice(0, 50)) {
+        try {
+          const pays = await api.getSubPayments(s.id);
+          (pays||[]).forEach(p => results.push({ ...p, storeName: s.name, storeCity: s.city }));
+        } catch {}
+      }
+      results.sort((a,b)=> new Date(b.paid_at||b.created_at||0) - new Date(a.paid_at||a.created_at||0));
+      setPayments(results);
+    } catch(e) { pop(e.message, "err"); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [stores.length]);
+
+  const saveManual = async () => {
+    if (!mf.storeId || !mf.amount) { pop("Store and amount required", "err"); return; }
+    try {
+      await api.recordSubPayment({ store_id:mf.storeId, plan_id:mf.planId, amount:Number(mf.amount), method:mf.method, reference:mf.reference, notes:mf.notes, billing_cycle:mf.cycle });
+      // Activate the store
+      await api.updateStore(mf.storeId, { status:"active", plan_id:mf.planId||undefined });
+      pop("Payment recorded and store activated");
+      setShowManual(false);
+      load();
+    } catch(e) { pop(e.message, "err"); }
+  };
+
+  const totalRev = payments.reduce((s,p) => s + Number(p.amount||0), 0);
+  const thisMonth = payments.filter(p => {
+    const d = new Date(p.paid_at||p.created_at||0);
+    const now = new Date();
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }).reduce((s,p) => s + Number(p.amount||0), 0);
+
+  const shown = payments.filter(p => {
+    if (filter!=="all" && p.method?.toLowerCase() !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (p.storeName||"").toLowerCase().includes(q) || (p.reference||"").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <div>
+          <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 4px" }}>Subscription Payments</h2>
+          <div style={{ fontSize:13, color:G62 }}>All subscription payments received from business owners</div>
+        </div>
+        <button onClick={() => setShowManual(true)} style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          + Record Payment
+        </button>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:12, marginBottom:22 }}>
+        {[["Total Revenue", fmt(totalRev), OK2, "💰"],["This Month", fmt(thisMonth), IN2, "📅"],["Total Payments", payments.length, M2, "📄"],["Active Stores", stores.filter(s=>s.status==="active").length, OK2, "✅"]].map(([l,v,col,ic],i)=>(
+          <div key={i} style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
+            <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{ic} {l}</div>
+            <div style={{ fontSize:22, fontWeight:700, color:col||G82 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search store or reference…"
+          style={{ flex:1, minWidth:200, padding:"8px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:13, outline:"none" }}/>
+        {["all","pesapal","selcom","paypal","manual"].map(f => (
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:`1px solid ${filter===f?M2:G22}`, background:filter===f?M2:WH2, color:filter===f?WH2:G62, textTransform:"capitalize" }}>
+            {f==="all"?"All Methods":f}
+          </button>
+        ))}
+        <button onClick={load} style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${G22}`, background:WH2, color:G62, fontSize:12, cursor:"pointer" }}>↻</button>
+      </div>
+
+      {/* Table */}
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
+        {loading ? <div style={{ padding:40, textAlign:"center", color:G62 }}>Loading…</div> : (
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ background:G12 }}>
+                {["Date","Store","Amount","Method","Reference","Cycle","Notes","Status"].map((h,i)=>(
+                  <th key={i} style={{ padding:"10px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.length===0 && <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:G62 }}>No payments found</td></tr>}
+              {shown.map((p,i)=>(
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
+                  <td style={{ padding:"10px 12px", color:G62, fontSize:12 }}>{(p.paid_at||p.created_at||"").split("T")[0]}</td>
+                  <td style={{ padding:"10px 12px", fontWeight:700 }}>{p.storeName}</td>
+                  <td style={{ padding:"10px 12px", fontWeight:700, color:OK2 }}>{fmt(p.amount)}</td>
+                  <td style={{ padding:"10px 12px" }}>
+                    <span style={{ background:p.method==="pesapal"?INB2:p.method==="selcom"?OKB2:p.method==="paypal"?INB2:G12, color:p.method==="pesapal"?IN2:p.method==="selcom"?OK2:p.method==="paypal"?IN2:G62, borderRadius:99, padding:"2px 8px", fontSize:11, fontWeight:700 }}>
+                      {p.method||"Manual"}
+                    </span>
+                  </td>
+                  <td style={{ padding:"10px 12px", fontSize:12, color:G62 }}>{p.reference||"—"}</td>
+                  <td style={{ padding:"10px 12px", fontSize:12 }}>{p.billing_cycle||"monthly"}</td>
+                  <td style={{ padding:"10px 12px", fontSize:12, color:G62 }}>{p.notes||"—"}</td>
+                  <td style={{ padding:"10px 12px" }}>
+                    <span style={{ background:OKB2, color:OK2, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 8px" }}>Confirmed</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Manual payment modal */}
+      {showManual && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:WH2, borderRadius:14, width:"100%", maxWidth:480, padding:24, boxShadow:"0 20px 60px rgba(0,0,0,.25)", maxHeight:"90vh", overflowY:"auto" }}>
+            <h3 style={{ fontFamily:"'Playfair Display',serif", margin:"0 0 18px" }}>Record Manual Payment</h3>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Store *</label>
+              <select value={mf.storeId} onChange={e=>setMf(f=>({...f,storeId:e.target.value}))}
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                <option value="">— Select Store —</option>
+                {stores.map(s=><option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Plan</label>
+              <select value={mf.planId} onChange={e=>setMf(f=>({...f,planId:e.target.value}))}
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                <option value="">— Keep current plan —</option>
+                {plans.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(p.price_monthly||0)}/mo</option>)}
+              </select>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {[["Amount (TZS) *","amount","number"],["Reference","reference","text"]].map(([l,k,t])=>(
+                <div key={k} style={{ marginBottom:12 }}>
+                  <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>{l}</label>
+                  <input type={t} value={mf[k]} onChange={e=>setMf(f=>({...f,[k]:e.target.value}))}
+                    style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                </div>
+              ))}
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Method</label>
+                <select value={mf.method} onChange={e=>setMf(f=>({...f,method:e.target.value}))}
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                  {["Manual","Bank Transfer","M-Pesa","Tigo Pesa","Airtel Money","Pesapal","Selcom","PayPal","Cash"].map(m=><option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Billing Cycle</label>
+                <select value={mf.cycle} onChange={e=>setMf(f=>({...f,cycle:e.target.value}))}
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Notes</label>
+              <input value={mf.notes} onChange={e=>setMf(f=>({...f,notes:e.target.value}))} placeholder="e.g. Paid via bank transfer ref 12345"
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            </div>
+            <div style={{ background:OKB2, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:12, color:OK2, fontWeight:600 }}>
+              ✓ Recording this payment will automatically activate the store and extend its subscription.
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setShowManual(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+              <button onClick={saveManual} style={{ flex:2, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer", fontSize:14 }}>
+                ✓ Record Payment & Activate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── SUPER: PAYMENT GATEWAYS ────────────────────────────── */
+function SuperGateways({ api, pop }) {
+  const [settings, setSettings] = useState({
+    pesapal_consumer_key: "", pesapal_consumer_secret: "", pesapal_env: "sandbox",
+    selcom_api_key: "", selcom_api_secret: "", selcom_vendor: "",
+    paypal_client_id: "", paypal_client_secret: "", paypal_env: "sandbox",
+    africastalking_key: "", africastalking_username: "",
+    payment_currency: "TZS", support_email: "support@bnbmis.com",
+  });
+  const [saving, setSaving] = useState(false);
+  const [activeGW, setActiveGW] = useState("pesapal");
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const IN2="#1565C0",INB2="#E3F2FD",OK2="#2E7D32",OKB2="#E8F5E9",WA2="#B76E00",WAB2="#FFF3E0";
+
+  useEffect(() => {
+    api.getPlatformSettings().then(s => {
+      if (s) setSettings(prev => ({ ...prev, ...s }));
+    }).catch(() => {});
+  }, []);
+
+  const save = async (fields) => {
+    setSaving(true);
+    try {
+      await api.savePlatformSettings({ ...settings, ...fields });
+      setSettings(prev => ({ ...prev, ...fields }));
+      pop("Gateway settings saved");
+    } catch(e) { pop(e.message, "err"); }
+    setSaving(false);
+  };
+
+  const inp = (label, key, type="text", ph="") => (
+    <div style={{ marginBottom:14 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+      <input type={type} value={settings[key]||""} onChange={e=>setSettings(s=>({...s,[key]:e.target.value}))} placeholder={ph}
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}/>
+    </div>
+  );
+
+  const gateways = [
+    { id:"pesapal", name:"Pesapal", logo:"🟢", desc:"Popular in East Africa — Kenya, Uganda, Tanzania, Rwanda", color:OK2, bg:OKB2 },
+    { id:"selcom",  name:"Selcom",  logo:"🔵", desc:"Tanzania's leading mobile & card payment gateway", color:IN2, bg:INB2 },
+    { id:"paypal",  name:"PayPal",  logo:"🔷", desc:"Global payments — USD, EUR and international cards", color:"#003087", bg:"#EBF0F9" },
+    { id:"manual",  name:"Manual / Bank Transfer", logo:"🏦", desc:"Record payments manually — bank transfer, mobile money", color:WA2, bg:WAB2 },
+  ];
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 6px" }}>Payment Gateways</h2>
+      <p style={{ fontSize:13, color:G62, marginBottom:22 }}>
+        Configure payment gateways so business owners can pay for subscriptions automatically. Each gateway requires API credentials from the provider.
+      </p>
+
+      {/* Gateway selector */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12, marginBottom:24 }}>
+        {gateways.map(gw => (
+          <div key={gw.id} onClick={()=>setActiveGW(gw.id)}
+            style={{ background:activeGW===gw.id?gw.bg:WH2, border:`2px solid ${activeGW===gw.id?gw.color:G22}`, borderRadius:10, padding:16, cursor:"pointer", transition:"all .15s" }}>
+            <div style={{ fontSize:24, marginBottom:6 }}>{gw.logo}</div>
+            <div style={{ fontWeight:700, fontSize:14, color:activeGW===gw.id?gw.color:G82 }}>{gw.name}</div>
+            <div style={{ fontSize:11, color:G62, marginTop:3, lineHeight:1.5 }}>{gw.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pesapal config */}
+      {activeGW === "pesapal" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <span style={{ fontSize:24 }}>🟢</span>
+            <div>
+              <h3 style={{ fontFamily:"'Playfair Display',serif", margin:0, fontSize:15 }}>Pesapal Configuration</h3>
+              <div style={{ fontSize:12, color:G62 }}>Get credentials from <a href="https://developer.pesapal.com" target="_blank" rel="noopener noreferrer" style={{ color:IN2 }}>developer.pesapal.com</a></div>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+            {inp("Consumer Key *", "pesapal_consumer_key", "text", "Your Pesapal consumer key")}
+            {inp("Consumer Secret *", "pesapal_consumer_secret", "password", "Your Pesapal consumer secret")}
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Environment</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {["sandbox","live"].map(env => (
+                <button key={env} onClick={()=>setSettings(s=>({...s,pesapal_env:env}))}
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${settings.pesapal_env===env?OK2:G22}`, background:settings.pesapal_env===env?OKB2:WH2, color:settings.pesapal_env===env?OK2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ background:WAB2, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:12, color:WA2 }}>
+            <strong>Callback URL</strong> to register in Pesapal dashboard:<br/>
+            <code style={{ fontFamily:"monospace", fontSize:12 }}>https://bnbmis.com/api/subscriptions?action=pesapal_ipn</code>
+          </div>
+          <button onClick={()=>save({ pesapal_consumer_key:settings.pesapal_consumer_key, pesapal_consumer_secret:settings.pesapal_consumer_secret, pesapal_env:settings.pesapal_env })}
+            disabled={saving} style={{ background:OK2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {saving?"Saving…":"Save Pesapal Settings"}
+          </button>
+        </div>
+      )}
+
+      {/* Selcom config */}
+      {activeGW === "selcom" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <span style={{ fontSize:24 }}>🔵</span>
+            <div>
+              <h3 style={{ fontFamily:"'Playfair Display',serif", margin:0, fontSize:15 }}>Selcom Configuration</h3>
+              <div style={{ fontSize:12, color:G62 }}>Get credentials from <a href="https://developer.selcom.net" target="_blank" rel="noopener noreferrer" style={{ color:IN2 }}>developer.selcom.net</a></div>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+            {inp("API Key *", "selcom_api_key", "text", "Selcom API key")}
+            {inp("API Secret *", "selcom_api_secret", "password", "Selcom API secret")}
+            {inp("Vendor ID *", "selcom_vendor", "text", "Your Selcom vendor ID")}
+          </div>
+          <div style={{ background:WAB2, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:12, color:WA2 }}>
+            <strong>Webhook URL</strong> to register in Selcom dashboard:<br/>
+            <code style={{ fontFamily:"monospace", fontSize:12 }}>https://bnbmis.com/api/subscriptions?action=selcom_webhook</code>
+          </div>
+          <button onClick={()=>save({ selcom_api_key:settings.selcom_api_key, selcom_api_secret:settings.selcom_api_secret, selcom_vendor:settings.selcom_vendor })}
+            disabled={saving} style={{ background:IN2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {saving?"Saving…":"Save Selcom Settings"}
+          </button>
+        </div>
+      )}
+
+      {/* PayPal config */}
+      {activeGW === "paypal" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <span style={{ fontSize:24 }}>🔷</span>
+            <div>
+              <h3 style={{ fontFamily:"'Playfair Display',serif", margin:0, fontSize:15 }}>PayPal Configuration</h3>
+              <div style={{ fontSize:12, color:G62 }}>Get credentials from <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer" style={{ color:IN2 }}>developer.paypal.com</a></div>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+            {inp("Client ID *", "paypal_client_id", "text", "PayPal client ID")}
+            {inp("Client Secret *", "paypal_client_secret", "password", "PayPal client secret")}
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Environment</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {["sandbox","live"].map(env => (
+                <button key={env} onClick={()=>setSettings(s=>({...s,paypal_env:env}))}
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${settings.paypal_env===env?"#003087":G22}`, background:settings.paypal_env===env?"#EBF0F9":WH2, color:settings.paypal_env===env?"#003087":G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={()=>save({ paypal_client_id:settings.paypal_client_id, paypal_client_secret:settings.paypal_client_secret, paypal_env:settings.paypal_env })}
+            disabled={saving} style={{ background:"#003087", color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {saving?"Saving…":"Save PayPal Settings"}
+          </button>
+        </div>
+      )}
+
+      {/* Manual / Bank */}
+      {activeGW === "manual" && (
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <span style={{ fontSize:24 }}>🏦</span>
+            <h3 style={{ fontFamily:"'Playfair Display',serif", margin:0, fontSize:15 }}>Manual Payment Info</h3>
+          </div>
+          <p style={{ fontSize:13, color:G62, marginBottom:18 }}>
+            This information is shown to business owners on the billing page so they know where to send payment. After receiving payment, record it manually in the Payments tab.
+          </p>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+            {inp("Bank Name", "bank_name", "text", "e.g. CRDB Bank")}
+            {inp("Account Name", "bank_account_name", "text", "e.g. BNBMIS Ltd")}
+            {inp("Account Number", "bank_account_number", "text", "e.g. 0152-123456-00")}
+            {inp("Branch", "bank_branch", "text", "e.g. Dar es Salaam")}
+            {inp("M-Pesa / Mobile Money", "mobile_money", "text", "e.g. +255 7XX XXX XXX")}
+            {inp("Payment Currency", "payment_currency", "text", "TZS")}
+          </div>
+          {inp("Support Email", "support_email", "email", "support@bnbmis.com")}
+          <button onClick={()=>save({ bank_name:settings.bank_name, bank_account_name:settings.bank_account_name, bank_account_number:settings.bank_account_number, bank_branch:settings.bank_branch, mobile_money:settings.mobile_money, payment_currency:settings.payment_currency, support_email:settings.support_email })}
+            disabled={saving} style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {saving?"Saving…":"Save Payment Info"}
+          </button>
+        </div>
+      )}
+
+      {/* How-to guide */}
+      <div style={{ background:G12, borderRadius:12, padding:20, marginTop:22 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px" }}>How Automatic Subscription Payments Work</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:14 }}>
+          {[
+            ["1. Configure", "Set up your preferred payment gateway credentials above (Pesapal for East Africa, Selcom for Tanzania, PayPal for international)."],
+            ["2. Owner Pays", "Business owners see a Pay Now button in their Billing tab. They click it and complete payment on the gateway's page."],
+            ["3. Webhook", "The gateway sends a callback to BNBMIS. The subscription is automatically activated and the payment is recorded."],
+            ["4. Manual Backup", "For bank transfers, M-Pesa etc., record payments manually in the Payments tab to activate the store."],
+          ].map(([title,desc],i)=>(
+            <div key={i} style={{ background:WH2, borderRadius:8, padding:14 }}>
+              <div style={{ fontWeight:700, color:M2, marginBottom:6 }}>{title}</div>
+              <div style={{ fontSize:12, color:G62, lineHeight:1.6 }}>{desc}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
