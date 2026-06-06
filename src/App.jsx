@@ -4822,6 +4822,101 @@ function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
           <KPI2 label="Total Bookings" value={platStats?.bookings?.total||0} icon="📅"/>
         </div>
       )}
+      {/* ── EXPIRING SOON ── */}
+      {(() => {
+        const now  = new Date();
+        const week = new Date(Date.now() + 7*86400000);
+        const expiring = stores.filter(s => {
+          const exp = s.current_period_end || s.trial_ends;
+          if (!exp) return false;
+          const d = new Date(exp);
+          return d >= now && d <= week;
+        }).sort((a,b) => new Date(a.current_period_end||a.trial_ends) - new Date(b.current_period_end||b.trial_ends));
+
+        const expired = stores.filter(s => {
+          const exp = s.current_period_end || s.trial_ends;
+          if (!exp) return false;
+          return new Date(exp) < now;
+        });
+
+        if (expiring.length === 0 && expired.length === 0) return null;
+        return (
+          <div style={{ background:"#FFF", border:"2px solid #B76E00", borderRadius:12, padding:20, marginBottom:20 }}>
+            <SecTitle>⚠️ Subscription Alerts</SecTitle>
+            {expiring.length > 0 && (
+              <>
+                <div style={{ fontSize:12, fontWeight:700, color:"#B76E00", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
+                  Expiring Within 7 Days ({expiring.length})
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:expired.length>0?18:0 }}>
+                  {expiring.map((s,i) => {
+                    const exp = s.current_period_end || s.trial_ends;
+                    const daysLeft = Math.ceil((new Date(exp)-now)/86400000);
+                    return (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#FFF3E0", borderRadius:8, padding:"10px 14px", gap:12 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:700, fontSize:13 }}>{s.name}</div>
+                          <div style={{ fontSize:11, color:"#666", marginTop:1 }}>{s.owner_email||s.owner_name||"—"} · {s.plan_name||"Trial"}</div>
+                        </div>
+                        <div style={{ textAlign:"right", flexShrink:0 }}>
+                          <div style={{ fontWeight:700, fontSize:13, color:"#B76E00" }}>
+                            {String(exp).split("T")[0]}
+                          </div>
+                          <div style={{ fontSize:11, color:"#B76E00", fontWeight:600 }}>
+                            {daysLeft === 0 ? "Expires today!" : daysLeft === 1 ? "1 day left" : daysLeft+" days left"}
+                          </div>
+                        </div>
+                        <button onClick={()=>setSTab("billing")}
+                          style={{ background:"#B76E00", color:"#FFF", border:"none", borderRadius:7, padding:"6px 12px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                          Renew
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {expired.length > 0 && (
+              <>
+                <div style={{ fontSize:12, fontWeight:700, color:"#C62828", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
+                  Already Expired ({expired.length})
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {expired.slice(0,5).map((s,i) => {
+                    const exp = s.current_period_end || s.trial_ends;
+                    const daysAgo = Math.ceil((now-new Date(exp))/86400000);
+                    return (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#FFEBEE", borderRadius:8, padding:"10px 14px", gap:12 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:700, fontSize:13 }}>{s.name}</div>
+                          <div style={{ fontSize:11, color:"#666", marginTop:1 }}>{s.owner_email||s.owner_name||"—"} · {s.plan_name||"Trial"}</div>
+                        </div>
+                        <div style={{ textAlign:"right", flexShrink:0 }}>
+                          <div style={{ fontWeight:700, fontSize:13, color:"#C62828" }}>
+                            {String(exp).split("T")[0]}
+                          </div>
+                          <div style={{ fontSize:11, color:"#C62828", fontWeight:600 }}>
+                            Expired {daysAgo} day{daysAgo!==1?"s":""} ago
+                          </div>
+                        </div>
+                        <span style={{ background:"#FFCDD2", color:"#C62828", borderRadius:99, fontSize:10, fontWeight:700, padding:"3px 8px", flexShrink:0 }}>
+                          EXPIRED
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {expired.length > 5 && (
+                    <div style={{ fontSize:12, color:"#C62828", textAlign:"center", padding:"4px 0" }}>
+                      +{expired.length-5} more expired
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:20, marginBottom:20 }}>
         <SecTitle>Recent Stores</SecTitle>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
