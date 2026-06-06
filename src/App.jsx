@@ -2041,7 +2041,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
           onChange={e => setLoginF(f => ({ ...f, storeId: e.target.value.trim() }))}
           placeholder="e.g. ST3A9F2B"
           autoCapitalize="characters"
-          style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", fontFamily: "monospace", letterSpacing: "1px" }}
+          style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "monospace", letterSpacing: "1px" }}
         />
       </div>
       <div style={{ marginBottom: 13 }}>
