@@ -493,7 +493,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p?.store?.id?p:null); } catch{return null;} });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -517,7 +517,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
+      try{const ow=localStorage.getItem("bnbmis_owner");if(ow){const p=JSON.parse(ow);if(p?.store?.id)return "owner_dash";}}catch{}
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -1387,13 +1387,21 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onOwnerLogin={async(email,pw)=>{
+  const u=await api.loginOwner(email,pw);
+  if (!u?.store?.id) { pop("Login error: store data missing. Please try again.", "err"); return; }
+  setOwner(u);
+  try { localStorage.setItem("bnbmis_owner", JSON.stringify(u)); } catch {}
+  setModal(null);
+  await loadAll(null, u.store.id);
+  setView("owner_dash");
+}}
         onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
-      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
+      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ if(u?.store?.id){setOwner(u);try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); setView("owner_dash");}else{pop("Registration error","err");} pop("Welcome! Your 14-day trial has started."); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       <PWAInstallBanner/>
@@ -1812,8 +1820,8 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner) {
-    const sid = owner.store.id;
+  if (view === "owner_dash" && owner && owner.store?.id) {
+    const sid = owner.store.id; // safe: guarded by owner.store?.id check above
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
       {id:"books",     icon:"📋", l:"Bookings"},
@@ -1862,7 +1870,7 @@ export default function App() {
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store.name} role="Store Owner"
+          storeName={owner.store?.name||"My Store"} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -1883,7 +1891,7 @@ export default function App() {
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store?.name||"My Store"}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
