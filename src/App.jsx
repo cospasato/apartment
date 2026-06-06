@@ -4791,7 +4791,7 @@ function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
       )}
       <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:20, marginBottom:20 }}>
         <SecTitle>Recent Stores</SecTitle>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+        <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
           <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
             {["Store","Owner","City","Status","Plan","Rooms","Joined"].map((h,i)=><th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
           </tr></thead>
@@ -4849,7 +4849,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
       </div>
       <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:16 }}>
         <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
             <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
               {["Store","Owner","City","Status","Plan","Rooms","Bookings","Revenue","Actions"].map((h,i)=>
                 <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em", whiteSpace:"nowrap" }}>{h}</th>)}
@@ -4925,7 +4925,7 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
       </div>
       {loaded && (
         <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:16 }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
             <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
               {["Store","Amount","Method","Reference","Date"].map((h,i)=><th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
             </tr></thead>
@@ -5628,7 +5628,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
       <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Billing & Plan</h2>
 
       {/* Current plan card */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,280px),1fr))", gap:14, marginBottom:22 }}>
         <div style={{ background:WH2, border:`2px solid ${M2}`, borderRadius:14, padding:22 }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Current Plan</div>
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:M2, marginBottom:4 }}>
@@ -5692,7 +5692,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
       {/* All available plans */}
       <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20, marginBottom:24 }}>
         <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Available Plans</h3>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,160px),1fr))", gap:10 }}>
           {plans.map(p=>(
             <div key={p.id} style={{ border:`2px solid ${p.id===store?.plan_id?M2:G22}`, borderRadius:10, padding:16, background:p.id===store?.plan_id?`${M2}08`:WH2, position:"relative" }}>
               {p.id===store?.plan_id && (
@@ -5724,7 +5724,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
         {payments.length === 0 ? (
           <div style={{ textAlign:"center", padding:32, color:G62, fontSize:13 }}>No payments recorded yet.</div>
         ) : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
             <thead>
               <tr style={{ borderBottom:`2px solid ${G22}` }}>
                 {["Date","Amount","Method","Reference","Notes"].map((h,i)=>(
@@ -5743,7 +5743,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
@@ -5829,7 +5829,7 @@ function CustomersTab({ storeId, api, pop }) {
       {/* Customer list */}
       {loading ? <div style={{padding:40,textAlign:"center",color:G62}}>Loading…</div> : (
         <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
             <thead>
               <tr style={{ background:G12 }}>
                 {["Guest","Phone","Email","Bookings","Total Spent","Last Visit","Actions"].map((h,i)=>(
@@ -6878,7 +6878,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
       {/* Table */}
       <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:G62 }}>Loading…</div> : (
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:500 }}>
             <thead>
               <tr style={{ background:G12 }}>
                 {["Date","Store","Amount","Method","Reference","Cycle","Notes","Status"].map((h,i)=>(
@@ -6907,7 +6907,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
