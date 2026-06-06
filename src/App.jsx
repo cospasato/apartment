@@ -7024,6 +7024,8 @@ function SuperGateways({ api, pop }) {
     selcom_api_key: "", selcom_api_secret: "", selcom_vendor: "",
     paypal_client_id: "", paypal_client_secret: "", paypal_env: "sandbox",
     africastalking_key: "", africastalking_username: "",
+    bank_name: "", bank_account_name: "", bank_account_number: "",
+    bank_branch: "", mobile_money: "",
     payment_currency: "TZS", support_email: "support@bnbmis.com",
   });
   const [saving, setSaving] = useState(false);
@@ -7039,9 +7041,14 @@ function SuperGateways({ api, pop }) {
 
   const save = async (fields) => {
     setSaving(true);
+    // Only save non-empty values to avoid overwriting with blank strings
+    const toSave = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (v !== undefined && v !== null) toSave[k] = v;
+    }
     try {
-      await api.savePlatformSettings({ ...settings, ...fields });
-      setSettings(prev => ({ ...prev, ...fields }));
+      await api.savePlatformSettings(toSave);
+      setSettings(prev => ({ ...prev, ...toSave }));
       pop("Gateway settings saved");
     } catch(e) { pop(e.message, "err"); }
     setSaving(false);
@@ -7235,8 +7242,9 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
   const selPlan = plans.find(p => p.id === defaultPlanId);
   const amount  = selPlan ? (cycle === "yearly" ? (selPlan.price_yearly || selPlan.price_monthly * 12) : selPlan.price_monthly) : 0;
 
-  const hasPesapal   = !!(platSettings.pesapal_consumer_key);
-  const hasBank      = !!(platSettings.bank_name || platSettings.mobile_money);
+  const hasPesapal   = !!(platSettings.pesapal_consumer_key && platSettings.pesapal_consumer_key !== "undefined");
+  const hasBank      = !!((platSettings.bank_name && platSettings.bank_name !== "undefined") ||
+                          (platSettings.mobile_money && platSettings.mobile_money !== "undefined"));
   const hasAnyMethod = hasPesapal || hasBank;
 
   // Always show — even if no methods yet, show plans and a contact message

@@ -206,9 +206,12 @@ module.exports = async function handler(req, res) {
       if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin required' });
       const updates = req.body || {};
       for (const [key, value] of Object.entries(updates)) {
+        // Skip null/undefined — don't overwrite existing good values with empty
+        if (value === null || value === undefined) continue;
+        const strVal = String(value);
         await sql`
-          INSERT INTO platform_settings (key, value, updated_at) VALUES (${key}, ${String(value)}, NOW())
-          ON CONFLICT (key) DO UPDATE SET value = ${String(value)}, updated_at = NOW()
+          INSERT INTO platform_settings (key, value, updated_at) VALUES (${key}, ${strVal}, NOW())
+          ON CONFLICT (key) DO UPDATE SET value = ${strVal}, updated_at = NOW()
         `;
       }
       return res.status(200).json({ success: true });
@@ -293,7 +296,8 @@ module.exports = async function handler(req, res) {
       rows.forEach(r => {
         // Hide secret keys from non-super users
         if (!isSuper && secretKeys.includes(r.key)) return;
-        settings[r.key] = r.value;
+        // Treat "undefined" (from buggy old saves) as empty string
+        settings[r.key] = (r.value === "undefined" || r.value === "null") ? "" : r.value;
       });
       return res.status(200).json(settings);
     }
