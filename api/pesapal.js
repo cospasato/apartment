@@ -94,8 +94,7 @@ module.exports = async function handler(req, res) {
       const merchantRef = 'BNBMIS-' + store_id.slice(-6).toUpperCase() + '-' + Date.now();
 
       // Use the actual domain from the request Host header (not VERCEL_URL which is a preview URL)
-      const host    = req.headers['x-forwarded-host'] || req.headers['host'] || 'bnbmis.com';
-      const appUrl  = 'https://' + host;
+      const appUrl  = 'https://bnbmis.com';
       const callbackUrl = appUrl + '/api/pesapal?action=callback&store_id=' + store_id + '&plan_id=' + plan_id + '&cycle=' + (billing_cycle||'monthly') + '&ref=' + merchantRef;
       const ipnUrl      = appUrl + '/api/pesapal?action=ipn';
 
@@ -165,8 +164,7 @@ module.exports = async function handler(req, res) {
       }
 
       // Redirect back to the billing tab on the actual domain used
-      const host2   = req.headers['x-forwarded-host'] || req.headers['host'] || 'bnbmis.com';
-      const appUrl2 = 'https://' + host2;
+      const appUrl2 = 'https://bnbmis.com';
       // ?payment=done triggers the success handler; #billing scrolls to billing tab
       return res.redirect(302, appUrl2 + '/?payment=done&store=' + storeId + '&tab=billing');
     }

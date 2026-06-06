@@ -5664,100 +5664,98 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   const statusColor = {active:OK2,trial:IN2,suspended:WA2,terminated:"#C62828"}[store?.status] || G62;
   const statusBg    = {active:OKB2,trial:INB2,suspended:WAB2,terminated:"#FFEBEE"}[store?.status] || G12;
 
+  // Expiry date: from subscription data on store object
+  const expiryDate    = store?.current_period_end || store?.trial_ends || null;
+  const subStatus     = store?.sub_status || store?.status || "—";
+
   return (
     <div>
       <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Billing & Plan</h2>
 
-      {/* Current plan card */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
-        <div style={{ background:WH2, border:`2px solid ${M2}`, borderRadius:14, padding:22 }}>
-          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Current Plan</div>
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:M2, marginBottom:4 }}>
-            {currentPlan?.name || "Free Trial"}
+      {/* Account Status card — single full-width card */}
+      <div style={{ background:WH2, border:"2px solid "+M2, borderRadius:14, padding:22, marginBottom:24 }}>
+        <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:14 }}>Account Status</div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:16, marginBottom:18 }}>
+          {/* Status badge */}
+          <div>
+            <div style={{ fontSize:11, color:G62, marginBottom:6 }}>Status</div>
+            <span style={{ display:"inline-block", background:statusBg, color:statusColor, borderRadius:99, padding:"5px 16px", fontSize:14, fontWeight:700, textTransform:"uppercase" }}>
+              {store?.status || "—"}
+            </span>
           </div>
-          <div style={{ fontSize:22, fontWeight:700, color:G82, marginBottom:12 }}>
-            {currentPlan ? (currentPlan.price_monthly||currentPlan.price_month) === 0 ? "Free" : fmt2(currentPlan.price_monthly||currentPlan.price_month) : "—"}
-            {currentPlan && (currentPlan.price_monthly||currentPlan.price_month) > 0 && <span style={{fontSize:13,fontWeight:400,color:G62}}>/month</span>}
+          {/* Current plan */}
+          <div>
+            <div style={{ fontSize:11, color:G62, marginBottom:6 }}>Current Plan</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:M2 }}>
+              {currentPlan?.name || "Free Trial"}
+            </div>
+            {currentPlan && (currentPlan.price_monthly||0) > 0 && (
+              <div style={{ fontSize:12, color:G62, marginTop:2 }}>
+                {fmt2(currentPlan.price_monthly)}/month
+              </div>
+            )}
           </div>
+          {/* Plan limits */}
           {currentPlan && (
-            <div style={{ fontSize:12, color:G62, lineHeight:2 }}>
-              <div>📍 {currentPlan.max_locations >= 999 ? "Unlimited" : currentPlan.max_locations} locations</div>
-              <div>🛏️ {currentPlan.max_rooms >= 999 ? "Unlimited" : currentPlan.max_rooms} rooms</div>
-              <div>👥 {currentPlan.max_staff >= 999 ? "Unlimited" : currentPlan.max_staff} staff accounts</div>
+            <div>
+              <div style={{ fontSize:11, color:G62, marginBottom:6 }}>Plan Includes</div>
+              <div style={{ fontSize:12, color:G82, lineHeight:1.9 }}>
+                <div>📍 {currentPlan.max_locations>=999?"Unlimited":currentPlan.max_locations} locations</div>
+                <div>🛏️ {currentPlan.max_rooms>=999?"Unlimited":currentPlan.max_rooms} rooms</div>
+                <div>👥 {currentPlan.max_staff>=999?"Unlimited":currentPlan.max_staff} staff</div>
+              </div>
             </div>
           )}
+          {/* Expiry */}
+          <div>
+            <div style={{ fontSize:11, color:G62, marginBottom:6 }}>
+              {store?.status==="trial" ? "Trial Expires" : "Subscription Expires"}
+            </div>
+            {expiryDate ? (
+              <div style={{ fontSize:14, fontWeight:700, color: new Date(expiryDate) < new Date(Date.now()+7*86400000) ? WA2 : G82 }}>
+                {fmtD2(expiryDate)}
+                {new Date(expiryDate) < new Date() && (
+                  <span style={{ marginLeft:8, background:"#FFEBEE", color:"#C62828", borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>EXPIRED</span>
+                )}
+                {new Date(expiryDate) >= new Date() && new Date(expiryDate) < new Date(Date.now()+7*86400000) && (
+                  <span style={{ marginLeft:8, background:WAB2, color:WA2, borderRadius:99, fontSize:10, fontWeight:700, padding:"2px 7px" }}>EXPIRING SOON</span>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize:13, color:G62 }}>—</div>
+            )}
+          </div>
         </div>
 
-        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:14, padding:22 }}>
-          <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Account Status</div>
-          <div style={{ display:"inline-block", background:statusBg, color:statusColor, borderRadius:99, padding:"5px 16px", fontSize:14, fontWeight:700, textTransform:"uppercase", marginBottom:14 }}>
-            {store?.status || "—"}
-          </div>
-          {store?.trial_ends && store?.status === "trial" && (
-            <div style={{ fontSize:13, color:WA2, fontWeight:600, marginBottom:8 }}>
-              ⏱ Trial ends: {fmtD2(store.trial_ends)}
-            </div>
-          )}
-          <div style={{ fontSize:13, color:G62, lineHeight:1.7 }}>
-            To upgrade your plan or renew your subscription, contact BNBMIS support.
-          </div>
-          <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-            <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
-              Contact Support
-            </a>
-            <button onClick={async()=>{
-              const newStatus = store?.status==="active"?"suspended":"active";
-              try {
-                // Use a dedicated owner action for marketplace visibility
-                await fetch("/api/stores?id="+storeId+"&action=toggle_visibility", {
-                  method:"PUT",
-                  headers:{"Content-Type":"application/json","Authorization":"Bearer "+((s)=>{try{return JSON.parse(s||"{}").token||"";}catch{return "";}})(localStorage.getItem("bnbmis_owner"))},
-                  body: JSON.stringify({visibility: newStatus})
-                });
-                setStore(s=>({...s, status:newStatus}));
-                pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace");
-              } catch(e){ pop(e.message||"Failed","err"); }
-            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:`1px solid ${store?.status==="active"?WA2:OK2}`, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-              {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
-            </button>
-          </div>
-          {/* ── PAY NOW SECTION ── */}
-          <PayNowSection
-            storeId={storeId} store={store} owner={owner}
-            plans={plans} platSettings={platSettings}
-            pop={pop}
-          />
+        {/* Actions */}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", borderTop:"1px solid "+G22, paddingTop:14 }}>
+          <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
+            Contact Support
+          </a>
+          <button onClick={async()=>{
+            const newStatus = store?.status==="active"?"suspended":"active";
+            try {
+              await fetch("/api/stores?id="+storeId+"&action=toggle_visibility", {
+                method:"PUT",
+                headers:{"Content-Type":"application/json","Authorization":"Bearer "+((s)=>{try{return JSON.parse(s||"{}").token||"";}catch{return "";}})(localStorage.getItem("bnbmis_owner"))},
+                body: JSON.stringify({visibility: newStatus})
+              });
+              setStore(s=>({...s, status:newStatus}));
+              pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace");
+            } catch(e){ pop(e.message||"Failed","err"); }
+          }} style={{ background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:"1px solid "+(store?.status==="active"?WA2:OK2), borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
+          </button>
         </div>
       </div>
 
-      {/* All available plans */}
-      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20, marginBottom:24 }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Available Plans</h3>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
-          {plans.map(p=>(
-            <div key={p.id} style={{ border:`2px solid ${p.id===store?.plan_id?M2:G22}`, borderRadius:10, padding:16, background:p.id===store?.plan_id?`${M2}08`:WH2, position:"relative" }}>
-              {p.id===store?.plan_id && (
-                <div style={{ position:"absolute", top:-1, right:10, background:M2, color:WH2, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:"0 0 6px 6px" }}>Current</div>
-              )}
-              <div style={{ fontWeight:700, fontSize:15, color:G82, marginBottom:4 }}>{p.name}</div>
-              <div style={{ fontSize:18, fontWeight:700, color:M2, marginBottom:8 }}>
-                {(p.price_monthly||p.price_month)===0 ? "Free" : fmt2(p.price_monthly||p.price_month)}
-                {(p.price_monthly||p.price_month)>0 && <span style={{fontSize:11,fontWeight:400,color:G62}}>/mo</span>}
-              </div>
-              <div style={{ fontSize:11, color:G62, lineHeight:1.9 }}>
-                <div>📍 {p.max_locations>=999?"∞":p.max_locations} locations</div>
-                <div>🛏️ {p.max_rooms>=999?"∞":p.max_rooms} rooms</div>
-                <div>👥 {p.max_staff>=999?"∞":p.max_staff} staff</div>
-              </div>
-              {(p.features||[]).length>0 && (
-                <div style={{ marginTop:8, fontSize:11, color:G82, borderTop:`1px solid ${G22}`, paddingTop:8 }}>
-                  {p.features.slice(0,3).map((f,i)=><div key={i}>✓ {f}</div>)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Subscribe / Renew */}
+      <PayNowSection
+        storeId={storeId} store={store} owner={owner}
+        plans={plans} platSettings={platSettings}
+        pop={pop}
+      />
 
       {/* Payment history */}
       <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
