@@ -5607,68 +5607,12 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
           <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", marginTop:12, background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
             Contact Support
           </a>
-          {/* Pay Now section */}
-          {(platSettings.pesapal_consumer_key || platSettings.selcom_api_key || platSettings.paypal_client_id || platSettings.bank_name || platSettings.mobile_money) && (
-            <div style={{ marginTop:14, borderTop:`1px solid ${G22}`, paddingTop:14 }}>
-              <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>Pay Your Subscription</div>
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                {platSettings.pesapal_consumer_key && currentPlan && (
-                  <button onClick={async () => {
-                    setPayLoading(true);
-                    try {
-                      const resp = await fetch("/api/pesapal?action=initiate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (localStorage.getItem("bnbmis_owner") ? JSON.parse(localStorage.getItem("bnbmis_owner")).token : "") },
-                        body: JSON.stringify({
-                          store_id:      storeId,
-                          plan_id:       store?.plan_id,
-                          billing_cycle: "monthly",
-                          owner_email:   owner?.email   || "",
-                          owner_phone:   owner?.phone   || "",
-                          owner_name:    owner?.name    || "",
-                        }),
-                      });
-                      const data = await resp.json();
-                      if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
-                      } else {
-                        pop(data.error || "Failed to initiate payment", "err");
-                      }
-                    } catch(e) { pop("Payment initiation failed", "err"); }
-                    setPayLoading(false);
-                  }} disabled={payLoading}
-                    style={{ padding:"10px 20px", borderRadius:8, background:payLoading?"#aaa":"#2E7D32", color:"#FFF", fontWeight:700, fontSize:13, border:"none", cursor:payLoading?"not-allowed":"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:8 }}>
-                    {payLoading ? "Redirecting…" : "🟢 Pay via Pesapal"}
-                  </button>
-                )}
-                {platSettings.selcom_api_key && (
-                  <a href="https://checkout.selcom.net" target="_blank" rel="noopener noreferrer"
-                    style={{ padding:"9px 16px", borderRadius:8, background:"#E3F2FD", color:"#1565C0", fontWeight:700, fontSize:13, textDecoration:"none", border:"1px solid #1565C0" }}>
-                    🔵 Pay via Selcom
-                  </a>
-                )}
-                {platSettings.paypal_client_id && (
-                  <a href="https://www.paypal.com" target="_blank" rel="noopener noreferrer"
-                    style={{ padding:"9px 16px", borderRadius:8, background:"#EBF0F9", color:"#003087", fontWeight:700, fontSize:13, textDecoration:"none", border:"1px solid #003087" }}>
-                    🔷 Pay via PayPal
-                  </a>
-                )}
-              </div>
-              {/* Bank / Manual payment info */}
-              {(platSettings.bank_name || platSettings.mobile_money) && (
-                <div style={{ marginTop:12, background:G12, borderRadius:8, padding:"12px 14px", fontSize:13 }}>
-                  <div style={{ fontWeight:700, color:G82, marginBottom:8 }}>🏦 Bank / Mobile Money Payment</div>
-                  {platSettings.bank_name && <div style={{ color:G62, marginBottom:4 }}>Bank: <strong style={{ color:G82 }}>{platSettings.bank_name}</strong></div>}
-                  {platSettings.bank_account_name && <div style={{ color:G62, marginBottom:4 }}>Account Name: <strong style={{ color:G82 }}>{platSettings.bank_account_name}</strong></div>}
-                  {platSettings.bank_account_number && <div style={{ color:G62, marginBottom:4 }}>Account Number: <strong style={{ color:G82, fontFamily:"monospace" }}>{platSettings.bank_account_number}</strong></div>}
-                  {platSettings.mobile_money && <div style={{ color:G62, marginBottom:4 }}>Mobile Money: <strong style={{ color:G82 }}>{platSettings.mobile_money}</strong></div>}
-                  <div style={{ marginTop:8, fontSize:11, color:G62 }}>
-                    After payment, email your receipt to <a href={"mailto:"+(platSettings.support_email||"support@bnbmis.com")} style={{ color:"#1565C0" }}>{platSettings.support_email||"support@bnbmis.com"}</a> — your account will be activated within 24 hours.
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* ── PAY NOW SECTION ── */}
+          <PayNowSection
+            storeId={storeId} store={store} owner={owner}
+            plans={plans} platSettings={platSettings}
+            pop={pop}
+          />
         </div>
       </div>
 
@@ -7161,6 +7105,167 @@ function SuperGateways({ api, pop }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── PAY NOW SECTION (inside OwnerBillingTab) ──────────── */
+function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
+  const [selPlanId, setSelPlanId] = useState("");
+  const [cycle, setCycle]         = useState("monthly");
+  const [loading, setLoading]     = useState(false);
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",IN2="#1565C0",INB2="#E3F2FD",WA2="#B76E00",WAB2="#FFF3E0";
+
+  // Use current plan as default
+  const defaultPlanId = selPlanId || store?.plan_id || "";
+  const selPlan = plans.find(p => p.id === defaultPlanId);
+  const amount  = selPlan ? (cycle === "yearly" ? (selPlan.price_yearly || selPlan.price_monthly * 12) : selPlan.price_monthly) : 0;
+
+  const hasPesapal   = !!(platSettings.pesapal_consumer_key);
+  const hasBank      = !!(platSettings.bank_name || platSettings.mobile_money);
+  const hasAnyMethod = hasPesapal || hasBank;
+
+  if (!hasAnyMethod && plans.length === 0) return null;
+
+  const doPesapal = async () => {
+    if (!defaultPlanId) { pop("Please select a plan first", "err"); return; }
+    setLoading(true);
+    try {
+      const stored  = localStorage.getItem("bnbmis_owner");
+      const token   = stored ? JSON.parse(stored).token : "";
+      const resp    = await fetch("/api/pesapal?action=initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({
+          store_id:      storeId,
+          plan_id:       defaultPlanId,
+          billing_cycle: cycle,
+          owner_email:   owner?.email || "",
+          owner_phone:   owner?.phone || "",
+          owner_name:    owner?.name  || "",
+        }),
+      });
+      const data = await resp.json();
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else {
+        pop(data.error || "Payment initiation failed — check gateway settings", "err");
+      }
+    } catch(e) { pop("Could not connect to payment gateway", "err"); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ marginTop:20, borderTop:`2px solid ${G22}`, paddingTop:20 }}>
+      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, marginBottom:16, color:M2 }}>
+        💳 Subscribe / Renew
+      </div>
+
+      {/* Plan selector */}
+      {plans.filter(p => p.is_active).length > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:6, textTransform:"uppercase", letterSpacing:".05em" }}>Select Plan</label>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+            {plans.filter(p => p.is_active).map(p => {
+              const isSelected = (selPlanId || store?.plan_id) === p.id;
+              const price = cycle === "yearly" ? (p.price_yearly || p.price_monthly * 12) : p.price_monthly;
+              return (
+                <div key={p.id} onClick={() => setSelPlanId(p.id)}
+                  style={{ border:`2px solid ${isSelected?M2:G22}`, borderRadius:10, padding:12, cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  {isSelected && <div style={{ fontSize:9, fontWeight:700, color:M2, textTransform:"uppercase", letterSpacing:".08em", marginBottom:4 }}>✓ Selected</div>}
+                  <div style={{ fontWeight:700, fontSize:13, color:G82 }}>{p.name}</div>
+                  <div style={{ fontSize:16, fontWeight:700, color:M2, marginTop:4 }}>
+                    TZS {Number(price||0).toLocaleString()}
+                    <span style={{ fontSize:11, fontWeight:400, color:G62 }}>/{cycle==="yearly"?"yr":"mo"}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:G62, marginTop:4, lineHeight:1.7 }}>
+                    <div>📍 {p.max_locations>=999?"∞":p.max_locations} locations</div>
+                    <div>🛏️ {p.max_rooms>=999?"∞":p.max_rooms} rooms</div>
+                    <div>👥 {p.max_staff>=999?"∞":p.max_staff} staff</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Billing cycle */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:6, textTransform:"uppercase", letterSpacing:".05em" }}>Billing Cycle</label>
+        <div style={{ display:"flex", gap:8 }}>
+          {[["monthly","Monthly"],["yearly","Yearly (save ~17%)"]].map(([val,label]) => (
+            <button key={val} onClick={() => setCycle(val)}
+              style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${cycle===val?M2:G22}`, background:cycle===val?M2:WH2, color:cycle===val?WH2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:13 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Amount summary */}
+      {selPlan && (
+        <div style={{ background:G12, borderRadius:8, padding:"10px 14px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontSize:13, color:G82 }}>{selPlan.name} · {cycle}</span>
+          <span style={{ fontWeight:700, fontSize:16, color:M2 }}>TZS {Number(amount||0).toLocaleString()}</span>
+        </div>
+      )}
+
+      {/* Payment methods */}
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {hasPesapal && (
+          <button onClick={doPesapal} disabled={loading || !defaultPlanId}
+            style={{ padding:"13px 20px", borderRadius:10, background:loading?"#aaa":OK2, color:WH2, fontWeight:700, fontSize:14, border:"none", cursor:loading||!defaultPlanId?"not-allowed":"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:10, opacity:!defaultPlanId?0.6:1 }}>
+            <span style={{ fontSize:20 }}>🟢</span>
+            {loading ? "Redirecting to Pesapal…" : "Pay with Pesapal"}
+            {!loading && <span style={{ fontSize:12, opacity:.8 }}>(Cards, M-Pesa, Airtel, Tigo)</span>}
+          </button>
+        )}
+
+        {hasBank && (
+          <div style={{ border:`1px solid ${G22}`, borderRadius:10, overflow:"hidden" }}>
+            <div style={{ background:G12, padding:"10px 14px", fontWeight:700, fontSize:13, color:G82 }}>🏦 Bank / Mobile Money Transfer</div>
+            <div style={{ padding:"12px 14px" }}>
+              {platSettings.bank_name && (
+                <div style={{ fontSize:13, marginBottom:4 }}>
+                  <span style={{ color:G62 }}>Bank: </span><strong>{platSettings.bank_name}</strong>
+                  {platSettings.bank_branch && <span style={{ color:G62 }}> · {platSettings.bank_branch}</span>}
+                </div>
+              )}
+              {platSettings.bank_account_name && (
+                <div style={{ fontSize:13, marginBottom:4 }}>
+                  <span style={{ color:G62 }}>Account: </span><strong>{platSettings.bank_account_name}</strong>
+                </div>
+              )}
+              {platSettings.bank_account_number && (
+                <div style={{ fontSize:13, marginBottom:4, display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ color:G62 }}>Number: </span>
+                  <strong style={{ fontFamily:"monospace", fontSize:14 }}>{platSettings.bank_account_number}</strong>
+                  <button onClick={() => navigator.clipboard?.writeText(platSettings.bank_account_number).then(() => pop("Account number copied!"))}
+                    style={{ background:INB2, color:IN2, border:"none", borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>Copy</button>
+                </div>
+              )}
+              {platSettings.mobile_money && (
+                <div style={{ fontSize:13, marginBottom:4 }}>
+                  <span style={{ color:G62 }}>Mobile Money: </span><strong>{platSettings.mobile_money}</strong>
+                </div>
+              )}
+              {selPlan && (
+                <div style={{ marginTop:8, background:OKB2, borderRadius:6, padding:"6px 10px", fontSize:12, color:OK2, fontWeight:600 }}>
+                  Amount to pay: TZS {Number(amount||0).toLocaleString()} · Ref: {storeId}
+                </div>
+              )}
+              <div style={{ marginTop:8, fontSize:11, color:G62, lineHeight:1.7 }}>
+                Use your Store ID <strong>{storeId}</strong> as payment reference. Then email proof to{" "}
+                <a href={"mailto:"+(platSettings.support_email||"support@bnbmis.com")} style={{ color:IN2 }}>
+                  {platSettings.support_email||"support@bnbmis.com"}
+                </a> — activated within 24 hours.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
