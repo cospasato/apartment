@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
-import { getPrintReceiptHTML, getPaymentReportHTML, getCustomerReceiptHTML, getInvoiceHTML } from "./printHelpers.js";
+import { getPrintReceiptHTML, getPaymentReportHTML, getCustomerReceiptHTML, getInvoiceHTML } from "./printHelpers.jsx";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
 function PWAInstallBanner() {
