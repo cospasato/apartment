@@ -5616,6 +5616,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   const [payments, setPayments] = useState([]);
   const [store,    setStore]    = useState(null);
   const [loading,  setLoading]  = useState(true);
+  const [loadErr,  setLoadErr]  = useState("");
   const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
   const OK2="#2E7D32",OKB2="#E8F5E9",WA2="#B76E00",WAB2="#FFF3E0",IN2="#1565C0",INB2="#E3F2FD";
   const fmt2 = n => "TZS " + Number(n||0).toLocaleString();
@@ -5640,7 +5641,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
         const pay = await api.getSubPayments(storeId).catch(()=>[]);
         setPayments(pay||[]);
       } catch(e) {
-        console.error('Billing load error:', e);
+        setLoadErr(e?.message || "Failed to load billing info");
       } finally {
         setLoading(false);
       }
@@ -5649,6 +5650,13 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   },[storeId]);
 
   if (loading) return <div style={{padding:40,textAlign:"center",color:G62}}>Loading billing info…</div>;
+  if (loadErr) return (
+    <div style={{padding:32,textAlign:"center"}}>
+      <div style={{color:"#C62828",fontWeight:700,marginBottom:8}}>⚠️ Could not load billing data</div>
+      <div style={{fontSize:13,color:G62,marginBottom:16}}>{loadErr}</div>
+      <button onClick={()=>{setLoading(true);setLoadErr("");}} style={{background:M2,color:WH2,border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Retry</button>
+    </div>
+  );
 
   const currentPlan = plans.find(p => p.id === store?.plan_id);
   const statusColor = {active:OK2,trial:IN2,suspended:WA2,terminated:"#C62828"}[store?.status] || G62;
@@ -7231,7 +7239,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
   const hasBank      = !!(platSettings.bank_name || platSettings.mobile_money);
   const hasAnyMethod = hasPesapal || hasBank;
 
-  if (!hasAnyMethod && plans.length === 0) return null;
+  // Always show — even if no methods yet, show plans and a contact message
 
   const doPesapal = async () => {
     if (!defaultPlanId) { pop("Please select a plan first", "err"); return; }
@@ -7319,6 +7327,15 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
 
       {/* Payment methods */}
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {!hasAnyMethod && (
+          <div style={{ background:G12, borderRadius:10, padding:"14px 16px", fontSize:13, color:G62, lineHeight:1.7 }}>
+            💡 Payment methods have not been configured yet. Please contact support to complete your subscription payment.
+            <br/>
+            <a href={"mailto:"+(platSettings.support_email||"support@bnbmis.com")} style={{ color:IN2, fontWeight:700 }}>
+              {platSettings.support_email||"support@bnbmis.com"}
+            </a>
+          </div>
+        )}
         {hasPesapal && (
           <button onClick={doPesapal} disabled={loading || !defaultPlanId}
             style={{ padding:"13px 20px", borderRadius:10, background:loading?"#aaa":OK2, color:WH2, fontWeight:700, fontSize:14, border:"none", cursor:loading||!defaultPlanId?"not-allowed":"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:10, opacity:!defaultPlanId?0.6:1 }}>
