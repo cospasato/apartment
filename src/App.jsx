@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
-import { getPrintReceiptHTML, getPaymentReportHTML, getCustomerReceiptHTML, getInvoiceHTML } from "./printHelpers.jsx";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
 function PWAInstallBanner() {
@@ -155,10 +154,10 @@ const Badge = ({ s, label }) => (
   </span>
 );
 const Card = ({ children, style }) => (
-  <div style={{ background: WH, border: "1px solid "+G2, borderRadius: 12, padding: 20, ...style }}>{children}</div>
+  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: 20, ...style }}>{children}</div>
 );
 const KPI = ({ label, value, sub, color, icon }) => (
-  <div style={{ background: WH, border: "1px solid "+G2, borderRadius: 12, padding: "16px 18px" }}>
+  <div style={{ background: WH, border: `1px solid ${G2}`, borderRadius: 12, padding: "16px 18px" }}>
     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
       <span style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>{label}</span>
       {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
@@ -170,17 +169,17 @@ const KPI = ({ label, value, sub, color, icon }) => (
 const Inp = ({ label, ...p }) => (
   <div style={{ marginBottom: 13 }}>
     {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
-    <input {...p} style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", ...p.style }} />
+    <input {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", ...p.style }} />
   </div>
 );
 const Sel = ({ label, children, ...p }) => (
   <div style={{ marginBottom: 13 }}>
     {label && <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</label>}
-    <select {...p} style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", background: WH }}>{children}</select>
+    <select {...p} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", background: WH }}>{children}</select>
   </div>
 );
 const Btn = ({ children, onClick, v = "pri", style, disabled }) => {
-  const VS = { pri: { background: M, color: WH, border: "1px solid "+M }, out: { background: "transparent", color: M, border: "1px solid "+M }, ghost: { background: "transparent", color: G6, border: "1px solid "+G2 }, ok: { background: OK, color: WH, border: "1px solid "+OK }, danger: { background: ER, color: WH, border: "1px solid "+ER }, gold: { background: GOLD, color: "#4a3000", border: "1px solid "+GOLD } };
+  const VS = { pri: { background: M, color: WH, border: `1px solid ${M}` }, out: { background: "transparent", color: M, border: `1px solid ${M}` }, ghost: { background: "transparent", color: G6, border: `1px solid ${G2}` }, ok: { background: OK, color: WH, border: `1px solid ${OK}` }, danger: { background: ER, color: WH, border: `1px solid ${ER}` }, gold: { background: GOLD, color: "#4a3000", border: `1px solid ${GOLD}` } };
   return <button onClick={onClick} disabled={disabled} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .5 : 1, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", transition: "opacity .15s", ...VS[v], ...style }}>{children}</button>;
 };
 const Modal = ({ title, onClose, children, wide }) => (
@@ -211,7 +210,7 @@ const Modal = ({ title, onClose, children, wide }) => (
       <div style={{
         flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "16px 20px", borderBottom: "1px solid "+G2, background: WH,
+        padding: "16px 20px", borderBottom: `1px solid ${G2}`, background: WH,
       }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: "'Playfair Display',serif", paddingRight: 12 }}>{title}</h3>
         <button onClick={onClose} style={{ background: G1, border: "none", cursor: "pointer", fontSize: 18, color: G6, lineHeight: 1, padding: "4px 9px", borderRadius: 8, flexShrink: 0 }}>×</button>
@@ -233,16 +232,16 @@ const Modal = ({ title, onClose, children, wide }) => (
 const Tbl = ({ hdr, rows }) => (
   <div style={{ overflowX: "auto" }}>
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-      <thead><tr style={{ borderBottom: "2px solid "+G2 }}>{hdr.map((h, i) => <th key={i} style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".06em", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
-      <tbody>{rows.length ? rows.map((r, i) => <tr key={i} style={{ borderBottom: "1px solid "+G1 }}>{r.map((c, j) => <td key={j} style={{ padding: "10px 10px", verticalAlign: "middle" }}>{c}</td>)}</tr>) : <tr><td colSpan={hdr.length} style={{ padding: 28, textAlign: "center", color: G4 }}>No records</td></tr>}</tbody>
+      <thead><tr style={{ borderBottom: `2px solid ${G2}` }}>{hdr.map((h, i) => <th key={i} style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".06em", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+      <tbody>{rows.length ? rows.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${G1}` }}>{r.map((c, j) => <td key={j} style={{ padding: "10px 10px", verticalAlign: "middle" }}>{c}</td>)}</tr>) : <tr><td colSpan={hdr.length} style={{ padding: 28, textAlign: "center", color: G4 }}>No records</td></tr>}</tbody>
     </table>
   </div>
 );
-const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: "4px solid "+M, paddingLeft: 11, color: BK }}>{children}</h3>;
+const SecTitle = ({ children }) => <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, margin: "0 0 13px", borderLeft: `4px solid ${M}`, paddingLeft: 11, color: BK }}>{children}</h3>;
 
 const Spinner = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, color: G4, fontSize: 14 }}>
-    <div style={{ width: 28, height: 28, border: "3px solid "+G2, borderTopColor: M, borderRadius: "50%", animation: "spin .7s linear infinite", marginRight: 12 }} />
+    <div style={{ width: 28, height: 28, border: `3px solid ${G2}`, borderTopColor: M, borderRadius: "50%", animation: "spin .7s linear infinite", marginRight: 12 }} />
     Loading…
     <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   </div>
@@ -965,7 +964,7 @@ export default function App() {
 
   /* ── ADMIN ACTIONS (original BNC — now store-scoped) ── */
   const deleteBooking = async (id, guestName) => {
-    if (!window.confirm("Permanently delete booking for \""+guestName+"\"? This cannot be undone.")) return;
+    if (!window.confirm(`Permanently delete booking for "${guestName}"? This cannot be undone.`)) return;
     try { await api.deleteBooking(id); setBooks(p => p.filter(b => b.id !== id)); pop("Booking deleted"); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
@@ -974,7 +973,7 @@ export default function App() {
     try {
       const updated = await api.extendBooking(id, { extra_nights: extraNights, extra_amount: extraAmount, new_checkout: newCheckout });
       setBooks(p => p.map(b => b.id === id ? mapBook(updated) : b));
-      pop("Stay extended by "+extraNights+" night"+extraNights > 1 ? "s" : ""+" — new checkout: "+newCheckout);
+      pop(`Stay extended by ${extraNights} night${extraNights > 1 ? "s" : ""} — new checkout: ${newCheckout}`);
     } catch (err) { pop(err.message || "Extension failed", "err"); }
   };
 
@@ -1031,8 +1030,8 @@ export default function App() {
   };
 
   const deleteRoom = async (id, name) => {
-    if (!window.confirm("Delete \""+name+"\"? This cannot be undone.")) return;
-    try { await api.deleteRoom(id); setRooms(p => p.filter(r => r.id !== id)); pop("\""+name+"\" deleted"); }
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    try { await api.deleteRoom(id); setRooms(p => p.filter(r => r.id !== id)); pop(`"${name}" deleted`); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
@@ -1061,7 +1060,7 @@ export default function App() {
       } else {
         const created = await api.createStaff(payload);
         setStaff(p => [...p, mapStaff(created)]);
-        pop("Account created for "+form.name);
+        pop(`Account created for ${form.name}`);
       }
     } catch (err) { pop(err.message || "Operation failed", "err"); }
   };
@@ -1075,14 +1074,14 @@ export default function App() {
   };
 
   const deleteStaff = async (s) => {
-    if (!window.confirm("Permanently delete \""+s.name+"\"'s account?")) return;
-    try { await api.deleteStaff(s.id); setStaff(p => p.filter(x => x.id !== s.id)); pop(s.name+" deleted"); }
+    if (!window.confirm(`Permanently delete "${s.name}"'s account?`)) return;
+    try { await api.deleteStaff(s.id); setStaff(p => p.filter(x => x.id !== s.id)); pop(`${s.name} deleted`); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
   const deleteLoc = async (id, name) => {
-    if (!window.confirm("Delete \""+name+"\"? This hides it. Rooms and bookings are kept.")) return;
-    try { await api.deleteLocation(id); setLocs(p => p.filter(l => l.id !== id)); pop("\""+name+"\" deleted"); }
+    if (!window.confirm(`Delete "${name}"? This hides it. Rooms and bookings are kept.`)) return;
+    try { await api.deleteLocation(id); setLocs(p => p.filter(l => l.id !== id)); pop(`"${name}" deleted`); }
     catch (err) { pop(err.message || "Delete failed", "err"); }
   };
 
@@ -1273,7 +1272,7 @@ export default function App() {
       </nav>
 
       {/* Hero */}
-      <div style={{ background:"linear-gradient(135deg,"+BK+" 0%,"+MD+" 50%,"+M+" 100%)", padding:"80px 28px", textAlign:"center" }}>
+      <div style={{ background:`linear-gradient(135deg,${BK} 0%,${MD} 50%,${M} 100%)`, padding:"80px 28px", textAlign:"center" }}>
         <div style={{ marginBottom:8, color:GOLD, fontSize:14, letterSpacing:".25em", textTransform:"uppercase", fontWeight:600 }}>✦ &nbsp; ✦</div>
         <h1 style={{
           color: WH,
@@ -1321,9 +1320,9 @@ export default function App() {
                 <div key={store.id} onClick={goStore}
                   onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(107,27,42,.14)";}}
                   onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
-                  style={{ background:WH, border:"1px solid "+G2, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
+                  style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
                   {/* Featured image — top banner */}
-                  <div style={{ height:180, position:"relative", background:"linear-gradient(135deg,"+MD+" 0%,"+M+" 100%)", overflow:"hidden" }}>
+                  <div style={{ height:180, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
                     {hasImg && (
                       <img
                         src={store.featured_image}
@@ -1362,12 +1361,12 @@ export default function App() {
       </div>
 
       {/* CTA for property owners */}
-      <div style={{ background:G1, borderTop:"1px solid "+G2, padding:"48px 32px", textAlign:"center" }}>
+      <div style={{ background:G1, borderTop:`1px solid ${G2}`, padding:"48px 32px", textAlign:"center" }}>
         <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:28, marginBottom:12 }}>Own an Property, Hotel, Lodge or BnB?</h2>
         <p style={{ fontSize:16, color:G6, marginBottom:24, maxWidth:500, margin:"0 auto 24px" }}>List your hotel, lodge, BnB, apartment or guesthouse on BNBMIS. Manage bookings, staff and revenue in one place. Free for 14 days.</p>
         <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
           <button onClick={()=>setModal("register_store")} style={{ background:M, color:WH, border:"none", borderRadius:10, padding:"13px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Get Started Free</button>
-          <button onClick={()=>setModal("bnbmis_login")} style={{ background:WH, color:M, border:"2px solid "+M, borderRadius:10, padding:"11px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
+          <button onClick={()=>setModal("bnbmis_login")} style={{ background:WH, color:M, border:`2px solid ${M}`, borderRadius:10, padding:"11px 28px", fontSize:15, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Business Login</button>
         </div>
       </div>
 
@@ -1405,10 +1404,10 @@ export default function App() {
       <NavBar />
       {/* Step progress */}
       {bStep < 5 && (
-        <div style={{ background: WH, borderBottom: "1px solid "+G2 }}>
+        <div style={{ background: WH, borderBottom: `1px solid ${G2}` }}>
           <div style={{ display: "flex", maxWidth: 780, margin: "0 auto" }}>
             {["Location", "Dates", "Rooms", "Details", "Confirm"].map((s, i) => (
-              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: "3px solid "+bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent", color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
+              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: `3px solid ${bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent"}`, color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 18, height: 18, borderRadius: "50%", background: bStep > i + 1 ? OK : bStep === i + 1 ? M : G2, color: bStep >= i + 1 ? WH : G4, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
                     {bStep > i + 1 ? "✓" : i + 1}
@@ -1429,10 +1428,10 @@ export default function App() {
                 const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
                 return (
                   <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); goStep(2); }}
-                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: "2px solid "+bD.locId === loc.id ? M : G2, transition: "border-color .15s" }}
+                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: `2px solid ${bD.locId === loc.id ? M : G2}`, transition: "border-color .15s" }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = M}
                     onMouseLeave={e => e.currentTarget.style.borderColor = bD.locId === loc.id ? M : G2}>
-                    <div style={{ background: "linear-gradient(135deg,"+MD+","+M+")", height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>{loc.icon}</div>
+                    <div style={{ background: `linear-gradient(135deg,${MD},${M})`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>{loc.icon}</div>
                     <div style={{ padding: 14 }}>
                       <div style={{ fontSize: 11, color: M, fontWeight: 700, marginBottom: 4 }}>{loc.city}</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif", marginBottom: 6 }}>{loc.name}</div>
@@ -1522,7 +1521,7 @@ export default function App() {
               <div style={{ background: MF, borderRadius: 8, padding: "9px 14px", marginBottom: 18, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>📅 {bD.ci} → {bD.co} · {bD.nights} night{bD.nights>1?"s":""}</span>
                 <button onClick={() => goStep(2)}
-                  style={{ background:"none", border:"1px solid "+M, color:M, borderRadius:6, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  style={{ background:"none", border:`1px solid ${M}`, color:M, borderRadius:6, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   Change Dates
                 </button>
               </div>
@@ -1536,7 +1535,7 @@ export default function App() {
                 return (
                 <div key={rm.id}
                   onClick={() => !unavail && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: "2px solid "+bD.roomId === rm.id ? M : unavail ? G2 : G2, cursor: unavail ? "default" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
+                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: unavail ? "default" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
                   onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
@@ -1567,7 +1566,7 @@ export default function App() {
                       </div>
                       <div style={{ display:"flex", gap:6 }}>
                         <button onClick={e=>{e.stopPropagation();setRoomDetail(rm.id);}}
-                          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:G1, color:G8, border:"1px solid "+G2, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:G1, color:G8, border:`1px solid ${G2}`, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                           🔍 Details
                         </button>
                         {rm.video && (
@@ -1633,7 +1632,7 @@ export default function App() {
             {/* Summary */}
             <Card style={{ background: BK, border: "none" }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: GOLD, fontFamily: "'Playfair Display',serif", marginBottom: 12 }}>Booking Summary</div>
-              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [bD.nights + " nights", "Duration"], [fmt(selRoom?.price), "Rate/Night"], [fmt(bBase), "Base Total"], bDiscAmt > 0 && ["- "+fmt(bDiscAmt), "Discount"]].filter(Boolean).map(([v, k], i) => (
+              {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [bD.nights + " nights", "Duration"], [fmt(selRoom?.price), "Rate/Night"], [fmt(bBase), "Base Total"], bDiscAmt > 0 && [`- ${fmt(bDiscAmt)}`, "Discount"]].filter(Boolean).map(([v, k], i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,.65)", padding: "4px 0" }}>
                   <span>{k}</span><span style={{ color: WH, fontWeight: 600 }}>{v}</span>
                 </div>
@@ -1648,7 +1647,7 @@ export default function App() {
               {customer
                 ? <Btn onClick={confirmBook} disabled={!bD.name || !bD.phone}>Confirm Booking →</Btn>
                 : <div style={{ flex: 1 }}>
-                    <div style={{ background: MF, border: "1px solid "+M+"30", borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
+                    <div style={{ background: MF, border: `1px solid ${M}30`, borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
                       <div style={{ fontWeight: 700, color: M, fontSize: 14, marginBottom: 4 }}>Almost there! Sign in to confirm</div>
                       <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>Create a free account or sign in to confirm your booking and track it from your dashboard.</div>
                     </div>
@@ -1669,9 +1668,9 @@ export default function App() {
             <p style={{ color: G6, fontSize: 15, maxWidth: 400, margin: "0 auto 28px", lineHeight: 1.7 }}>
               Thank you, <strong>{bD.name}</strong>! Your booking is confirmed. Our team will contact you shortly.
             </p>
-            <Card style={{ maxWidth: 380, margin: "0 auto 28px", background: MF, border: "1px solid "+M+"30", textAlign: "left" }}>
+            <Card style={{ maxWidth: 380, margin: "0 auto 28px", background: MF, border: `1px solid ${M}30`, textAlign: "left" }}>
               {[[selRoom?.name, "Room"], [locs.find(l => l.id === bD.locId)?.name, "Location"], [bD.ci, "Check-in"], [bD.co, "Check-out"], [fmt(bTotal), "Total"], [bD.method, "Payment"]].map(([v, k]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: "1px solid "+M+"15" }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${M}15` }}>
                   <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
                 </div>
               ))}
@@ -1724,10 +1723,10 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <NavBar/>
-      <div style={{ background: WH, borderBottom: "1px solid "+G2, display: "flex", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+      <div style={{ background: WH, borderBottom: `1px solid ${G2}`, display: "flex", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
           <button key={id} onClick={() => { if(id==="newbooking"){navTo("book",1);}else setCustTab(id); }}
-            style={{ padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: "3px solid "+custTab === id ? M : "transparent", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>
+            style={{ padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: `3px solid ${custTab === id ? M : "transparent"}`, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>
             {icon} {label}
           </button>
         ))}
@@ -1901,8 +1900,8 @@ export default function App() {
         </div>
         {/* Main */}
         <div style={{ flex:1, background:G1, display:"flex", flexDirection:"column", minWidth:0 }}>
-          <div style={{ background:WH, borderBottom:"1px solid "+G2, display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 20px", height:50, flexShrink:0 }}>
-            <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:"1px solid "+G2, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻ Refresh</button>
+          <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 20px", height:50, flexShrink:0 }}>
+            <button onClick={()=>loadAll(null,sid)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻ Refresh</button>
             <span style={{ marginLeft:10 }}><Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn></span>
           </div>
           <div style={{ flex:1, overflowY:"auto", padding:22 }}>
@@ -1966,14 +1965,14 @@ export default function App() {
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <NavBar/>
-      <div style={{ background:WH, borderBottom:"1px solid "+G2, display:"flex", overflowX:"auto", flexShrink:0 }}>
+      <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
         {ATABS.map(t=>(
-          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:"3px solid "+aTab===t.id?M:"transparent", display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
+          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:`3px solid ${aTab===t.id?M:"transparent"}`, display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
             {t.icon} {t.label}
           </button>
         ))}
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", padding:"0 14px", gap:8, flexShrink:0 }}>
-          <button onClick={()=>loadAll(user)} style={{ background:"none", border:"1px solid "+G2, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻</button>
+          <button onClick={()=>loadAll(user)} style={{ background:"none", border:`1px solid ${G2}`, borderRadius:7, padding:"6px 12px", fontSize:12, cursor:"pointer", color:G6 }}>↻</button>
           <Btn onClick={()=>setModal("newBook")} style={{ fontSize:12, padding:"7px 13px" }}>+ New Booking</Btn>
         </div>
       </div>
@@ -2019,7 +2018,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
           onChange={e => setLoginF(f => ({ ...f, storeId: e.target.value.trim() }))}
           placeholder="e.g. ST3A9F2B"
           autoCapitalize="characters"
-          style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", fontFamily: "monospace", letterSpacing: "1px" }}
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", fontFamily: "monospace", letterSpacing: "1px" }}
         />
       </div>
       <div style={{ marginBottom: 13 }}>
@@ -2031,7 +2030,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
           onKeyDown={e => e.key === "Enter" && doLogin()}
           placeholder="your@email.com"
           autoComplete="email"
-          style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
         />
       </div>
       <div style={{ marginBottom: 16 }}>
@@ -2044,7 +2043,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
           placeholder="••••"
           maxLength={6}
           autoComplete="current-password"
-          style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
         />
       </div>
       {loginErr && <div style={{ color: ER, fontSize: 13, marginBottom: 14, padding: "8px 12px", background: ERB, borderRadius: 6 }}>{loginErr}</div>}
@@ -2091,7 +2090,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
                 const nextBook = books.filter(b=>b.roomId===r.id && ["pending","confirmed"].includes(b.status) && b.ci >= td())
                   .sort((a,b)=>a.ci.localeCompare(b.ci))[0];
                 return (
-                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid "+G1,fontSize:13}}>
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
                     <div>
                       <div style={{fontWeight:700,color:BK}}>{r.name}</div>
                       <div style={{fontSize:11,color:G6}}>{loc?.name||"—"} · {fmt(r.price)}/night</div>
@@ -2115,7 +2114,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
                 const loc = locs.find(l=>l.id===r.locId);
                 const activeBook = books.find(b=>b.roomId===r.id && b.status==="checkedIn");
                 return (
-                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid "+G1,fontSize:13}}>
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
                     <div>
                       <div style={{fontWeight:700,color:BK}}>{r.name}</div>
                       <div style={{fontSize:11,color:G6}}>{loc?.name||"—"}</div>
@@ -2146,7 +2145,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
               const rm = allRooms.find(r => r.id === b.roomId);
               return [
                 <span style={{fontWeight:700}}>{b.gName}</span>,
-                b.gPhone ? <a href={"tel:"+b.gPhone} style={{color:OK,fontWeight:700,textDecoration:"none"}}>📞 {b.gPhone}</a> : "—",
+                b.gPhone ? <a href={`tel:${b.gPhone}`} style={{color:OK,fontWeight:700,textDecoration:"none"}}>📞 {b.gPhone}</a> : "—",
                 rm ? (rm.name.length>16?rm.name.slice(0,14)+"…":rm.name) : "—",
                 b.ci, b.co,
                 <Badge s={b.status}/>,
@@ -2226,7 +2225,76 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
     const w = window.open("", "_blank", "width=600,height=800");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(getPrintReceiptHTML(docType, storeName, b, rm, bal));
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
+      .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
+      .sub{font-size:11px;color:#999;margin-bottom:2px}
+      .title{font-size:20px;font-weight:700;color:#6B1B2A;margin:18px 0 4px}
+      .ref{font-size:12px;color:#888;margin-bottom:14px}
+      hr{border:none;border-top:2px solid #6B1B2A;margin:14px 0}
+      .section{margin-bottom:16px}
+      .section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+      .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f2f2f2;font-size:13px}
+      .lbl{color:#666}.val{font-weight:600}
+      .total-box{background:#6B1B2A;color:#FFF;border-radius:10px;padding:14px 18px;margin:14px 0}
+      .total-box .lbl{color:rgba(255,255,255,.7)}
+      .total-box .val{font-size:22px;font-weight:900;color:#FFF}
+      .paid-box{background:#E8F5E9;border-radius:10px;padding:12px 18px;margin-bottom:8px}
+      .balance-box{background:${bal>0?"#FFEBEE":"#E8F5E9"};border-radius:10px;padding:12px 18px}
+      .badge{display:inline-block;background:#E8F5E9;color:#2E7D32;border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700;text-transform:uppercase}
+      .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:2}
+      @media print{.no-print{display:none}}
+    </style></head><body>
+    <div class="logo">${storeName||"Property Name"}</div>
+    <div class="sub">Powered by BNBMIS</div>
+    <hr/>
+    <div class="title">${docType}</div>
+    <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||"").split("T")[0]||""} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
+    <div class="section">
+      <div class="section-title">Customer Information</div>
+      <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||"—"}</span></div>
+      <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||"—"}</span></div>
+      ${b.gEmail?`<div class="row"><span class="lbl">Email</span><span class="val">${b.gEmail}</span></div>`:""}
+      ${b.gNat?`<div class="row"><span class="lbl">Nationality</span><span class="val">${b.gNat}</span></div>`:""}
+    </div>
+    <div class="section">
+      <div class="section-title">Booking Details</div>
+      <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||b.room_name||"—"}</span></div>
+      <div class="row"><span class="lbl">Check-in</span><span class="val">${b.ci||"—"}</span></div>
+      <div class="row"><span class="lbl">Check-out</span><span class="val">${b.co||"—"}</span></div>
+      <div class="row"><span class="lbl">Duration</span><span class="val">${b.nights} night${b.nights!==1?"s":""}</span></div>
+      <div class="row"><span class="lbl">Payment Method</span><span class="val">${b.method||"—"}</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Payment Summary</div>
+      <div class="row"><span class="lbl">Room Rate</span><span class="val">TZS ${Number(rm?.price||0).toLocaleString()}/night</span></div>
+      <div class="row"><span class="lbl">Base Amount</span><span class="val">TZS ${Number(b.base||0).toLocaleString()}</span></div>
+      ${(b.disc&&b.disc>0)?`<div class="row"><span class="lbl">Discount</span><span class="val" style="color:#2E7D32">-${b.discT==="pct"?b.disc+"%":"TZS "+Number(b.disc).toLocaleString()}</span></div>`:""}
+    </div>
+    <div class="total-box">
+      <div class="row" style="border:none;padding:0"><span class="lbl">Total Amount</span><span class="val">TZS ${Number(b.total||0).toLocaleString()}</span></div>
+    </div>
+    <div class="paid-box">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#2E7D32;font-weight:600">Amount Paid</span>
+        <span style="font-size:18px;font-weight:900;color:#2E7D32">TZS ${Number(b.paid||0).toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="balance-box">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-weight:600;color:${bal>0?"#C62828":"#2E7D32"}">${bal>0?"Balance Due":"Fully Paid ✓"}</span>
+        <span style="font-size:18px;font-weight:900;color:${bal>0?"#C62828":"#2E7D32"}">TZS ${Number(bal).toLocaleString()}</span>
+      </div>
+    </div>
+    <div class="footer">
+      Thank you for choosing us!<br/>
+      ${storeName||"Property Name"} · bnbmis.com
+    </div>
+    <br/>
+    <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
+    <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+    </body></html>`);
     w.document.close();
   };
   useEffect(() => { if (selB) setPayMethod(selB.method || payMethods?.[0] || "Cash"); }, [sel]);
@@ -2289,7 +2357,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       <div style={{ display: "flex", gap: 7, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {[["active","Active"],["all","All"],["pending","Pending"],["confirmed","Confirmed"],["checkedIn","Checked In"],["checkedOut","Checked Out"],["cancelled","Cancelled"]].map(([s, label]) => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "1px solid "+filter === s ? M : G2, background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
+            style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: `1px solid ${filter === s ? M : G2}`, background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
             {s === "checkedIn" && dueToday.length > 0 && <span style={{ marginLeft: 5, background: "#F9A825", color: WH, borderRadius: 99, padding: "0 5px", fontSize: 10 }}>{dueToday.length}</span>}
           </button>
@@ -2298,13 +2366,13 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
         {/* Location filter */}
         <select value={locFilter} onChange={e => { setLocFilter(e.target.value); setRoomFilter(""); }}
-          style={{ padding: "6px 11px", border: "1px solid "+G2, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: locFilter ? M : G6, fontWeight: locFilter ? 700 : 400 }}>
+          style={{ padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: locFilter ? M : G6, fontWeight: locFilter ? 700 : 400 }}>
           <option value="">All Locations</option>
           {locs.map(l => <option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
         </select>
         {/* Room filter */}
         <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)}
-          style={{ padding: "6px 11px", border: "1px solid "+G2, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: roomFilter ? M : G6, fontWeight: roomFilter ? 700 : 400 }}>
+          style={{ padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", background: WH, color: roomFilter ? M : G6, fontWeight: roomFilter ? 700 : 400 }}>
           <option value="">All Rooms</option>
           {(locFilter ? rooms.filter(r => r.locId === locFilter) : rooms).map(r => (
             <option key={r.id} value={r.id}>{r.name.length > 22 ? r.name.slice(0,20)+"…" : r.name}</option>
@@ -2312,12 +2380,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
         </select>
         {(locFilter || roomFilter) && (
           <button onClick={() => { setLocFilter(""); setRoomFilter(""); }}
-            style={{ background: "none", border: "1px solid "+G2, borderRadius: 7, padding: "5px 9px", fontSize: 12, color: G6, cursor: "pointer", fontFamily: "inherit" }}>
+            style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 7, padding: "5px 9px", fontSize: 12, color: G6, cursor: "pointer", fontFamily: "inherit" }}>
             ✕ Clear
           </button>
         )}
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guest or ID…"
-          style={{ marginLeft: "auto", padding: "6px 11px", border: "1px solid "+G2, borderRadius: 8, fontSize: 13, outline: "none", minWidth: 190, fontFamily: "inherit" }} />
+          style={{ marginLeft: "auto", padding: "6px 11px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 13, outline: "none", minWidth: 190, fontFamily: "inherit" }} />
         <span style={{ fontSize: 12, color: G4, whiteSpace: "nowrap" }}>{filtered.length} booking{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
@@ -2359,12 +2427,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
               </div>,
               <Badge s={b.status} />,
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {b.status === "pending"   && <button onClick={() => updBook(b.id, "confirmed")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+OK, color: OK, background: "none", cursor: "pointer", fontWeight: 700 }}>Confirm</button>}
-                {b.status === "confirmed" && <button onClick={() => updBook(b.id, "checkedIn")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+M, color: M, background: "none", cursor: "pointer", fontWeight: 700 }}>Check In</button>}
-                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+isDueToday ? "#F9A825" : G6, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
-                {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+IN, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
-                {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+ER, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
-                {b.status === "cancelled" && deleteBooking && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+ER, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
+                {b.status === "pending"   && <button onClick={() => updBook(b.id, "confirmed")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${OK}`, color: OK, background: "none", cursor: "pointer", fontWeight: 700 }}>Confirm</button>}
+                {b.status === "confirmed" && <button onClick={() => updBook(b.id, "checkedIn")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${M}`, color: M, background: "none", cursor: "pointer", fontWeight: 700 }}>Check In</button>}
+                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${isDueToday ? "#F9A825" : G6}`, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
+                {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${IN}`, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
+                {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
+                {b.status === "cancelled" && deleteBooking && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: `1px solid ${ER}`, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
               </div>
             ];
           })} />
@@ -2372,7 +2440,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
 
       {/* ── CHECKOUT / EXTEND MODAL ── */}
       {coModal && coBook && (
-        <Modal title={coBook.gName+" — Checking Out Today"} onClose={() => { setCoModal(null); setExtNights(1); }} wide>
+        <Modal title={`${coBook.gName} — Checking Out Today`} onClose={() => { setCoModal(null); setExtNights(1); }} wide>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
             {[["Guest", coBook.gName], ["Room", coRoom?.name], ["Check-in", coBook.ci], ["Original Checkout", coBook.co], ["Total Nights", coBook.nights], ["Amount Due", fmt(coBook.total - coBook.paid)]].map(([k, v]) => (
               <div key={k} style={{ fontSize: 13 }}>
@@ -2386,7 +2454,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
 
             {/* CHECK OUT */}
-            <div style={{ border: "2px solid "+G2, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ border: `2px solid ${G2}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 15, color: BK, fontFamily: "'Playfair Display',serif" }}>✓ Check Out</div>
               <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>End the stay today. The room will be marked as available.</div>
               {(coBook.total - coBook.paid) > 0 && (
@@ -2401,7 +2469,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
             </div>
 
             {/* EXTEND STAY */}
-            <div style={{ border: "2px solid "+M, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ border: `2px solid ${M}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 15, color: M, fontFamily: "'Playfair Display',serif" }}>📅 Extend Stay</div>
               <div style={{ fontSize: 13, color: G6, lineHeight: 1.6 }}>Guest wants to stay longer. Add extra nights at the same nightly rate.</div>
 
@@ -2410,12 +2478,12 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
                 <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Extra Nights</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <button onClick={() => setExtNights(n => Math.max(1, n - 1))}
-                    style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid "+G2, background: WH, cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${G2}`, background: WH, cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                   <span style={{ fontSize: 20, fontWeight: 700, minWidth: 28, textAlign: "center", fontFamily: "'Playfair Display',serif" }}>{extNights}</span>
                   <button onClick={() => setExtNights(n => n + 1)}
-                    style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid "+M, background: M, cursor: "pointer", fontSize: 16, fontWeight: 700, color: WH, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${M}`, background: M, cursor: "pointer", fontSize: 16, fontWeight: 700, color: WH, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                   <input type="number" min={1} value={extNights} onChange={e => setExtNights(Math.max(1, Number(e.target.value)))}
-                    style={{ width: 60, padding: "6px 10px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, fontFamily: "inherit", textAlign: "center", outline: "none" }} />
+                    style={{ width: 60, padding: "6px 10px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, fontFamily: "inherit", textAlign: "center", outline: "none" }} />
                 </div>
               </div>
 
@@ -2427,7 +2495,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
                   ["New checkout", newCheckout],
                   ["Total nights", coBook.nights + extNights],
                 ].map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", borderBottom: "1px solid "+M+"15" }}>
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", borderBottom: `1px solid ${M}15` }}>
                     <span style={{ color: G6 }}>{k}</span>
                     <span style={{ fontWeight: 700, color: M }}>{v}</span>
                   </div>
@@ -2458,27 +2526,27 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       )}
 
       {sel && selB && (
-        <Modal title={"Booking "+selB.id} onClose={() => { setSel(null); setPayAmt(""); }} wide>
+        <Modal title={`Booking ${selB.id}`} onClose={() => { setSel(null); setPayAmt(""); }} wide>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
             <div>
               <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Guest Info</div>
               {[["Name", selB.gName], ["Nationality", selB.gNat], ["Email", selB.gEmail]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid "+G1, fontSize: 13 }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
                   <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v || "—"}</span>
                 </div>
               ))}
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:"1px solid "+G1, fontSize:13 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${G1}`, fontSize:13 }}>
                 <span style={{ color:G6 }}>Phone</span>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ fontWeight:700 }}>{selB.gPhone||"—"}</span>
-                  {selB.gPhone && <a href={"tel:"+selB.gPhone} style={{ background:"#4CAF50", color:"#FFF", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
+                  {selB.gPhone && <a href={`tel:${selB.gPhone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
                 </div>
               </div>
             </div>
             <div>
               <div style={{ fontSize: 11, color: G6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Stay Details</div>
               {[["Room", selR?.name], ["Check-in", selB.ci], ["Check-out", selB.co], ["Nights", selB.nights], ["Base Amount", fmt(selB.base)], ["Discount", selB.disc > 0 ? (selB.discT === "pct" ? selB.disc + "%" : fmt(selB.disc)) : "None"], ["Total", fmt(selB.total)], ["Paid", fmt(selB.paid)], ["Balance", fmt(selB.total - selB.paid)]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid "+G1, fontSize: 13 }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${G1}`, fontSize: 13 }}>
                   <span style={{ color: G6 }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span>
                 </div>
               ))}
@@ -2501,10 +2569,10 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           )}
           {/* Print actions — always shown */}
           <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
-            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:"1px solid "+IN, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               🧾 Print Receipt
             </button>
-            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:"1px solid "+M, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               📄 Print Invoice
             </button>
           </div>
@@ -2518,7 +2586,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
                   {(payMethods?.length ? payMethods : ["Cash"]).map(pm => (
                     <button key={pm} onClick={() => setPayMethod(pm)}
                       style={{ padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                        border: "2px solid "+payMethod === pm ? M : G2,
+                        border: `2px solid ${payMethod === pm ? M : G2}`,
                         background: payMethod === pm ? MF : WH,
                         color: payMethod === pm ? M : G6, transition: "all .15s" }}>
                       {pm}
@@ -2531,7 +2599,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           )}
           {selB.status === "cancelled" && (
             <div style={{ marginTop: 18, padding: 14, background: ERB, borderRadius: 10, fontSize: 13, color: ER }}>
-              ✗ This booking is cancelled — no outstanding balance.{selB.paid > 0 ? " "+fmt(selB.paid)+" already collected is retained." : ""}
+              ✗ This booking is cancelled — no outstanding balance.{selB.paid > 0 ? ` ${fmt(selB.paid)} already collected is retained.` : ""}
             </div>
           )}
           {selB.notes && <div style={{ marginTop: 14, fontSize: 13, color: G6 }}>📝 {selB.notes}</div>}
@@ -2602,7 +2670,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
             <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", color: M, fontFamily: "'Playfair Display',serif" }}>{loc.icon} {loc.name}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
               {lr.map(rm => (
-                <Card key={rm.id} style={{ borderLeft: "4px solid "+sC(rm.status), padding: 0, overflow: "hidden" }}>
+                <Card key={rm.id} style={{ borderLeft: `4px solid ${sC(rm.status)}`, padding: 0, overflow: "hidden" }}>
                   {/* Photo strip */}
                   {rm.photos && rm.photos.length > 0 ? (
                     <div style={{ position: "relative", paddingTop: "66%", cursor: "pointer", background: G1 }}
@@ -2615,7 +2683,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                       )}
                     </div>
                   ) : (
-                    <div style={{ height: 90, background: "linear-gradient(135deg,"+MD+","+M+")", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, cursor: "pointer" }}
+                    <div style={{ height: 90, background: `linear-gradient(135deg,${MD},${M})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, cursor: "pointer" }}
                       onClick={() => openEdit(rm)}>
                       🛏️
                     </div>
@@ -2632,20 +2700,20 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                     <div style={{ fontSize: 16, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif", marginBottom: 7 }}>{fmt(rm.price)}<span style={{ fontSize: 11, color: G4, fontWeight: 400 }}>/night</span></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>{rm.amen.map((a, i) => <span key={i} style={{ background: G1, fontSize: 11, padding: "2px 7px", borderRadius: 99, color: G6 }}>{a}</span>)}</div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: "1px solid "+G2, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                      <button onClick={() => openEdit(rm)} style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
                       <select value={rm.status} onChange={e => saveRoom({...rm, amen: rm.amen.join(", ")}, true, e.target.value)}
-                        style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: "1px solid "+G2, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
+                        style={{ flex: 1, padding: "6px", fontSize: 12, borderRadius: 6, border: `1px solid ${G2}`, background: "none", cursor: "pointer", color: sC(rm.status), fontFamily: "inherit" }}>
                         <option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option>
                       </select>
-                      {rm.video && <button onClick={()=>openVideoModal(rm.id)} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:"1px solid "+G2, background:"none", cursor:"pointer", color:G6, fontFamily:"inherit" }}>{rm.video.includes("instagram")?"📸":"🎬"}</button>}
+                      {rm.video && <button onClick={()=>openVideoModal(rm.id)} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${G2}`, background:"none", cursor:"pointer", color:G6, fontFamily:"inherit" }}>{rm.video.includes("instagram")?"📸":"🎬"}</button>}
                       <button onClick={()=>{
                         const base = storeSlug ? "https://"+storeSlug+".bnbmis.com" : "https://bnbmis.com";
                         const url  = base+"?room="+rm.id;
                         const text = "🛏️ "+rm.name+"\n📍 "+(locs.find(l=>l.id===rm.locId)?.name||"")+"\n💰 TZS "+Number(rm.price).toLocaleString()+"/night\n\nBook here: "+url;
                         if (navigator.share) { navigator.share({ title:rm.name, text, url }).catch(()=>{}); }
                         else { navigator.clipboard?.writeText(text).then(()=>pop("Link copied!")).catch(()=>pop(url)); }
-                      }} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:"1px solid "+IN, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit" }}>📤</button>
-                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 9px", fontSize: 12, borderRadius: 6, border: "1px solid "+ER, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
+                      }} style={{ padding:"6px 9px", fontSize:12, borderRadius:6, border:`1px solid ${IN}`, background:INB, cursor:"pointer", color:IN, fontFamily:"inherit" }}>📤</button>
+                      <button onClick={() => deleteRoom(rm.id, rm.name)} style={{ padding: "6px 9px", fontSize: 12, borderRadius: 6, border: `1px solid ${ER}`, background: "none", cursor: "pointer", color: ER, fontFamily: "inherit", fontWeight: 700 }}>✕</button>
                     </div>
                   </div>
                 </Card>
@@ -2668,7 +2736,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
             maxHeight:"90%",
           }}>
             {/* Dialog header */}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid "+G2, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G2}`, flexShrink:0 }}>
               <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>{form.id ? "Edit Room" : "Add Room"}</h3>
               <button onClick={() => setModal(null)} style={{ background:G1, border:"none", color:G6, borderRadius:8, padding:"4px 10px", fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
             </div>
@@ -2705,7 +2773,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                     ))}
                   </div>
                 )}
-                <label style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px", border:"2px dashed "+G2, borderRadius:8, cursor:"pointer", fontSize:13, color:G6, background:G1 }}>
+                <label style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px", border:`2px dashed ${G2}`, borderRadius:8, cursor:"pointer", fontSize:13, color:G6, background:G1 }}>
                   <span style={{ fontSize:20 }}>📷</span>
                   <span>{uploading ? "Processing…" : form.photos?.length > 0 ? "Add more photos" : "Upload photos (JPG, PNG)"}</span>
                   <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display:"none" }} />
@@ -2714,7 +2782,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
               </div>
             </div>
             {/* Sticky footer buttons */}
-            <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:"1px solid "+G2, flexShrink:0, background:WH, borderRadius:"0 0 16px 16px" }}>
+            <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:`1px solid ${G2}`, flexShrink:0, background:WH, borderRadius:"0 0 16px 16px" }}>
               <Btn v="ghost" onClick={() => setModal(null)} style={{ flex:1, justifyContent:"center" }}>Cancel</Btn>
               <Btn onClick={save} style={{ flex:1, justifyContent:"center" }}>Save Room</Btn>
             </div>
@@ -2728,7 +2796,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
           <div style={{ position: "relative", background: BK, borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
             <img
               src={viewerRoom.photos[photoIdx]}
-              alt={viewerRoom.name+" photo "+photoIdx + 1}
+              alt={`${viewerRoom.name} photo ${photoIdx + 1}`}
               style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }}
             />
             {viewerRoom.photos.length > 1 && (
@@ -2747,8 +2815,8 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(70px,1fr))", gap: 6 }}>
             {viewerRoom.photos.map((src, i) => (
-              <img key={i} src={src} alt={"thumb "+i+1} onClick={() => setPhotoIdx(i)}
-                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: "2px solid "+i === photoIdx ? M : "transparent", transition: "border-color 0.15s" }} />
+              <img key={i} src={src} alt={`thumb ${i+1}`} onClick={() => setPhotoIdx(i)}
+                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: `2px solid ${i === photoIdx ? M : "transparent"}`, transition: "border-color 0.15s" }} />
             ))}
           </div>
           {/* Video in gallery */}
@@ -2809,7 +2877,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   };
 
   const removePayMethod = async (pm) => {
-    if (!window.confirm("Remove \""+pm+"\" as a payment method?")) return;
+    if (!window.confirm(`Remove "${pm}" as a payment method?`)) return;
     try {
       const full = await api.getPayMethods(storeId);
       const found = full.find(p => p.name === pm);
@@ -2823,7 +2891,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
       {(payMethods.length ? payMethods : ["Cash"]).map(pm => (
         <button key={pm} onClick={()=>onSelect(pm)}
           style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
-            border:"2px solid "+selected===pm?M:G2,background:selected===pm?MF:WH,color:selected===pm?M:G6,transition:"all .15s"}}>
+            border:`2px solid ${selected===pm?M:G2}`,background:selected===pm?MF:WH,color:selected===pm?M:G6,transition:"all .15s"}}>
           {pm}
         </button>
       ))}
@@ -2850,7 +2918,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
           {(payMethods.length ? payMethods : ["Cash"]).map((pm,i) => (
-            <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:G1,border:"1px solid "+G2,borderRadius:8,padding:"6px 12px"}}>
+            <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:G1,border:`1px solid ${G2}`,borderRadius:8,padding:"6px 12px"}}>
               <span style={{fontSize:13,fontWeight:700,color:BK}}>{pm}</span>
               {pm !== "Cash" && (
                 <button onClick={()=>removePayMethod(pm)}
@@ -2876,7 +2944,12 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
           {!hideFinance && <button onClick={()=>{
             const w=window.open("","_blank","width=800,height=700");
             const rows=books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
-            w.document.write(getPaymentReportHTML(storeName, rows, rooms, dateFrom, dateTo)); w.document.close();
+            w.document.write(`<html><head><title>Payments Report</title><style>body{font-family:Arial;padding:24px}h1{color:#6B1B2A}table{width:100%;border-collapse:collapse}th{background:#6B1B2A;color:#FFF;padding:8px;text-align:left;font-size:12px}td{padding:8px;border-bottom:1px solid #eee;font-size:13px}.ok{color:#2E7D32;font-weight:700}.er{color:#C62828;font-weight:700}@media print{button{display:none}}</style></head><body>
+            <h1>BNBMIS — Payments Report</h1><p style="color:#666">Printed: ${new Date().toLocaleString()}</p>
+            <table><tr><th>Booking ID</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Total</th><th>Paid</th><th>Balance</th><th>Method</th><th>Status</th></tr>
+            ${rows.map(b=>`<tr><td>${b.id}</td><td>${b.gName}</td><td>${rooms.find(r=>r.id===b.roomId)?.name||"—"}</td><td>${b.ci||""}</td><td>TZS ${Number(b.total||0).toLocaleString()}</td><td class="ok">TZS ${Number(b.paid||0).toLocaleString()}</td><td class="${(b.total-b.paid)>0?"er":"ok"}">TZS ${Number((b.total||0)-(b.paid||0)).toLocaleString()}</td><td>${b.method||""}</td><td>${b.status}</td></tr>`).join("")}
+            </table><br/><button onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer">🖨 Print</button>
+            </body></html>`);w.document.close();
           }} style={{background:"#1565C0",color:"#FFF",border:"none",borderRadius:7,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             🖨 Print Report
           </button>}
@@ -2904,7 +2977,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
 
       {/* ── RECORD PAYMENT MODAL ── */}
       {sel && selB && (
-        <Modal title={"Record Payment — "+selB.id} onClose={()=>setSel(null)}>
+        <Modal title={`Record Payment — ${selB.id}`} onClose={()=>setSel(null)}>
           <div style={{marginBottom:16,padding:13,background:G1,borderRadius:8,fontSize:13}}>
             {[["Guest",selB.gName],["Room",rooms.find(r=>r.id===selB.roomId)?.name||"—"],["Total Due",fmt(selB.total)],["Already Paid",fmt(selB.paid)],["Balance",fmt(selB.total-selB.paid)]].map(([k,v],i)=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
@@ -2914,7 +2987,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
             ))}
           </div>
           <Inp label="Amount (TZS)" type="number" value={amt} onChange={e=>setAmt(e.target.value)}
-            placeholder={"Max: "+fmt(selB.total-selB.paid)}/>
+            placeholder={`Max: ${fmt(selB.total-selB.paid)}`}/>
           <div style={{marginBottom:16}}>
             <label style={{display:"block",fontSize:11,fontWeight:700,color:G8,marginBottom:8,textTransform:"uppercase",letterSpacing:".05em"}}>Payment Method</label>
             <PmChips selected={method} onSelect={setMethod}/>
@@ -2988,12 +3061,12 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
     if (p==="all")       { setDateFrom(""); setDateTo(""); }
     else if (p==="today"){ const t=fmtD(now); setDateFrom(t); setDateTo(t); }
     else if (p==="week") { const s=new Date(now); s.setDate(now.getDate()-7); setDateFrom(fmtD(s)); setDateTo(fmtD(now)); }
-    else if (p==="month"){ setDateFrom(now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01"); setDateTo(fmtD(now)); }
+    else if (p==="month"){ setDateFrom(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`); setDateTo(fmtD(now)); }
     else if (p==="lastmonth") {
       const lm=new Date(now.getFullYear(),now.getMonth()-1,1), lmE=new Date(now.getFullYear(),now.getMonth(),0);
       setDateFrom(fmtD(lm)); setDateTo(fmtD(lmE));
     }
-    else if (p==="year") { setDateFrom(now.getFullYear()+"-01-01"); setDateTo(fmtD(now)); }
+    else if (p==="year") { setDateFrom(`${now.getFullYear()}-01-01`); setDateTo(fmtD(now)); }
   };
 
   useEffect(() => {
@@ -3044,7 +3117,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
   const occ     = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
   const avgRate = rooms.length ? Math.round(rooms.reduce((s,r)=>s+r.price,0)/rooms.length) : 0;
 
-  const ST = ({c}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:"4px solid "+M,paddingLeft:11,color:BK}}>{c}</h3>;
+  const ST = ({c}) => <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,margin:"0 0 13px",borderLeft:`4px solid ${M}`,paddingLeft:11,color:BK}}>{c}</h3>;
 
   const [locFilter, setLocFilter] = useState(""); // filter all reports by location
 
@@ -3071,12 +3144,12 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
           {[["All","all"],["Today","today"],["Week","week"],["Month","month"],["Last Mo.","lastmonth"],["Year","year"]].map(([label,preset])=>{
             const active = preset==="all"?(!dateFrom&&!dateTo)
               :preset==="today"?dateFrom===fmtD(new Date())
-              :preset==="month"?dateFrom===new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0")+"-01"
-              :preset==="year"?dateFrom===new Date().getFullYear()+"-01-01":false;
+              :preset==="month"?dateFrom===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-01`
+              :preset==="year"?dateFrom===`${new Date().getFullYear()}-01-01`:false;
             return (
               <button key={preset} onClick={()=>applyPreset(preset)}
                 style={{padding:"5px 11px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
-                  border:"1px solid "+active?M:G2,background:active?M:WH,color:active?WH:G6}}>
+                  border:`1px solid ${active?M:G2}`,background:active?M:WH,color:active?WH:G6}}>
                 {label}
               </button>
             );
@@ -3085,35 +3158,35 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
         {/* Custom date range */}
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
           <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-            style={{flex:1,minWidth:120,padding:"7px 9px",border:"1px solid "+G2,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
+            style={{flex:1,minWidth:120,padding:"7px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
           <span style={{color:G6,fontSize:13,flexShrink:0}}>→</span>
           <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-            style={{flex:1,minWidth:120,padding:"7px 9px",border:"1px solid "+G2,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
-          {(dateFrom||dateTo) && <button onClick={()=>{setDateFrom("");setDateTo("");}} style={{padding:"7px 10px",border:"1px solid "+G2,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕</button>}
+            style={{flex:1,minWidth:120,padding:"7px 9px",border:`1px solid ${G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:BK,outline:"none"}}/>
+          {(dateFrom||dateTo) && <button onClick={()=>{setDateFrom("");setDateTo("");}} style={{padding:"7px 10px",border:`1px solid ${G2}`,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕</button>}
         </div>
         {/* Location filter */}
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           <span style={{fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",flexShrink:0}}>Location</span>
           <select value={locFilter} onChange={e=>setLocFilter(e.target.value)}
-            style={{flex:1,padding:"7px 10px",border:"1px solid "+locFilter?M:G2,borderRadius:7,fontSize:13,fontFamily:"inherit",color:locFilter?M:G6,fontWeight:locFilter?700:400,outline:"none",background:WH}}>
+            style={{flex:1,padding:"7px 10px",border:`1px solid ${locFilter?M:G2}`,borderRadius:7,fontSize:13,fontFamily:"inherit",color:locFilter?M:G6,fontWeight:locFilter?700:400,outline:"none",background:WH}}>
             <option value="">All Locations</option>
             {locs.map(l=><option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
           </select>
-          {locFilter && <button onClick={()=>setLocFilter("")} style={{padding:"7px 10px",border:"1px solid "+G2,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕ All</button>}
+          {locFilter && <button onClick={()=>setLocFilter("")} style={{padding:"7px 10px",border:`1px solid ${G2}`,borderRadius:7,fontSize:12,cursor:"pointer",color:ER,fontFamily:"inherit",background:WH,flexShrink:0}}>✕ All</button>}
         </div>
         {(dateFrom||dateTo||locFilter) && (
           <div style={{marginTop:8,fontSize:12,color:M,fontWeight:700}}>
             {rptLoading?"Loading…":""} 
-            {dateFrom||dateTo ? dateFrom||"start"+" → "+dateTo||"today" : ""}
-            {locFilter ? " · "+locs.find(l=>l.id===locFilter)?.name : ""}
+            {dateFrom||dateTo ? `${dateFrom||"start"} → ${dateTo||"today"}` : ""}
+            {locFilter ? ` · ${locs.find(l=>l.id===locFilter)?.name}` : ""}
           </div>
         )}
       </Card>
 
       {/* ── SUB-TABS — scrollable on mobile ── */}
-      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:"1px solid "+G2,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${G2}`,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         {[["💰","financial"],["🛏️","occupancy"],["📍","location"],["📤","expenses"],["📋","bookings"]].map(([icon,t])=>(
-          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 14px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:"3px solid "+rt===t?M:"transparent",textTransform:"capitalize",fontFamily:"inherit",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 14px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:`3px solid ${rt===t?M:"transparent"}`,textTransform:"capitalize",fontFamily:"inherit",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
             <span>{icon}</span><span>{t}</span>
           </button>
         ))}
@@ -3153,11 +3226,11 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:13}}>
                 <ST c="Payment Methods Breakdown"/>
-                {byMethod.length>0&&<button onClick={()=>setPayDrillDown(true)} style={{background:MF,color:M,border:"1px solid "+M+"30",borderRadius:7,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>View Details →</button>}
+                {byMethod.length>0&&<button onClick={()=>setPayDrillDown(true)} style={{background:MF,color:M,border:`1px solid ${M}30`,borderRadius:7,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>View Details →</button>}
               </div>
               {byMethod.length===0&&<div style={{color:G4,fontSize:13}}>No payment data</div>}
               {byMethod.map((m,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+G1,fontSize:13}}>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{color:G6}}>{m.method}</span>
                     <button onClick={()=>{setPayDrillMethod(m.method);setPayDrillDown(true);}} style={{background:"none",border:"none",color:M,cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",padding:0,textDecoration:"underline"}}>see payments</button>
@@ -3168,7 +3241,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
                   </div>
                 </div>
               ))}
-              {byMethod.length>0&&<div style={{marginTop:11,padding:"9px 0",borderTop:"2px solid "+G2,display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}><span>Total</span><span style={{color:M}}>{fmt(totRev)}</span></div>}
+              {byMethod.length>0&&<div style={{marginTop:11,padding:"9px 0",borderTop:`2px solid ${G2}`,display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}><span>Total</span><span style={{color:M}}>{fmt(totRev)}</span></div>}
             </Card>
           </div>
 
@@ -3181,7 +3254,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
                 const lt=Object.values(lm).reduce((s,v)=>s+v,0);
                 if(!lt) return null;
                 return (
-                  <div key={loc.id} style={{marginBottom:14,paddingBottom:12,borderBottom:"1px solid "+G1}}>
+                  <div key={loc.id} style={{marginBottom:14,paddingBottom:12,borderBottom:`1px solid ${G1}`}}>
                     <div style={{fontWeight:700,fontSize:13,marginBottom:7}}>{loc.icon} {loc.name} <span style={{color:G4,fontWeight:400}}>· {fmt(lt)}</span></div>
                     {Object.entries(lm).sort((a,b)=>b[1]-a[1]).map(([m,v])=>(
                       <div key={m} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
@@ -3210,7 +3283,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
                 ["Net Profit", fmt(net), net>=0?OK:ER],
                 ["Profit Margin", margin+"%", net>=0?OK:ER],
               ].map(([k,v,col])=>(
-                <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+G1,fontSize:13}}>
+                <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${G1}`,fontSize:13}}>
                   <span style={{color:G6}}>{k}</span><span style={{fontWeight:700,color:col}}>{v}</span>
                 </div>
               ))}
@@ -3265,9 +3338,9 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
           {payDrillDown && (
             <Modal title="Payment Details" onClose={()=>{setPayDrillDown(false);setPayDrillMethod("");}} wide>
               <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:16}}>
-                <button onClick={()=>setPayDrillMethod("")} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"1px solid "+!payDrillMethod?M:G2,background:!payDrillMethod?M:WH,color:!payDrillMethod?WH:G6}}>All Methods</button>
+                <button onClick={()=>setPayDrillMethod("")} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${!payDrillMethod?M:G2}`,background:!payDrillMethod?M:WH,color:!payDrillMethod?WH:G6}}>All Methods</button>
                 {byMethod.map((m,i)=>(
-                  <button key={i} onClick={()=>setPayDrillMethod(m.method)} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"1px solid "+payDrillMethod===m.method?M:G2,background:payDrillMethod===m.method?M:WH,color:payDrillMethod===m.method?WH:G6}}>{m.method}</button>
+                  <button key={i} onClick={()=>setPayDrillMethod(m.method)} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${payDrillMethod===m.method?M:G2}`,background:payDrillMethod===m.method?M:WH,color:payDrillMethod===m.method?WH:G6}}>{m.method}</button>
                 ))}
               </div>
               {payDrillMethod && byMethod.length > 0 && (
@@ -3314,7 +3387,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
                     <span style={{color:M,fontWeight:700}}>{pct}% ({o}/{lr.length})</span>
                   </div>
                   <div style={{height:10,background:G1,borderRadius:99,overflow:"hidden",marginBottom:5}}>
-                    <div style={{height:"100%",width:pct+"%",background:"linear-gradient(90deg,"+M+","+ML+")",borderRadius:99}}/>
+                    <div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${M},${ML})`,borderRadius:99}}/>
                   </div>
                   <div style={{display:"flex",gap:12,fontSize:12}}>
                     {["available","occupied","maintenance"].map(s=><span key={s} style={{color:sC(s)}}>{lr.filter(r=>r.status===s).length} {s}</span>)}
@@ -3334,12 +3407,12 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
             const done=lb.filter(b=>b.status==="checkedOut").length;
             return (
               <Card key={loc.id}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:12,borderBottom:"1px solid "+G1}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:12,borderBottom:`1px solid ${G1}`}}>
                   <span style={{fontSize:26}}>{loc.icon}</span>
                   <div><div style={{fontWeight:700,fontFamily:"'Playfair Display',serif",fontSize:15}}>{loc.name}</div><div style={{fontSize:11,color:G6}}>{loc.city}</div></div>
                 </div>
                 {[["Total Revenue",fmt(loc.rev),OK],["Total Expenses",fmt(loc.exp),ER],["Net Profit",fmt(loc.rev-loc.exp),loc.rev-loc.exp>=0?OK:ER],["Total Bookings",loc.cnt,BK],["Active Stays",act,M],["Completed",done,G6]].map(([k,v,col])=>(
-                  <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:13,borderBottom:"1px solid "+G1}}>
+                  <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:13,borderBottom:`1px solid ${G1}`}}>
                     <span style={{color:G6}}>{k}</span><span style={{fontWeight:700,color:col}}>{v}</span>
                   </div>
                 ))}
@@ -3371,7 +3444,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
         <div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:11,marginBottom:18}}>
             {[["pending",bkSt.pending||0],["confirmed",bkSt.confirmed||0],["checkedIn",bkSt.active||0],["checkedOut",bkSt.completed||0],["cancelled",bkSt.cancelled||0]].map(([s,count])=>(
-              <div key={s} style={{background:sB(s),border:"1px solid "+sC(s)+"30",borderRadius:12,padding:"13px 15px"}}>
+              <div key={s} style={{background:sB(s),border:`1px solid ${sC(s)}30`,borderRadius:12,padding:"13px 15px"}}>
                 <div style={{fontSize:11,color:sC(s),fontWeight:700,textTransform:"uppercase",marginBottom:5}}>{s}</div>
                 <div style={{fontSize:26,fontWeight:700,color:sC(s),fontFamily:"'Playfair Display',serif"}}>{count}</div>
               </div>
@@ -3419,8 +3492,8 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
                   <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
                 </div>
                 <div style={{ display:"flex", gap:5 }}>
-                <button onClick={() => { setForm({ ...loc, country: loc.country || "" }); setModal(true); }} style={{ background: "none", border: "1px solid "+G2, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
-                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: "1px solid "+ER, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
+                <button onClick={() => { setForm({ ...loc, country: loc.country || "" }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
               </div>
               </div>
               <div style={{ fontSize: 12, color: G6, marginBottom: 8 }}>{loc.addr}</div>
@@ -3500,12 +3573,12 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
 
       {/* Staff login info box */}
       {currentUser?.storeId && (
-        <div style={{ background:INB, border:"1px solid "+IN+"22", borderRadius:10, padding:"14px 18px", marginBottom:20 }}>
+        <div style={{ background:INB, border:`1px solid ${IN}22`, borderRadius:10, padding:"14px 18px", marginBottom:20 }}>
           <div style={{ fontSize:13, fontWeight:700, color:IN, marginBottom:8 }}>📋 How staff log in to this store</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <div>
               <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Store ID (share this with staff)</div>
-              <div style={{ fontFamily:"monospace", fontWeight:700, fontSize:18, color:M, letterSpacing:"2px", background:MF, padding:"8px 14px", borderRadius:6, border:"1px solid "+M+"22", display:"inline-flex", alignItems:"center", gap:10 }}>
+              <div style={{ fontFamily:"monospace", fontWeight:700, fontSize:18, color:M, letterSpacing:"2px", background:MF, padding:"8px 14px", borderRadius:6, border:`1px solid ${M}22`, display:"inline-flex", alignItems:"center", gap:10 }}>
                 {currentUser.storeId}
                 <button onClick={()=>navigator.clipboard?.writeText(currentUser.storeId).then(()=>{}).catch(()=>{})}
                   style={{ background:M, color:WH, border:"none", borderRadius:5, padding:"2px 8px", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>Copy</button>
@@ -3513,7 +3586,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
             </div>
             <div>
               <div style={{ fontSize:11, color:G6, marginBottom:3, textTransform:"uppercase", letterSpacing:".06em" }}>Login URL</div>
-              <div style={{ fontSize:12, color:BK, background:WH, padding:"6px 10px", borderRadius:6, border:"1px solid "+G2, display:"inline-block", wordBreak:"break-all" }}>
+              <div style={{ fontSize:12, color:BK, background:WH, padding:"6px 10px", borderRadius:6, border:`1px solid ${G2}`, display:"inline-block", wordBreak:"break-all" }}>
                 bnbmis.com → Login → Staff Login
               </div>
             </div>
@@ -3529,10 +3602,10 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
           const isSelf = s.id === currentUser?.id;
           const roleCol = roleColor[s.role] || G6;
           return (
-            <Card key={s.id} style={{ opacity: s.active ? 1 : 0.7, borderTop: "3px solid "+roleCol }}>
+            <Card key={s.id} style={{ opacity: s.active ? 1 : 0.7, borderTop: `3px solid ${roleCol}` }}>
               {/* Header */}
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
-                <div style={{ width:44, height:44, background:"linear-gradient(135deg,"+roleCol+"CC,"+roleCol+")", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", flexShrink:0 }}>
+                <div style={{ width:44, height:44, background:`linear-gradient(135deg,${roleCol}CC,${roleCol})`, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", flexShrink:0 }}>
                   {initials(s.name)}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -3540,7 +3613,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
                     {s.name} {isSelf && <span style={{ fontSize:10, color:G4, fontWeight:400 }}>(you)</span>}
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
-                    <span style={{ background:roleCol+"18", color:roleCol, padding:"2px 8px", borderRadius:99, fontSize:11, fontWeight:700 }}>{s.role}</span>
+                    <span style={{ background:`${roleCol}18`, color:roleCol, padding:"2px 8px", borderRadius:99, fontSize:11, fontWeight:700 }}>{s.role}</span>
                     <span style={{ background:s.active?OKB:G1, color:s.active?OK:G4, padding:"2px 7px", borderRadius:99, fontSize:10, fontWeight:700 }}>{s.active?"Active":"Inactive"}</span>
                   </div>
                 </div>
@@ -3549,7 +3622,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
               {/* Details */}
               <div style={{ marginBottom:12 }}>
                 {[["📧", s.email], ["📞", s.phone||"—"], ["📍", locs.find(l=>l.id===s.locId)?.name||"All Locations"]].map(([icon,val]) => (
-                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:7, padding:"4px 0", fontSize:12, color:G6, borderBottom:"1px solid "+G1 }}>
+                  <div key={icon} style={{ display:"flex", alignItems:"center", gap:7, padding:"4px 0", fontSize:12, color:G6, borderBottom:`1px solid ${G1}` }}>
                     <span style={{ width:16, textAlign:"center", flexShrink:0 }}>{icon}</span>
                     <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{val}</span>
                   </div>
@@ -3559,16 +3632,16 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
               {/* Actions */}
               <div style={{ display:"flex", gap:6 }}>
                 <button onClick={()=>{ openEdit(s); setModal(true); }}
-                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:"1px solid "+G2, background:"none", cursor:"pointer", color:G6, fontWeight:700, fontFamily:"inherit" }}>
+                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:`1px solid ${G2}`, background:"none", cursor:"pointer", color:G6, fontWeight:700, fontFamily:"inherit" }}>
                   ✏️ Edit
                 </button>
                 <button onClick={()=>toggleStaff(s)}
-                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:"1px solid "+s.active?WA:OK, background:"none", cursor:"pointer", color:s.active?WA:OK, fontWeight:700, fontFamily:"inherit" }}>
+                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:`1px solid ${s.active?WA:OK}`, background:"none", cursor:"pointer", color:s.active?WA:OK, fontWeight:700, fontFamily:"inherit" }}>
                   {s.active ? "Deactivate" : "Activate"}
                 </button>
                 {!isSelf && (
                   <button onClick={()=>deleteStaff(s)}
-                    style={{ flex:1, padding:"7px", fontSize:12, borderRadius:7, border:"1px solid "+ER, background:"none", cursor:"pointer", color:ER, fontWeight:700, fontFamily:"inherit" }}>
+                    style={{ flex:1, padding:"7px", fontSize:12, borderRadius:7, border:`1px solid ${ER}`, background:"none", cursor:"pointer", color:ER, fontWeight:700, fontFamily:"inherit" }}>
                     🗑
                   </button>
                 )}
@@ -3600,7 +3673,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
                 return (
                   <button key={r} onClick={()=>setForm(f=>({...f,role:r}))}
                     style={{ padding:"7px 14px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-                      border:"2px solid "+sel?rc:G2, background:sel?rc+"15":WH, color:sel?rc:G6, transition:"all .15s" }}>
+                      border:`2px solid ${sel?rc:G2}`, background:sel?`${rc}15`:WH, color:sel?rc:G6, transition:"all .15s" }}>
                     {r}
                   </button>
                 );
@@ -3673,7 +3746,7 @@ function ProfileTab({ user, updateProfile }) {
 
       {/* Avatar + role card */}
       <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-        <div style={{ width: 56, height: 56, background: "linear-gradient(135deg,"+M+","+ML+")", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 20, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
+        <div style={{ width: 56, height: 56, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 20, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>
           {initials}
         </div>
         <div>
@@ -3684,7 +3757,7 @@ function ProfileTab({ user, updateProfile }) {
       </Card>
 
       {/* Section tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: "1px solid "+G2, borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
         {[["details", "Personal Details"], ["pin", "Change PIN"]].map(([id, label]) => (
           <button key={id} onClick={() => { setSection(id); setPinErr(""); }}
             style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s" }}>
@@ -3717,20 +3790,20 @@ function ProfileTab({ user, updateProfile }) {
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Current PIN</label>
             <input type="password" value={pinForm.current_pin} onChange={e => setPinForm(f => ({ ...f, current_pin: e.target.value }))}
               placeholder="Enter current PIN" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
           </div>
           <div style={{ height: 1, background: G2, margin: "16px 0" }} />
           <div style={{ marginBottom: 13 }}>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>New PIN</label>
             <input type="password" value={pinForm.new_pin} onChange={e => setPinForm(f => ({ ...f, new_pin: e.target.value }))}
               placeholder="4–6 digits" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>Confirm New PIN</label>
             <input type="password" value={pinForm.confirm_pin} onChange={e => setPinForm(f => ({ ...f, confirm_pin: e.target.value }))}
               placeholder="Re-enter new PIN" maxLength={6}
-              style={{ width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+              style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
           </div>
           {pinErr && <div style={{ background: ERB, color: ER, borderRadius: 8, padding: "9px 13px", fontSize: 13, marginBottom: 14 }}>{pinErr}</div>}
           <Btn onClick={savePin} disabled={saving} style={{ width: "100%", justifyContent: "center" }}>
@@ -3825,7 +3898,7 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
           <div style={{ fontSize:13, color:G6, fontStyle:"italic" }}>Choose check-in and check-out dates above to see available rooms.</div>
         ) : (
           <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
-            style={{ width:"100%", padding:"9px 12px", border:"1px solid "+form.roomId?OK:G2, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH }}>
+            style={{ width:"100%", padding:"9px 12px", border:`1px solid ${form.roomId?OK:G2}`, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH }}>
             <option value="">Select a room…</option>
             {availRooms.map(r => (
               <option key={r.id} value={r.id}>{r.name} — TZS {Number(r.price).toLocaleString()}/night</option>
@@ -3892,7 +3965,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
       {/* Photo gallery */}
       {photos.length > 0 && (
         <div style={{ borderRadius: 10, overflow: "hidden", marginBottom: 16, position: "relative", background: BK }}>
-          <img src={photos[photoIdx]} alt={dr.name+" photo "+photoIdx + 1}
+          <img src={photos[photoIdx]} alt={`${dr.name} photo ${photoIdx + 1}`}
             style={{ width: "100%", height: "min(380px, 55vw)", objectFit: "cover", display: "block" }} />
           {photos.length > 1 && (
             <>
@@ -3916,7 +3989,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
           {photos.map((src, i) => (
             <img key={i} src={src} alt="" onClick={() => setPhotoIdx(i)}
               style={{ width: 68, height: 52, objectFit: "cover", borderRadius: 7, cursor: "pointer", flexShrink: 0,
-                border: "2px solid "+i === photoIdx ? M : "transparent", transition: "border-color .15s" }} />
+                border: `2px solid ${i === photoIdx ? M : "transparent"}`, transition: "border-color .15s" }} />
           ))}
         </div>
       )}
@@ -3925,7 +3998,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 10 }}>
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 4px", color: BK }}>{dr.name}</h2>
-          <div style={{ fontSize: 13, color: G6 }}>{loc?.icon} {loc?.name}{loc?.city ? " · "+loc.city : ""}</div>
+          <div style={{ fontSize: 13, color: G6 }}>{loc?.icon} {loc?.name}{loc?.city ? ` · ${loc.city}` : ""}</div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: M, fontFamily: "'Playfair Display',serif" }}>{fmt(dr.price)}</div>
@@ -3935,7 +4008,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
 
       {/* Room specs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 10, marginBottom: 16 }}>
-        {[["🛏️", dr.beds+" bed"+dr.beds > 1 ? "s" : ""], ["👥", "Up to "+dr.guests+" guests"], ["🏠", dr.type]].map(([icon, val]) => (
+        {[["🛏️", `${dr.beds} bed${dr.beds > 1 ? "s" : ""}`], ["👥", `Up to ${dr.guests} guests`], ["🏠", dr.type]].map(([icon, val]) => (
           <div key={val} style={{ background: G1, borderRadius: 9, padding: "10px 12px", textAlign: "center" }}>
             <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: BK }}>{val}</div>
@@ -3949,7 +4022,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
           <div style={{ fontSize: 12, fontWeight: 700, color: G6, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Amenities</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
             {dr.amen.map((a, i) => (
-              <span key={i} style={{ background: MF, color: M, border: "1px solid "+M+"20", padding: "5px 11px", borderRadius: 99, fontSize: 12, fontWeight: 600 }}>{a}</span>
+              <span key={i} style={{ background: MF, color: M, border: `1px solid ${M}20`, padding: "5px 11px", borderRadius: 99, fontSize: 12, fontWeight: 600 }}>{a}</span>
             ))}
           </div>
         </div>
@@ -3979,12 +4052,12 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
 
       {/* Availability status */}
       {dateTakenForThisRoom && bD.ci && bD.co && (
-        <div style={{ background: WAB, border: "1px solid "+WA, borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: WA, fontWeight: 700 }}>
+        <div style={{ background: WAB, border: `1px solid ${WA}`, borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: WA, fontWeight: 700 }}>
           📅 Not available for {bD.ci} → {bD.co}
         </div>
       )}
       {!avail && (
-        <div style={{ background: ERB, border: "1px solid "+ER+"30", borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: ER, fontWeight: 700 }}>
+        <div style={{ background: ERB, border: `1px solid ${ER}30`, borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: ER, fontWeight: 700 }}>
           🚫 This room is currently {dr.status}
         </div>
       )}
@@ -3999,7 +4072,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
         )}
         {avail && dateTakenForThisRoom && bD.ci && bD.co && (
           <button onClick={onChangeDates}
-            style={{ flex: 1, padding: "13px", border: "2px solid "+WA, borderRadius: 10, background: WH, color: WA, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            style={{ flex: 1, padding: "13px", border: `2px solid ${WA}`, borderRadius: 10, background: WH, color: WA, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
             📅 Change Dates
           </button>
         )}
@@ -4038,13 +4111,13 @@ function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop, b
     setLoading(false);
   };
 
-  const inpStyle = { width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
+  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
   const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
 
   return (
     <Modal title={mode === "login" ? "Sign In to Your Account" : "Create Account"} onClose={onClose}>
       {bookingIntent && (
-        <div style={{ background: MF, border: "1px solid "+M+"30", borderRadius: 8, padding: "10px 13px", marginBottom: 16, fontSize: 13, color: M, fontWeight: 700 }}>
+        <div style={{ background: MF, border: `1px solid ${M}30`, borderRadius: 8, padding: "10px 13px", marginBottom: 16, fontSize: 13, color: M, fontWeight: 700 }}>
           🛏️ Please sign in or create an account to book a room and track your reservations.
         </div>
       )}
@@ -4124,7 +4197,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
     const canCancel = ["pending","confirmed"].includes(b.status);
 
     return (
-      <div style={{ background:WH, border:"1px solid "+G2, borderRadius:14, marginBottom:14, overflow:"hidden",
+      <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:14, marginBottom:14, overflow:"hidden",
         boxShadow:"0 1px 4px rgba(0,0,0,.06)" }}>
 
         {/* Cover photo — full width on mobile */}
@@ -4151,7 +4224,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
               </div>
               <div style={{ fontSize:12, color:G6, marginTop:2 }}>
                 {b.location_icon} {b.location_name}
-                {b.location_city ? " · "+b.location_city : ""}
+                {b.location_city ? ` · ${b.location_city}` : ""}
               </div>
             </div>
             {photos.length === 0 && (
@@ -4209,13 +4282,13 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
             <span style={{ fontSize:11, color:G4, fontFamily:"monospace" }}>{b.id}</span>
             <div style={{ display:"flex", gap:7, flexShrink:0 }}>
               <button onClick={() => setSel(b.id)}
-                style={{ padding:"8px 16px", fontSize:13, borderRadius:8, border:"1px solid "+G2,
+                style={{ padding:"8px 16px", fontSize:13, borderRadius:8, border:`1px solid ${G2}`,
                   background:WH, cursor:"pointer", color:G6, fontFamily:"inherit", fontWeight:600 }}>
                 Details
               </button>
               {canCancel && (
                 <button onClick={() => onCancel(b.id)}
-                  style={{ padding:"8px 16px", fontSize:13, borderRadius:8, border:"1px solid "+ER,
+                  style={{ padding:"8px 16px", fontSize:13, borderRadius:8, border:`1px solid ${ER}`,
                     background:"none", cursor:"pointer", color:ER, fontFamily:"inherit", fontWeight:600 }}>
                   Cancel
                 </button>
@@ -4244,7 +4317,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
         <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:0 }}>My Bookings</h2>
         <button onClick={onRefresh}
-          style={{ background:"none", border:"1px solid "+G2, borderRadius:8, padding:"7px 13px",
+          style={{ background:"none", border:`1px solid ${G2}`, borderRadius:8, padding:"7px 13px",
             fontSize:13, cursor:"pointer", color:G6, fontFamily:"inherit", display:"flex", alignItems:"center", gap:5 }}>
           ↻ Refresh
         </button>
@@ -4257,7 +4330,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
           ["Upcoming", upcoming.length, IN, "⏳"],
           ["Completed", custBooks.filter(b=>b.status==="checkedOut").length, OK, "🎉"]
         ].map(([label,val,col,icon]) => (
-          <div key={label} style={{ background:WH, border:"1px solid "+G2, borderRadius:12, padding:"14px 16px" }}>
+          <div key={label} style={{ background:WH, border:`1px solid ${G2}`, borderRadius:12, padding:"14px 16px" }}>
             <div style={{ fontSize:11, color:G6, fontWeight:700, marginBottom:5, display:"flex", alignItems:"center", gap:5 }}>
               {icon} <span style={{ textTransform:"uppercase", letterSpacing:".05em" }}>{label}</span>
             </div>
@@ -4295,7 +4368,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
                 {selB.room_name}
               </div>
               <div style={{ fontSize:13, color:G6, marginTop:2 }}>
-                {selB.location_icon} {selB.location_name}{selB.location_city ? ", "+selB.location_city : ""}
+                {selB.location_icon} {selB.location_name}{selB.location_city ? `, ${selB.location_city}` : ""}
               </div>
             </div>
             <span style={{ background:sB(selB.status), color:sC(selB.status), padding:"5px 12px",
@@ -4305,12 +4378,12 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
           </div>
 
           {/* Details grid */}
-          <div style={{ borderRadius:10, border:"1px solid "+G2, overflow:"hidden", marginBottom:14 }}>
+          <div style={{ borderRadius:10, border:`1px solid ${G2}`, overflow:"hidden", marginBottom:14 }}>
             {[
               ["📋 Booking ID", selB.id],
               ["📅 Check-in",   fmtDate(selB.check_in)],
               ["📅 Check-out",  fmtDate(selB.check_out)],
-              ["🌙 Nights",     selB.nights+" night"+selB.nights>1?"s":""],
+              ["🌙 Nights",     `${selB.nights} night${selB.nights>1?"s":""}`],
               ["💳 Payment",    selB.payment_method],
               ["💰 Total",      fmt(selB.total_amount)],
               ["✅ Paid",       fmt(selB.paid_amount)],
@@ -4332,12 +4405,35 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
           )}
 
           {/* ── PRINT RECEIPT ── */}
-          <div style={{ borderTop:"1px solid "+G2, paddingTop:14, marginTop:14 }}>
+          <div style={{ borderTop:`1px solid ${G2}`, paddingTop:14, marginTop:14 }}>
             <button onClick={()=>{
               const w=window.open("","_blank","width=600,height=750");
               const rm=rooms.find(r=>r.id===selB.roomId);
               const lc=locs.find(l=>l.id===selB.locId);
-              w.document.write(getCustomerReceiptHTML(selB, rooms));
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:32px;max-width:560px;margin:0 auto;color:#111}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
+              <div class="logo">BNBMIS</div><div class="sub">BNB Management Information System</div>
+              <hr/>
+              <h2>Booking Receipt</h2>
+              <div class="ref">ID: <strong>${selB.id}</strong> &nbsp;|&nbsp; Date: ${(selB.created||"").split("T")[0]||""}</div>
+              <div class="row"><span class="lbl">Guest Name</span><span class="val">${selB.gName}</span></div>
+              <div class="row"><span class="lbl">Phone</span><span class="val">${selB.gPhone||"—"}</span></div>
+              ${selB.gEmail?`<div class="row"><span class="lbl">Email</span><span class="val">${selB.gEmail}</span></div>`:""}
+              ${selB.gNat?`<div class="row"><span class="lbl">Nationality</span><span class="val">${selB.gNat}</span></div>`:""}
+              <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||"—"}</span></div>
+              <div class="row"><span class="lbl">Location</span><span class="val">${lc?.name||"—"}</span></div>
+              <div class="row"><span class="lbl">Check-in</span><span class="val">${selB.ci||"—"}</span></div>
+              <div class="row"><span class="lbl">Check-out</span><span class="val">${selB.co||"—"}</span></div>
+              <div class="row"><span class="lbl">Duration</span><span class="val">${selB.nights} night${selB.nights!==1?"s":""}</span></div>
+              <div class="row"><span class="lbl">Payment Method</span><span class="val">${selB.method||"—"}</span></div>
+              ${selB.notes?`<div class="row"><span class="lbl">Notes</span><span class="val">${selB.notes}</span></div>`:""}
+              <div class="total-row"><span>Total Amount</span><span class="total-val">TZS ${Number(selB.total||0).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Amount Paid</span><span class="val" style="color:#2E7D32">TZS ${Number(selB.paid||0).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Balance Due</span><span class="val balance">TZS ${Number((selB.total||0)-(selB.paid||0)).toLocaleString()}</span></div>
+              <div class="row"><span class="lbl">Status</span><span class="badge">${selB.status}</span></div>
+              <div class="footer">Thank you for your stay!<br/>support@bnbmis.com &nbsp;|&nbsp; bnbmis.com</div>
+              <br/><button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
+              <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+              </body></html>`);
               w.document.close();
             }} style={{ width:"100%", padding:"11px", border:`1px solid #1565C0`, borderRadius:9, background:"#E3F2FD", color:"#1565C0", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginBottom:10, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
               🖨 Print Receipt
@@ -4347,7 +4443,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
           {["pending","confirmed"].includes(selB.status) && (user?.role === "Admin" || user?.role === "Manager") && (
             <div style={{ paddingTop:10 }}>
               <button onClick={() => { onCancel(selB.id); setSel(null); }}
-                style={{ width:"100%", padding:"12px", border:"2px solid "+ER, borderRadius:9,
+                style={{ width:"100%", padding:"12px", border:`2px solid ${ER}`, borderRadius:9,
                   background:"none", color:ER, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                 Cancel This Booking
               </button>
@@ -4387,7 +4483,7 @@ function CustomerProfileTab({ customer, onUpdate }) {
     if (ok) setPwForm({ current_password: "", new_password: "", confirm: "" });
   };
 
-  const inpStyle = { width: "100%", padding: "9px 12px", border: "1px solid "+G2, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
+  const inpStyle = { width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 13 };
   const lblStyle = { display: "block", fontSize: 11, fontWeight: 700, color: G8, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" };
   const initials = (customer?.name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -4395,7 +4491,7 @@ function CustomerProfileTab({ customer, onUpdate }) {
     <div style={{ maxWidth: 520 }}>
       <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 22px" }}>My Profile</h2>
       <Card style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-        <div style={{ width: 52, height: 52, background: "linear-gradient(135deg,"+M+","+ML+")", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>{initials}</div>
+        <div style={{ width: 52, height: 52, background: `linear-gradient(135deg,${M},${ML})`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: WH, fontWeight: 700, fontSize: 18, fontFamily: "'Playfair Display',serif", flexShrink: 0 }}>{initials}</div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{customer?.name}</div>
           <div style={{ fontSize: 13, color: G6, marginTop: 2 }}>{customer?.email}</div>
@@ -4403,7 +4499,7 @@ function CustomerProfileTab({ customer, onUpdate }) {
         </div>
       </Card>
 
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: "1px solid "+G2, borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, border: `1px solid ${G2}`, borderRadius: 8, overflow: "hidden" }}>
         {[["details","Personal Details"],["password","Change Password"]].map(([id,label]) => (
           <button key={id} onClick={() => { setSection(id); setPwErr(""); }}
             style={{ flex: 1, padding: "10px", border: "none", background: section === id ? M : WH, color: section === id ? WH : G6, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
@@ -4481,7 +4577,7 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onStaffLogin, onClose, p
           <div style={{ fontSize:11, color:G4 }}>BNB Management Information System</div>
         </div>
       </div>
-      <div style={{ display:"flex", gap:0, marginBottom:16, border:"1px solid "+G2, borderRadius:8, overflow:"hidden" }}>
+      <div style={{ display:"flex", gap:0, marginBottom:16, border:`1px solid ${G2}`, borderRadius:8, overflow:"hidden" }}>
         {[["owner","🏪 Store Owner"],["staff","👤 Staff"],...(showSuper?[["super","⚙️ Admin"]]:[])].map(([id,label])=>(
           <button key={id} onClick={()=>{ setTab(id); setErr(""); }}
             style={{ flex:1, padding:"9px", border:"none", background:tab===id?M:WH, color:tab===id?WH:G6, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{label}</button>
@@ -4500,14 +4596,14 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onStaffLogin, onClose, p
           <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Store ID</label>
           <input value={storeIdField} onChange={e=>setStoreIdField(e.target.value.trim())}
             placeholder="e.g. ST3A9F2B" autoCapitalize="characters"
-            style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G2, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace", letterSpacing:"1px", marginBottom:13 }}/>
+            style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace", letterSpacing:"1px", marginBottom:13 }}/>
         </div>
       )}
       <div style={{ marginBottom:13 }}>
         <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Email</label>
         <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}
           placeholder="your@email.com" autoComplete="email"
-          style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G2, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       <div style={{ marginBottom:16 }}>
         <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{tab==="staff"?"PIN":"Password"}</label>
@@ -4517,7 +4613,7 @@ function BNBMISLoginModal({ onSuperLogin, onOwnerLogin, onStaffLogin, onClose, p
           placeholder={tab==="staff"?"••••":"••••••••"}
           maxLength={tab==="staff"?6:undefined}
           autoComplete="current-password"
-          style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G2, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, color:BK, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       {err && <div style={{ color:ER, fontSize:13, marginBottom:14, padding:"8px 12px", background:ERB, borderRadius:6 }}>{err}</div>}
       <button onClick={submit} disabled={busy}
@@ -4556,14 +4652,14 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}{required&&<span style={{color:ER}}> *</span>}</label>
       <input type={type} value={f[key]||""} onChange={e=>setF(d=>({...d,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"10px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
   return (
     <Modal title="List Your Property on BNBMIS" onClose={onClose} wide>
       {/* Step indicator */}
-      <div style={{ display:"flex", gap:0, marginBottom:22, borderRadius:8, overflow:"hidden", border:"1px solid "+G22 }}>
+      <div style={{ display:"flex", gap:0, marginBottom:22, borderRadius:8, overflow:"hidden", border:`1px solid ${G22}` }}>
         {[["1","Your Account"],["2","Property Details"]].map(([n,label],i)=>(
           <button key={n} onClick={()=>setStep(i+1)}
             style={{ flex:1, padding:"10px", border:"none", background:step===i+1?M2:G12, color:step===i+1?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
@@ -4607,7 +4703,7 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
                 <textarea value={f.store_description||""} onChange={e=>setF(d=>({...d,store_description:e.target.value}))} rows={4}
                   placeholder="Describe your property — location, type of accommodation, what makes it special…"
-                  style={{ width:"100%", padding:"10px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+                  style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>
@@ -4615,13 +4711,13 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
                 </label>
                 {f.featured_image ? (
                   <div style={{ position:"relative", marginBottom:8 }}>
-                    <img src={f.featured_image} alt="Preview" style={{ width:"100%", height:120, objectFit:"cover", borderRadius:8, border:"2px solid "+M2, display:"block" }}/>
+                    <img src={f.featured_image} alt="Preview" style={{ width:"100%", height:120, objectFit:"cover", borderRadius:8, border:`2px solid ${M2}`, display:"block" }}/>
                     <button onClick={()=>setF(d=>({...d,featured_image:""}))}
                       style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.6)", color:"#FFF", border:"none", borderRadius:"50%", width:24, height:24, cursor:"pointer", fontSize:14, lineHeight:1 }}>×</button>
                     <div style={{ fontSize:11, color:M2, fontWeight:700, marginTop:4 }}>✓ Image selected</div>
                   </div>
                 ) : (
-                  <label style={{ display:"block", border:"2px dashed "+G22, borderRadius:8, padding:"20px 16px", textAlign:"center", cursor:"pointer", background:"#FAFAFA" }}>
+                  <label style={{ display:"block", border:`2px dashed ${G22}`, borderRadius:8, padding:"20px 16px", textAlign:"center", cursor:"pointer", background:"#FAFAFA" }}>
                     <div style={{ fontSize:28, marginBottom:6 }}>📸</div>
                     <div style={{ fontSize:13, fontWeight:700, color:G82, marginBottom:3 }}>Upload a photo</div>
                     <div style={{ fontSize:11, color:G62 }}>JPG or PNG, will be compressed automatically</div>
@@ -4652,7 +4748,7 @@ function RegisterStoreModal({ plans, onClose, pop, onSuccess }) {
           </div>
           {err && <div style={{ color:ER, fontSize:13, marginBottom:12, background:ERB, padding:"8px 12px", borderRadius:6 }}>{err}</div>}
           <div style={{ display:"flex", gap:10, justifyContent:"space-between", marginTop:8 }}>
-            <button onClick={()=>setStep(1)} style={{ padding:"10px 18px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>← Back</button>
+            <button onClick={()=>setStep(1)} style={{ padding:"10px 18px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>← Back</button>
             <button onClick={submit} disabled={busy} style={{ padding:"10px 24px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:busy?.7:1 }}>
               {busy?"Creating your account…":"Register Free — 14 Day Trial ✓"}
             </button>
@@ -4730,7 +4826,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
   );
   const [detailStore, setDetailStore] = useState(null);
   const updateStatus = async (id, status) => {
-    try { await api.updateStore(id, {status}); onRefresh(); pop("Store "+status); } catch(e) { pop(e.message,"err"); }
+    try { await api.updateStore(id, {status}); onRefresh(); pop(`Store ${status}`); } catch(e) { pop(e.message,"err"); }
   };
   const [planModal, setPlanModal]   = useState(null);
   const [trialModal, setTrialModal] = useState(null);
@@ -4744,7 +4840,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
       <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
         {["all","trial","active","suspended","terminated"].map(s=>(
           <button key={s} onClick={()=>setFilter(s)}
-            style={{ padding:"5px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===s?"#6B1B2A":"#E8E8E8", background:filter===s?"#6B1B2A":"#FFF", color:filter===s?"#FFF":"#666" }}>
+            style={{ padding:"5px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:`1px solid ${filter===s?"#6B1B2A":"#E8E8E8"}`, background:filter===s?"#6B1B2A":"#FFF", color:filter===s?"#FFF":"#666" }}>
             {s==="all"?"All":s.charAt(0).toUpperCase()+s.slice(1)}
           </button>
         ))}
@@ -4861,7 +4957,7 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
             <select value={pf.plan_id} onChange={e=>{
               const plan = plans.find(p=>p.id===e.target.value);
               setPf(d=>({...d, plan_id:e.target.value, amount: plan ? (d.billing_cycle==="yearly"?(plan.price_yearly||plan.price_monthly*12):plan.price_monthly) : d.amount }));
-            }} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+pf.plan_id?"#6B1B2A":"#E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
+            }} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${pf.plan_id?"#6B1B2A":"#E8E8E8"}`, borderRadius:8, fontSize:14, background:"#FFF" }}>
               <option value="">— Select Plan —</option>
               {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
             </select>
@@ -4881,7 +4977,7 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
             </div>
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Amount (TZS) *</label>
-              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+pf.amount?"#6B1B2A":"#E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box", fontWeight:700 }}/>
+              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${pf.amount?"#6B1B2A":"#E8E8E8"}`, borderRadius:8, fontSize:14, boxSizing:"border-box", fontWeight:700 }}/>
             </div>
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Method</label>
@@ -4950,7 +5046,7 @@ function SuperPlans({ plans, onRefresh, api, pop, fmt }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:16 }}>
         {plans.map(p=>(
-          <div key={p.id} style={{ background:"#FFF", border:"2px solid "+p.is_active?"#C9A84C":"#E8E8E8", borderRadius:12, padding:18 }}>
+          <div key={p.id} style={{ background:"#FFF", border:`2px solid ${p.is_active?"#C9A84C":"#E8E8E8"}`, borderRadius:12, padding:18 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
               <div>
                 <div style={{ fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>{p.name}</div>
@@ -5082,13 +5178,13 @@ function SuperLoginModal({ onLogin, onClose, pop }) {
         <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Email</label>
         <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
           onKeyDown={e=>e.key==="Enter"&&submit()} autoComplete="email"
-          style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G2, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       <div style={{ marginBottom:16 }}>
         <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Password</label>
         <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
           onKeyDown={e=>e.key==="Enter"&&submit()} autoComplete="current-password"
-          style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G2, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+          style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G2}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
       </div>
       {err && <div style={{ color:ER, fontSize:13, marginBottom:14, padding:"8px 12px", background:ERB, borderRadius:6 }}>{err}</div>}
       <button onClick={submit} disabled={busy}
@@ -5151,7 +5247,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
@@ -5173,7 +5269,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
       <div style={{ display:"flex", gap:8, marginBottom:22, flexWrap:"wrap" }}>
         {sectionBtns.map(s=>(
           <button key={s.id} onClick={()=>setSection(s.id)}
-            style={{ padding:"8px 16px", borderRadius:99, border:"1px solid "+section===s.id?M2:G22, background:section===s.id?M2:WH2, color:section===s.id?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
+            style={{ padding:"8px 16px", borderRadius:99, border:`1px solid ${section===s.id?M2:G22}`, background:section===s.id?M2:WH2, color:section===s.id?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
             {s.icon} {s.label}
           </button>
         ))}
@@ -5181,13 +5277,13 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
 
       {/* ── STORE INFO ── */}
       {section==="store" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22, maxWidth:560 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Store Information</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:560 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Store Information</h3>
           {inp("Store / Property Name","name","text","e.g. Sunrise Lodge")}
           <div style={{ marginBottom:14 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
             <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
           </div>
           {inp("City","city","text","e.g. Nairobi")}
           {inp("Phone","phone","tel","e.g. +254 7XX XXX XXX")}
@@ -5202,14 +5298,14 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
 
       {/* ── FEATURED IMAGE ── */}
       {section==="image" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22, maxWidth:620 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Featured Image</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:620 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Featured Image</h3>
           <p style={{ fontSize:13, color:G62, marginBottom:18 }}>This image shows on the marketplace homepage card for your store.</p>
 
           {/* Current featured image */}
           {form.featured_image && (
             <div style={{ marginBottom:18, position:"relative", display:"inline-block" }}>
-              <img src={form.featured_image} alt="Featured" style={{ width:"100%", maxWidth:400, height:180, objectFit:"cover", borderRadius:10, border:"2px solid "+M2, display:"block" }}/>
+              <img src={form.featured_image} alt="Featured" style={{ width:"100%", maxWidth:400, height:180, objectFit:"cover", borderRadius:10, border:`2px solid ${M2}`, display:"block" }}/>
               <button onClick={()=>setForm(f=>({...f,featured_image:""}))}
                 style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,.6)", color:WH2, border:"none", borderRadius:99, width:28, height:28, cursor:"pointer", fontSize:16, lineHeight:1 }}>×</button>
               <div style={{ fontSize:11, color:M2, fontWeight:700, marginTop:6 }}>✓ Current featured image</div>
@@ -5219,7 +5315,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
           {/* File upload + URL input */}
           <div style={{ marginBottom:18 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:8, textTransform:"uppercase", letterSpacing:".05em" }}>Upload New Image</label>
-            <label style={{ display:"block", border:"2px dashed "+G22, borderRadius:8, padding:"16px", textAlign:"center", cursor:"pointer", background:G12, marginBottom:10 }}>
+            <label style={{ display:"block", border:`2px dashed ${G22}`, borderRadius:8, padding:"16px", textAlign:"center", cursor:"pointer", background:G12, marginBottom:10 }}>
               <div style={{ fontSize:24, marginBottom:4 }}>📸</div>
               <div style={{ fontSize:13, fontWeight:600, color:G82 }}>Click to upload a photo</div>
               <div style={{ fontSize:11, color:G62, marginTop:2 }}>JPG or PNG — compressed automatically</div>
@@ -5247,7 +5343,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
             </label>
             <div style={{ display:"flex", gap:8 }}>
               <input value={form.featured_image.startsWith("data:")?"":(form.featured_image||"")} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="Or paste image URL…"
-                style={{ flex:1, padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }}/>
+                style={{ flex:1, padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }}/>
               <button onClick={()=>save({featured_image:form.featured_image})} disabled={saving}
                 style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                 {saving?"…":"Save"}
@@ -5262,7 +5358,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
                 {roomPhotos.map((p,i)=>(
                   <div key={i} onClick={()=>{ setForm(f=>({...f,featured_image:p.photo})); save({featured_image:p.photo}); }}
-                    style={{ position:"relative", height:90, borderRadius:8, overflow:"hidden", cursor:"pointer", border:"3px solid "+form.featured_image===p.photo?M2:"transparent", transition:"border-color .15s" }}>
+                    style={{ position:"relative", height:90, borderRadius:8, overflow:"hidden", cursor:"pointer", border:`3px solid ${form.featured_image===p.photo?M2:"transparent"}`, transition:"border-color .15s" }}>
                     <img src={p.photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,.5)", color:WH2, fontSize:9, padding:"3px 6px", fontWeight:600 }}>{p.roomName}</div>
                     {form.featured_image===p.photo && <div style={{ position:"absolute", top:4, right:4, background:M2, color:WH2, borderRadius:99, width:18, height:18, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700 }}>✓</div>}
@@ -5281,8 +5377,8 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
 
       {/* ── SUBDOMAIN ── */}
       {section==="domain" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22, maxWidth:560 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Your Subdomain</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:560 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 6px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Your Subdomain</h3>
           <p style={{ fontSize:13, color:G62, marginBottom:20, lineHeight:1.7 }}>
             Your store has a unique subdomain on BNBMIS. Guests can book directly at your subdomain URL.
           </p>
@@ -5294,7 +5390,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
               {form.slug || storeData?.slug}.bnbmis.com
             </div>
             <div style={{ fontSize:12, color:IN2, marginTop:6, opacity:.8 }}>Share this link with your guests for direct booking</div>
-            <button onClick={()=>{ const url="https://"+form.slug||storeData?.slug+".bnbmis.com"; navigator.clipboard?.writeText(url).then(()=>pop("Link copied!")).catch(()=>pop(url)); }}
+            <button onClick={()=>{ const url=`https://${form.slug||storeData?.slug}.bnbmis.com`; navigator.clipboard?.writeText(url).then(()=>pop("Link copied!")).catch(()=>pop(url)); }}
               style={{ marginTop:10, background:IN2, color:WH2, border:"none", borderRadius:6, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
               📋 Copy Link
             </button>
@@ -5304,14 +5400,14 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
           <div style={{ marginBottom:16 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Change Subdomain</label>
             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              <div style={{ display:"flex", alignItems:"center", border:"1px solid "+G22, borderRadius:8, overflow:"hidden", flex:1 }}>
+              <div style={{ display:"flex", alignItems:"center", border:`1px solid ${G22}`, borderRadius:8, overflow:"hidden", flex:1 }}>
                 <input value={form.slug} onChange={e=>{
                   const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"").slice(0,40);
                   setForm(f=>({...f,slug}));
                   setSlugStatus(null);
                 }} onBlur={()=>checkSlug(form.slug)} placeholder="your-store-name"
                   style={{ flex:1, padding:"9px 12px", border:"none", fontSize:14, outline:"none", fontFamily:"monospace" }}/>
-                <span style={{ padding:"9px 12px", background:G12, color:G62, fontSize:13, borderLeft:"1px solid "+G22, whiteSpace:"nowrap" }}>.bnbmis.com</span>
+                <span style={{ padding:"9px 12px", background:G12, color:G62, fontSize:13, borderLeft:`1px solid ${G22}`, whiteSpace:"nowrap" }}>.bnbmis.com</span>
               </div>
             </div>
             {slugStatus==="checking" && <div style={{ fontSize:12, color:G62, marginTop:5 }}>Checking availability…</div>}
@@ -5339,15 +5435,15 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
 
       {/* ── PASSWORD ── */}
       {section==="password" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22, maxWidth:420 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Change Password</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22, maxWidth:420 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 18px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Change Password</h3>
           {["Current Password","New Password","Confirm New Password"].map((label,i)=>{
             const keys=["current","newp","confirm"];
             return (
               <div key={i} style={{ marginBottom:14 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
                 <input type="password" value={pw[keys[i]]} onChange={e=>setPw(p=>({...p,[keys[i]]:e.target.value}))}
-                  style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
               </div>
             );
           })}
@@ -5533,7 +5629,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
 
       {/* Current plan card */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
-        <div style={{ background:WH2, border:"2px solid "+M2, borderRadius:14, padding:22 }}>
+        <div style={{ background:WH2, border:`2px solid ${M2}`, borderRadius:14, padding:22 }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Current Plan</div>
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:M2, marginBottom:4 }}>
             {currentPlan?.name || "Free Trial"}
@@ -5551,7 +5647,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
           )}
         </div>
 
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:14, padding:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:14, padding:22 }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em", marginBottom:8 }}>Account Status</div>
           <div style={{ display:"inline-block", background:statusBg, color:statusColor, borderRadius:99, padding:"5px 16px", fontSize:14, fontWeight:700, textTransform:"uppercase", marginBottom:14 }}>
             {store?.status || "—"}
@@ -5580,7 +5676,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
                 setStore(s=>({...s, status:newStatus}));
                 pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace");
               } catch(e){ pop(e.message||"Failed","err"); }
-            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:"1px solid "+store?.status==="active"?WA2:OK2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:`1px solid ${store?.status==="active"?WA2:OK2}`, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
               {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
             </button>
           </div>
@@ -5594,11 +5690,11 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
       </div>
 
       {/* All available plans */}
-      <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:20, marginBottom:24 }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Available Plans</h3>
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20, marginBottom:24 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Available Plans</h3>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
           {plans.map(p=>(
-            <div key={p.id} style={{ border:"2px solid "+p.id===store?.plan_id?M2:G22, borderRadius:10, padding:16, background:p.id===store?.plan_id?M2+"08":WH2, position:"relative" }}>
+            <div key={p.id} style={{ border:`2px solid ${p.id===store?.plan_id?M2:G22}`, borderRadius:10, padding:16, background:p.id===store?.plan_id?`${M2}08`:WH2, position:"relative" }}>
               {p.id===store?.plan_id && (
                 <div style={{ position:"absolute", top:-1, right:10, background:M2, color:WH2, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:"0 0 6px 6px" }}>Current</div>
               )}
@@ -5613,7 +5709,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
                 <div>👥 {p.max_staff>=999?"∞":p.max_staff} staff</div>
               </div>
               {(p.features||[]).length>0 && (
-                <div style={{ marginTop:8, fontSize:11, color:G82, borderTop:"1px solid "+G22, paddingTop:8 }}>
+                <div style={{ marginTop:8, fontSize:11, color:G82, borderTop:`1px solid ${G22}`, paddingTop:8 }}>
                   {p.features.slice(0,3).map((f,i)=><div key={i}>✓ {f}</div>)}
                 </div>
               )}
@@ -5623,14 +5719,14 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
       </div>
 
       {/* Payment history */}
-      <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:20 }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Payment History</h3>
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Payment History</h3>
         {payments.length === 0 ? (
           <div style={{ textAlign:"center", padding:32, color:G62, fontSize:13 }}>No payments recorded yet.</div>
         ) : (
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
-              <tr style={{ borderBottom:"2px solid "+G22 }}>
+              <tr style={{ borderBottom:`2px solid ${G22}` }}>
                 {["Date","Amount","Method","Reference","Notes"].map((h,i)=>(
                   <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
                 ))}
@@ -5638,7 +5734,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
             </thead>
             <tbody>
               {payments.map((p,i)=>(
-                <tr key={i} style={{ borderBottom:"1px solid "+G12 }}>
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
                   <td style={{ padding:"10px" }}>{fmtD2(p.paid_at||p.created_at)}</td>
                   <td style={{ padding:"10px", fontWeight:700, color:OK2 }}>{fmt2(p.amount)}</td>
                   <td style={{ padding:"10px" }}>{p.method}</td>
@@ -5710,15 +5806,15 @@ function CustomersTab({ storeId, api, pop }) {
 
       {/* Stats row */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:20 }}>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Customers</div>
           <div style={{ fontSize:26, fontWeight:700, color:M2 }}>{customers.length}</div>
         </div>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Repeat Guests</div>
           <div style={{ fontSize:26, fontWeight:700, color:OK2 }}>{customers.filter(c=>c.bookings>1).length}</div>
         </div>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
           <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Revenue</div>
           <div style={{ fontSize:18, fontWeight:700, color:M2 }}>{fmt2(customers.reduce((s,c)=>s+c.totalSpent,0))}</div>
         </div>
@@ -5727,12 +5823,12 @@ function CustomersTab({ storeId, api, pop }) {
       {/* Search */}
       <div style={{ marginBottom:14 }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, phone or email…"
-          style={{ width:"100%", padding:"10px 14px", border:"1px solid "+G22, borderRadius:9, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+          style={{ width:"100%", padding:"10px 14px", border:`1px solid ${G22}`, borderRadius:9, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
       </div>
 
       {/* Customer list */}
       {loading ? <div style={{padding:40,textAlign:"center",color:G62}}>Loading…</div> : (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, overflow:"hidden" }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr style={{ background:G12 }}>
@@ -5744,12 +5840,12 @@ function CustomersTab({ storeId, api, pop }) {
             <tbody>
               {shown.length===0 && <tr><td colSpan={7} style={{padding:32,textAlign:"center",color:G62}}>No customers found</td></tr>}
               {shown.map((cust,i)=>(
-                <tr key={i} style={{ borderBottom:"1px solid "+G12 }}>
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
                   <td style={{ padding:"10px 12px", fontWeight:700 }}>{cust.name}</td>
                   <td style={{ padding:"10px 12px" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                       {cust.phone}
-                      {cust.phone && <a href={"tel:"+cust.phone} style={{ background:"#4CAF50", color:"#FFF", borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞</a>}
+                      {cust.phone && <a href={`tel:${cust.phone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700, textDecoration:"none" }}>📞</a>}
                     </div>
                   </td>
                   <td style={{ padding:"10px 12px", color:G62, fontSize:12 }}>{cust.email||"—"}</td>
@@ -5763,7 +5859,7 @@ function CustomersTab({ storeId, api, pop }) {
                         History
                       </button>
                       {cust.id && <button onClick={()=>setResetPw({open:true,custId:cust.id,newpw:""})}
-                        style={{ background:G12, color:G82, border:"1px solid "+G22, borderRadius:5, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                        style={{ background:G12, color:G82, border:`1px solid ${G22}`, borderRadius:5, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
                         Reset PW
                       </button>}
                     </div>
@@ -5779,13 +5875,13 @@ function CustomersTab({ storeId, api, pop }) {
       {sel && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:WH2, borderRadius:14, width:"100%", maxWidth:560, maxHeight:"85vh", overflow:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid "+G22, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:WH2 }}>
+            <div style={{ padding:"16px 20px", borderBottom:`1px solid ${G22}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:WH2 }}>
               <div>
                 <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{sel.name}</div>
-                <div style={{ fontSize:12, color:G62 }}>{sel.phone} {sel.email?"· "+sel.email:""}</div>
+                <div style={{ fontSize:12, color:G62 }}>{sel.phone} {sel.email?`· ${sel.email}`:""}</div>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                {sel.phone && <a href={"tel:"+sel.phone} style={{ background:"#4CAF50", color:"#FFF", borderRadius:7, padding:"7px 14px", fontSize:13, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
+                {sel.phone && <a href={`tel:${sel.phone}`} style={{ background:"#4CAF50", color:"#FFF", borderRadius:7, padding:"7px 14px", fontSize:13, fontWeight:700, textDecoration:"none" }}>📞 Call</a>}
                 <button onClick={()=>setSel(null)} style={{ background:"none", border:"none", fontSize:22, cursor:"pointer", color:G62, lineHeight:1 }}>×</button>
               </div>
             </div>
@@ -5802,7 +5898,7 @@ function CustomersTab({ storeId, api, pop }) {
               </div>
               <div style={{ fontWeight:700, fontSize:13, marginBottom:8, color:G82 }}>Booking History</div>
               {custBooks.sort((a,b)=>new Date(b.created_at||b.created||0)-new Date(a.created_at||a.created||0)).map((b,i)=>(
-                <div key={i} style={{ border:"1px solid "+G22, borderRadius:8, padding:12, marginBottom:8 }}>
+                <div key={i} style={{ border:`1px solid ${G22}`, borderRadius:8, padding:12, marginBottom:8 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                     <span style={{ fontWeight:700, fontSize:13 }}>{b.room_name||b.roomName||"Room"}</span>
                     <span style={{ background:b.status==="checkedOut"?OKB2:b.status==="cancelled"?"#FFEBEE":"#E3F2FD", color:b.status==="checkedOut"?OK2:b.status==="cancelled"?"#C62828":IN2, borderRadius:99, fontSize:11, fontWeight:700, padding:"2px 8px" }}>{b.status}</span>
@@ -5828,10 +5924,10 @@ function CustomersTab({ storeId, api, pop }) {
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>New Password</label>
               <input type="password" value={resetPw.newpw} onChange={e=>setResetPw(p=>({...p,newpw:e.target.value}))}
                 placeholder="Minimum 6 characters"
-                style={{ width:"100%", padding:"10px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                style={{ width:"100%", padding:"10px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={()=>setResetPw({open:false,custId:"",newpw:""})} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+              <button onClick={()=>setResetPw({open:false,custId:"",newpw:""})} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
               <button onClick={doResetPw} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>Reset Password</button>
             </div>
           </div>
@@ -5864,11 +5960,11 @@ function SuperComms({ stores, api, pop }) {
     <div>
       <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Announcements</h2>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:20 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Send Announcement</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Send Announcement</h3>
           <div style={{ marginBottom:13 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Send To</label>
-            <select value={target} onChange={e=>setTarget(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2 }}>
+            <select value={target} onChange={e=>setTarget(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2 }}>
               <option value="all">All Stores</option>
               <option value="active">Active Stores Only</option>
               <option value="trial">Trial Stores Only</option>
@@ -5878,7 +5974,7 @@ function SuperComms({ stores, api, pop }) {
           {target==="store" && (
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Select Store</label>
-              <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2 }}>
+              <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2 }}>
                 <option value="">— Select —</option>
                 {stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -5887,16 +5983,16 @@ function SuperComms({ stores, api, pop }) {
           <div style={{ marginBottom:13 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Message</label>
             <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={5} placeholder="Type your announcement here…"
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
           </div>
           <button onClick={send} disabled={sending} style={{ background:M2, color:WH2, border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             {sending?"Sending…":"📣 Send Announcement"}
           </button>
         </div>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:20 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Sent History</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:20 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Sent History</h3>
           {sent.length===0 ? <div style={{color:G62,fontSize:13,textAlign:"center",padding:24}}>No announcements sent yet</div> : sent.map((s,i)=>(
-            <div key={i} style={{ borderBottom:"1px solid "+G12, paddingBottom:12, marginBottom:12 }}>
+            <div key={i} style={{ borderBottom:`1px solid ${G12}`, paddingBottom:12, marginBottom:12 }}>
               <div style={{ fontSize:11, color:G62, marginBottom:4 }}>{s.ts.split("T")[0]} · To: {s.target==="store"?s.storeId:s.target}</div>
               <div style={{ fontSize:13, color:G82 }}>{s.msg}</div>
             </div>
@@ -5922,7 +6018,7 @@ function SuperReports({ stores, api, pop, fmt, fmtDate }) {
   const OK2="#2E7D32",IN2="#1565C0",INB2="#E3F2FD",OKB2="#E8F5E9";
 
   const kpi = (label, value, color, icon) => (
-    <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
+    <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
       <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{icon} {label}</div>
       <div style={{ fontSize:22, fontWeight:700, color:color||G82 }}>{value}</div>
     </div>
@@ -5950,17 +6046,17 @@ function SuperReports({ stores, api, pop, fmt, fmtDate }) {
         {kpi("Countries", Object.keys(countryMap).length, IN2, "🌍")}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18 }}>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:18 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Top Stores by Revenue</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Top Stores by Revenue</h3>
           {topStores.map((s,i)=>(
-            <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid "+G12, fontSize:13 }}>
+            <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${G12}`, fontSize:13 }}>
               <div><span style={{ fontWeight:700, color:G82 }}>{i+1}. {s.name}</span><div style={{ fontSize:11, color:G62 }}>{s.city||"—"} · {s.status}</div></div>
               <div style={{ fontWeight:700, color:OK2 }}>{fmt(s.total_revenue||0)}</div>
             </div>
           ))}
         </div>
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:18 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Stores by Status</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Stores by Status</h3>
           {Object.entries(statusCounts).map(([status, count])=>{
             const pct = Math.round(count/stores.length*100);
             const col = {active:OK2,trial:IN2,suspended:"#B76E00",terminated:"#C62828"}[status]||G62;
@@ -5979,7 +6075,7 @@ function SuperReports({ stores, api, pop, fmt, fmtDate }) {
           <div style={{ marginTop:16 }}>
             <h4 style={{ fontFamily:"'Playfair Display',serif", fontSize:13, margin:"0 0 10px" }}>By Country</h4>
             {Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).map(([country, count])=>(
-              <div key={country} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"4px 0", borderBottom:"1px solid "+G12 }}>
+              <div key={country} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"4px 0", borderBottom:`1px solid ${G12}` }}>
                 <span>{country}</span><span style={{ fontWeight:700 }}>{count}</span>
               </div>
             ))}
@@ -5987,8 +6083,8 @@ function SuperReports({ stores, api, pop, fmt, fmtDate }) {
         </div>
       </div>
       {data && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:18 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Booking Overview</h3>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:18 }}>
+          <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 14px", borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Booking Overview</h3>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
             {[["Total Bookings",data.bookings?.total||0,"📋"],["Revenue",fmt(data.revenue?.total||0),"💰"],["Avg per Store",fmt(Math.round((data.revenue?.total||0)/Math.max(stores.length,1))),"📊"]].map(([l,v,ic])=>(
               <div key={l} style={{ background:G12, borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
@@ -6023,7 +6119,7 @@ function SuperChangePlanModal({ storeId, storeName, currentPlanId, plans, api, p
         <div style={{ fontSize:12, color:G62, marginBottom:18 }}>{storeName}</div>
         <div style={{ marginBottom:16 }}>
           {plans.map(p=>(
-            <label key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"2px solid "+planId===p.id?M2:G22, marginBottom:8, cursor:"pointer", background:planId===p.id?"#FFF0F2":WH2 }}>
+            <label key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:`2px solid ${planId===p.id?M2:G22}`, marginBottom:8, cursor:"pointer", background:planId===p.id?"#FFF0F2":WH2 }}>
               <input type="radio" checked={planId===p.id} onChange={()=>setPlanId(p.id)} style={{ accentColor:M2 }}/>
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:14 }}>{p.name}</div>
@@ -6033,7 +6129,7 @@ function SuperChangePlanModal({ storeId, storeName, currentPlanId, plans, api, p
           ))}
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
           <button onClick={save} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>{saving?"Saving…":"Update Plan"}</button>
         </div>
       </div>
@@ -6066,14 +6162,14 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             {[7,14,30,60,90].map(d=>(
               <button key={d} onClick={()=>setDays(d)}
-                style={{ padding:"8px 16px", borderRadius:8, border:"2px solid "+days===d?M2:G22, background:days===d?M2:"transparent", color:days===d?WH2:G62, fontWeight:700, cursor:"pointer", fontSize:13 }}>
+                style={{ padding:"8px 16px", borderRadius:8, border:`2px solid ${days===d?M2:G22}`, background:days===d?M2:"transparent", color:days===d?WH2:G62, fontWeight:700, cursor:"pointer", fontSize:13 }}>
                 {d}d
               </button>
             ))}
           </div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
           <button onClick={save} disabled={saving} style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer" }}>{saving?"Saving…":"Extend Trial"}</button>
         </div>
       </div>
@@ -6130,10 +6226,10 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
       </p>
 
       {/* Mode selector */}
-      <div style={{ display:"flex", gap:0, marginBottom:24, borderRadius:10, overflow:"hidden", border:"1px solid "+G22 }}>
+      <div style={{ display:"flex", gap:0, marginBottom:24, borderRadius:10, overflow:"hidden", border:`1px solid ${G22}` }}>
         {[["store","🏪 Whole Store","Share all rooms"], ["room","🛏️ Specific Room","Share one room"]].map(([id,label,sub])=>(
           <button key={id} onClick={()=>{ setMode(id); setSelRoomId(""); setCopied(false); }}
-            style={{ flex:1, padding:"14px 12px", border:"none", background:mode===id?M2:WH2, color:mode===id?WH2:G82, cursor:"pointer", fontFamily:"inherit", borderRight:id==="store"?"1px solid "+G22:"none", transition:"background .15s" }}>
+            style={{ flex:1, padding:"14px 12px", border:"none", background:mode===id?M2:WH2, color:mode===id?WH2:G82, cursor:"pointer", fontFamily:"inherit", borderRight:id==="store"?`1px solid ${G22}`:"none", transition:"background .15s" }}>
             <div style={{ fontSize:15, fontWeight:700 }}>{label}</div>
             <div style={{ fontSize:11, opacity:.75, marginTop:2 }}>{sub}</div>
           </button>
@@ -6150,7 +6246,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
               const isSelected = selRoomId === rm.id;
               return (
                 <div key={rm.id} onClick={()=>{ setSelRoomId(rm.id); setCopied(false); }}
-                  style={{ border:"2px solid "+isSelected?M2:G22, borderRadius:10, overflow:"hidden", cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  style={{ border:`2px solid ${isSelected?M2:G22}`, borderRadius:10, overflow:"hidden", cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
                   {/* Room thumbnail */}
                   <div style={{ height:80, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
                     {rm.photos?.[0]
@@ -6173,7 +6269,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
 
       {/* Preview card */}
       {(mode === "store" || selRoomId) && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:14, overflow:"hidden", marginBottom:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:14, overflow:"hidden", marginBottom:22 }}>
           {/* Image preview */}
           <div style={{ height:160, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
             {coverImg
@@ -6217,7 +6313,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
           <button onClick={()=>{
             navigator.clipboard?.writeText(shareUrl).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2500); pop("Link copied!"); });
           }}
-            style={{ padding:"13px 20px", background:copied?OKB2:WH2, color:copied?OK2:G62, border:"1px solid "+copied?OK2:G22, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            style={{ padding:"13px 20px", background:copied?OKB2:WH2, color:copied?OK2:G62, border:`1px solid ${copied?OK2:G22}`, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             {copied ? "✓ Copied!" : "📋 Copy Link"}
           </button>
           <button onClick={()=>{
@@ -6237,7 +6333,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
         </div>
       )}
       {!slug && (
-        <div style={{ background:INB2, border:"1px solid "+IN2+"33", borderRadius:10, padding:"14px 18px", marginTop:16, fontSize:13, color:IN2 }}>
+        <div style={{ background:INB2, border:`1px solid ${IN2}33`, borderRadius:10, padding:"14px 18px", marginTop:16, fontSize:13, color:IN2 }}>
           💡 Set up a <strong>subdomain</strong> in Settings → Subdomain for a cleaner booking link (e.g. <em>yourname.bnbmis.com</em>).
         </div>
       )}
@@ -6273,7 +6369,113 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
     const bal = (b.total||0) - (b.paid||0);
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
     const w = window.open("", "_blank", "width=650,height=900");
-    w.document.write(getInvoiceHTML(docType, storeName, b, rooms, locs));
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType} – ${b.id}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF;padding:0}
+  .page{max-width:600px;margin:0 auto;padding:36px 40px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #6B1B2A}
+  .logo{font-family:Georgia,serif;font-size:32px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
+  .logo-sub{font-size:11px;color:#999;margin-top:3px}
+  .doc-type{text-align:right}
+  .doc-type h1{font-size:28px;font-weight:900;color:#6B1B2A;text-transform:uppercase;letter-spacing:.05em}
+  .doc-type .ref{font-size:12px;color:#888;margin-top:4px}
+  .doc-type .date{font-size:12px;color:#888}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+  .info-box h3{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+  .info-box p{font-size:13px;color:#333;line-height:1.8;margin:0}
+  .info-box strong{color:#111}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px}
+  thead tr{background:#6B1B2A;color:#FFF}
+  thead th{padding:10px 12px;text-align:left;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  tbody tr{border-bottom:1px solid #F0F0F0}
+  tbody td{padding:10px 12px;font-size:13px}
+  tbody tr:nth-child(even){background:#FAFAFA}
+  .totals{margin-left:auto;width:260px;margin-bottom:24px}
+  .total-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px solid #F0F0F0}
+  .total-row.grand{border-top:2px solid #6B1B2A;border-bottom:none;padding-top:12px;font-size:16px;font-weight:900;color:#6B1B2A}
+  .status-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px}
+  .paid-val{color:#2E7D32;font-weight:700}
+  .bal-val{color:${bal>0?"#C62828":"#2E7D32"};font-weight:700}
+  .badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;background:${b.status==="checkedOut"||b.paid>=b.total?"#E8F5E9":"#FFF3E0"};color:${b.status==="checkedOut"||b.paid>=b.total?"#2E7D32":"#B76E00"}}
+  .footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #EEE;font-size:11px;color:#AAA;line-height:2}
+  .footer strong{color:#6B1B2A}
+  .no-print{margin-top:24px;display:flex;gap:10px;justify-content:center}
+  .btn{padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none}
+  .btn-pri{background:#6B1B2A;color:#FFF}
+  .btn-sec{background:#EEE;color:#333}
+  @media print{.no-print{display:none}body{padding:0}.page{padding:20px 24px}}
+</style></head><body>
+<div class="page">
+  <div class="header">
+    <div><div class="logo">${storeName||"Property Name"}</div><div class="logo-sub">Powered by BNBMIS</div></div>
+    <div class="doc-type">
+      <h1>${docType}</h1>
+      <div class="ref">Ref: ${b.id}</div>
+      <div class="date">Date: ${(b.created||"").split("T")[0]||new Date().toISOString().split("T")[0]}</div>
+      <div class="date" style="margin-top:6px"><span class="badge">${b.status}</span></div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="info-box">
+      <h3>Guest Information</h3>
+      <p>
+        <strong>${b.gName||"—"}</strong><br/>
+        ${b.gPhone ? "📞 " + b.gPhone + "<br/>" : ""}
+        ${b.gEmail ? "✉ " + b.gEmail + "<br/>" : ""}
+        ${b.gNat   ? "🌍 " + b.gNat : ""}
+      </p>
+    </div>
+    <div class="info-box">
+      <h3>Property Details</h3>
+      <p>
+        <strong>${rm?.name||"—"}</strong><br/>
+        ${loc?.name||""}${loc?.city ? " · " + loc.city : ""}<br/>
+        ${rm?.type||""} · ${rm?.beds||""} bed(s)<br/>
+        Rate: TZS ${Number(rm?.price||0).toLocaleString()}/night
+      </p>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Description</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th style="text-align:right">Amount</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>${rm?.name||"Room"} – ${rm?.type||"Accommodation"}</td>
+        <td>${b.ci||"—"}</td>
+        <td>${b.co||"—"}</td>
+        <td style="text-align:center">${b.nights||1}</td>
+        <td style="text-align:right">TZS ${Number(b.base||0).toLocaleString()}</td>
+      </tr>
+      ${(b.disc&&b.disc>0)?`<tr><td colspan="4" style="color:#2E7D32">Discount (${b.discT==="pct"?b.disc+"%":"fixed"})</td><td style="text-align:right;color:#2E7D32">− TZS ${Number(b.discT==="pct"?(b.base*b.disc/100):b.disc).toLocaleString()}</td></tr>`:""}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="total-row grand"><span>TOTAL</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
+    <div class="status-row"><span>Amount Paid</span><span class="paid-val">TZS ${Number(b.paid||0).toLocaleString()}</span></div>
+    <div class="status-row"><span>${bal>0?"Balance Due":"✓ Fully Paid"}</span><span class="bal-val">TZS ${Number(bal).toLocaleString()}</span></div>
+    <div class="status-row"><span>Payment Method</span><span>${b.method||"—"}</span></div>
+  </div>
+
+  ${b.notes?`<div style="background:#F9F9F9;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#555"><strong>Notes:</strong> ${b.notes}</div>`:""}
+
+  <div class="footer">
+    Thank you for choosing us! We hope to see you again.<br/>
+    <strong>BNBMIS</strong> · support@bnbmis.com · bnbmis.com<br/>
+    ${storeName||"Property Name"} · bnbmis.com<br/>
+    This ${docType.toLowerCase()} was generated on ${new Date().toLocaleString()}
+  </div>
+
+  <div class="no-print">
+    <button class="btn btn-pri" onclick="window.print()">🖨 Print ${docType}</button>
+    <button class="btn btn-sec" onclick="window.close()">Close</button>
+  </div>
+</div>
+</body></html>`);
     w.document.close();
   };
 
@@ -6286,24 +6488,24 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
       <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="Search guest name, phone or booking ID…"
-          style={{ flex:1, minWidth:200, padding:"9px 13px", border:"1px solid "+G2, borderRadius:8, fontSize:13, outline:"none", fontFamily:"inherit" }}/>
+          style={{ flex:1, minWidth:200, padding:"9px 13px", border:`1px solid ${G2}`, borderRadius:8, fontSize:13, outline:"none", fontFamily:"inherit" }}/>
         {["all","paid","balance","checkedIn"].map(f=>(
           <button key={f} onClick={()=>setFilter(f)}
-            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===f?M:G2, background:filter===f?M:WH, color:filter===f?WH:G6 }}>
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:`1px solid ${filter===f?M:G2}`, background:filter===f?M:WH, color:filter===f?WH:G6 }}>
             {f==="all"?"All":f==="paid"?"Paid":f==="balance"?"Has Balance":"Checked In"}
           </button>
         ))}
       </div>
 
       {/* Booking list */}
-      <div style={{ background:WH, border:"1px solid "+G2, borderRadius:12, overflow:"hidden" }}>
+      <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:12, overflow:"hidden" }}>
         {filtered.length === 0 ? (
           <div style={{ padding:40, textAlign:"center", color:G4, fontSize:14 }}>No bookings found</div>
         ) : filtered.map((b, i) => {
           const rm  = rooms.find(r => r.id === b.roomId);
           const bal = (b.total||0) - (b.paid||0);
           return (
-            <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:"1px solid "+G1, flexWrap:"wrap", gap:10 }}>
+            <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 16px", borderBottom:`1px solid ${G1}`, flexWrap:"wrap", gap:10 }}>
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontWeight:700, fontSize:14 }}>{b.gName}</div>
                 <div style={{ fontSize:12, color:G6, marginTop:2 }}>
@@ -6319,11 +6521,11 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
               </div>
               <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                 <button onClick={()=>printReceipt(b, false)}
-                  style={{ padding:"8px 14px", borderRadius:8, border:"1px solid "+IN, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🧾 Receipt
                 </button>
                 <button onClick={()=>printReceipt(b, true)}
-                  style={{ padding:"8px 14px", borderRadius:8, border:"1px solid "+M, background:MF, color:M, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${M}`, background:MF, color:M, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   📄 Invoice
                 </button>
               </div>
@@ -6334,19 +6536,19 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 
       {/* Summary */}
       <div style={{ marginTop:16, display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12 }}>
-        <div style={{ background:WH, border:"1px solid "+G2, borderRadius:10, padding:"12px 16px" }}>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
           <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Bookings</div>
           <div style={{ fontSize:22, fontWeight:700, color:BK }}>{filtered.length}</div>
         </div>
-        <div style={{ background:WH, border:"1px solid "+G2, borderRadius:10, padding:"12px 16px" }}>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
           <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Total Billed</div>
           <div style={{ fontSize:18, fontWeight:700, color:M }}>TZS {filtered.reduce((s,b)=>s+Number(b.total||0),0).toLocaleString()}</div>
         </div>
-        <div style={{ background:WH, border:"1px solid "+G2, borderRadius:10, padding:"12px 16px" }}>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
           <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Collected</div>
           <div style={{ fontSize:18, fontWeight:700, color:OK }}>TZS {filtered.reduce((s,b)=>s+Number(b.paid||0),0).toLocaleString()}</div>
         </div>
-        <div style={{ background:WH, border:"1px solid "+G2, borderRadius:10, padding:"12px 16px" }}>
+        <div style={{ background:WH, border:`1px solid ${G2}`, borderRadius:10, padding:"12px 16px" }}>
           <div style={{ fontSize:11, color:G6, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Outstanding</div>
           <div style={{ fontSize:18, fontWeight:700, color:ER }}>TZS {filtered.reduce((s,b)=>s+Math.max(0,(b.total||0)-(b.paid||0)),0).toLocaleString()}</div>
         </div>
@@ -6398,7 +6600,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
           ) : notifs.map((n, i) => (
             <div key={i} style={{
               padding:"14px 18px",
-              borderBottom:"1px solid "+G12,
+              borderBottom:`1px solid ${G12}`,
               background: n.read ? WH2 : "#FFFBF0",
               borderLeft: n.read ? "none" : `4px solid #C9A84C`,
             }}>
@@ -6429,7 +6631,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         </div>
 
         {/* Footer tip */}
-        <div style={{ padding:"12px 18px", borderTop:"1px solid "+G22, background:G12, flexShrink:0, paddingBottom:"max(12px,env(safe-area-inset-bottom))" }}>
+        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"max(12px,env(safe-area-inset-bottom))" }}>
           <div style={{ fontSize:11, color:G62, lineHeight:1.7 }}>
             💡 Notifications work even when this tab is in the background. Make sure notifications are <strong>allowed</strong> in your browser settings for the best experience.
           </div>
@@ -6482,7 +6684,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
     <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <div style={{ background:WH2, borderRadius:16, width:"100%", maxWidth:520, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid "+G22, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${G22}`, flexShrink:0 }}>
           <div>
             <h3 style={{ margin:0, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Modify Booking</h3>
             <div style={{ fontSize:12, color:G62, marginTop:2 }}>ID: {booking.id} · {booking.gName}</div>
@@ -6511,13 +6713,13 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
                     const auto_co = ci ? new Date(new Date(ci).getTime()+86400000).toISOString().split("T")[0] : "";
                     setForm(f => ({ ...f, ci, co: f.co > ci ? f.co : auto_co, roomId: f.roomId }));
                   }}
-                  style={{ width:"100%", padding:"8px 10px", border:"1px solid "+G22, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
               <div style={{ marginBottom:12 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Check-out (12:00)</label>
                 <input type="date" value={form.co} min={minCo}
                   onChange={e => setForm(f => ({ ...f, co: e.target.value }))}
-                  style={{ width:"100%", padding:"8px 10px", border:"1px solid "+G22, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                  style={{ width:"100%", padding:"8px 10px", border:`1px solid ${G22}`, borderRadius:7, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
             </div>
             {form.ci && form.co && (
@@ -6533,7 +6735,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
               Change Room {form.ci && form.co ? "— " + availRooms.length + " available" : "— set dates first"}
             </div>
             <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+form.roomId===booking.roomId?G22:OK2, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${form.roomId===booking.roomId?G22:OK2}`, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
               {availRooms.map(r => (
                 <option key={r.id} value={r.id}>
                   {r.id === booking.roomId ? "✓ " : ""}{r.name} — TZS {Number(r.price).toLocaleString()}/night{r.id===booking.roomId?" (current)":""}
@@ -6553,7 +6755,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
 
           {/* What will change */}
           {changed && (
-            <div style={{ background:WAB2, border:"1px solid "+WA2+"33", borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13 }}>
+            <div style={{ background:WAB2, border:`1px solid ${WA2}33`, borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13 }}>
               <div style={{ fontWeight:700, color:WA2, marginBottom:6 }}>Changes to be saved:</div>
               {form.roomId !== booking.roomId && <div style={{ color:G82 }}>🛏️ Room: {rooms.find(r=>r.id===booking.roomId)?.name} → <strong>{rooms.find(r=>r.id===form.roomId)?.name}</strong></div>}
               {(form.ci !== booking.ci || form.co !== booking.co) && <div style={{ color:G82, marginTop:3 }}>📅 Dates: {booking.ci}→{booking.co} → <strong>{form.ci}→{form.co}</strong></div>}
@@ -6562,8 +6764,8 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
         </div>
 
         {/* Footer */}
-        <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:"1px solid "+G22, flexShrink:0 }}>
-          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+        <div style={{ display:"flex", gap:10, padding:"14px 20px", borderTop:`1px solid ${G22}`, flexShrink:0 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
           <button onClick={async()=>{
             if (!changed) { onClose(); return; }
             setSaving(true);
@@ -6653,7 +6855,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
       {/* KPIs */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:12, marginBottom:22 }}>
         {[["Total Revenue", fmt(totalRev), OK2, "💰"],["This Month", fmt(thisMonth), IN2, "📅"],["Total Payments", payments.length, M2, "📄"],["Active Stores", stores.filter(s=>s.status==="active").length, OK2, "✅"]].map(([l,v,col,ic],i)=>(
-          <div key={i} style={{ background:WH2, border:"1px solid "+G22, borderRadius:10, padding:"14px 16px" }}>
+          <div key={i} style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:10, padding:"14px 16px" }}>
             <div style={{ fontSize:11, color:G62, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{ic} {l}</div>
             <div style={{ fontSize:22, fontWeight:700, color:col||G82 }}>{v}</div>
           </div>
@@ -6663,18 +6865,18 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
       {/* Filters */}
       <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search store or reference…"
-          style={{ flex:1, minWidth:200, padding:"8px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:13, outline:"none" }}/>
+          style={{ flex:1, minWidth:200, padding:"8px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:13, outline:"none" }}/>
         {["all","pesapal","selcom","paypal","manual"].map(f => (
           <button key={f} onClick={()=>setFilter(f)}
-            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===f?M2:G22, background:filter===f?M2:WH2, color:filter===f?WH2:G62, textTransform:"capitalize" }}>
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:`1px solid ${filter===f?M2:G22}`, background:filter===f?M2:WH2, color:filter===f?WH2:G62, textTransform:"capitalize" }}>
             {f==="all"?"All Methods":f}
           </button>
         ))}
-        <button onClick={load} style={{ padding:"7px 12px", borderRadius:8, border:"1px solid "+G22, background:WH2, color:G62, fontSize:12, cursor:"pointer" }}>↻</button>
+        <button onClick={load} style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${G22}`, background:WH2, color:G62, fontSize:12, cursor:"pointer" }}>↻</button>
       </div>
 
       {/* Table */}
-      <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, overflow:"hidden" }}>
+      <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, overflow:"hidden" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:G62 }}>Loading…</div> : (
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
@@ -6687,7 +6889,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
             <tbody>
               {shown.length===0 && <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:G62 }}>No payments found</td></tr>}
               {shown.map((p,i)=>(
-                <tr key={i} style={{ borderBottom:"1px solid "+G12 }}>
+                <tr key={i} style={{ borderBottom:`1px solid ${G12}` }}>
                   <td style={{ padding:"10px 12px", color:G62, fontSize:12 }}>{(p.paid_at||p.created_at||"").split("T")[0]}</td>
                   <td style={{ padding:"10px 12px", fontWeight:700 }}>{p.storeName}</td>
                   <td style={{ padding:"10px 12px", fontWeight:700, color:OK2 }}>{fmt(p.amount)}</td>
@@ -6717,7 +6919,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
             <div style={{ marginBottom:12 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Store *</label>
               <select value={mf.storeId} onChange={e=>setMf(f=>({...f,storeId:e.target.value}))}
-                style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
                 <option value="">— Select Store —</option>
                 {stores.map(s=><option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
               </select>
@@ -6725,7 +6927,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
             <div style={{ marginBottom:12 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Plan</label>
               <select value={mf.planId} onChange={e=>setMf(f=>({...f,planId:e.target.value}))}
-                style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
                 <option value="">— Keep current plan —</option>
                 {plans.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(p.price_monthly||0)}/mo</option>)}
               </select>
@@ -6735,20 +6937,20 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
                 <div key={k} style={{ marginBottom:12 }}>
                   <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>{l}</label>
                   <input type={t} value={mf[k]} onChange={e=>setMf(f=>({...f,[k]:e.target.value}))}
-                    style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                    style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
                 </div>
               ))}
               <div style={{ marginBottom:12 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Method</label>
                 <select value={mf.method} onChange={e=>setMf(f=>({...f,method:e.target.value}))}
-                  style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
                   {["Manual","Bank Transfer","M-Pesa","Tigo Pesa","Airtel Money","Pesapal","Selcom","PayPal","Cash"].map(m=><option key={m}>{m}</option>)}
                 </select>
               </div>
               <div style={{ marginBottom:12 }}>
                 <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Billing Cycle</label>
                 <select value={mf.cycle} onChange={e=>setMf(f=>({...f,cycle:e.target.value}))}
-                  style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
+                  style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, background:WH2, outline:"none" }}>
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="yearly">Yearly</option>
@@ -6758,13 +6960,13 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
             <div style={{ marginBottom:16 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase" }}>Notes</label>
               <input value={mf.notes} onChange={e=>setMf(f=>({...f,notes:e.target.value}))} placeholder="e.g. Paid via bank transfer ref 12345"
-                style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
             </div>
             <div style={{ background:OKB2, borderRadius:8, padding:"10px 14px", marginBottom:16, fontSize:12, color:OK2, fontWeight:600 }}>
               ✓ Recording this payment will automatically activate the store and extend its subscription.
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={()=>setShowManual(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
+              <button onClick={()=>setShowManual(false)} style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer" }}>Cancel</button>
               <button onClick={saveManual} style={{ flex:2, padding:"10px", borderRadius:8, border:"none", background:M2, color:WH2, fontWeight:700, cursor:"pointer", fontSize:14 }}>
                 ✓ Record Payment & Activate
               </button>
@@ -6810,7 +7012,7 @@ function SuperGateways({ api, pop }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={settings[key]||""} onChange={e=>setSettings(s=>({...s,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}/>
     </div>
   );
 
@@ -6832,7 +7034,7 @@ function SuperGateways({ api, pop }) {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12, marginBottom:24 }}>
         {gateways.map(gw => (
           <div key={gw.id} onClick={()=>setActiveGW(gw.id)}
-            style={{ background:activeGW===gw.id?gw.bg:WH2, border:"2px solid "+activeGW===gw.id?gw.color:G22, borderRadius:10, padding:16, cursor:"pointer", transition:"all .15s" }}>
+            style={{ background:activeGW===gw.id?gw.bg:WH2, border:`2px solid ${activeGW===gw.id?gw.color:G22}`, borderRadius:10, padding:16, cursor:"pointer", transition:"all .15s" }}>
             <div style={{ fontSize:24, marginBottom:6 }}>{gw.logo}</div>
             <div style={{ fontWeight:700, fontSize:14, color:activeGW===gw.id?gw.color:G82 }}>{gw.name}</div>
             <div style={{ fontSize:11, color:G62, marginTop:3, lineHeight:1.5 }}>{gw.desc}</div>
@@ -6842,7 +7044,7 @@ function SuperGateways({ api, pop }) {
 
       {/* Pesapal config */}
       {activeGW === "pesapal" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
             <span style={{ fontSize:24 }}>🟢</span>
             <div>
@@ -6859,7 +7061,7 @@ function SuperGateways({ api, pop }) {
             <div style={{ display:"flex", gap:8 }}>
               {["sandbox","live"].map(env => (
                 <button key={env} onClick={()=>setSettings(s=>({...s,pesapal_env:env}))}
-                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+settings.pesapal_env===env?OK2:G22, background:settings.pesapal_env===env?OKB2:WH2, color:settings.pesapal_env===env?OK2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${settings.pesapal_env===env?OK2:G22}`, background:settings.pesapal_env===env?OKB2:WH2, color:settings.pesapal_env===env?OK2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
                   {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
                 </button>
               ))}
@@ -6878,7 +7080,7 @@ function SuperGateways({ api, pop }) {
 
       {/* Selcom config */}
       {activeGW === "selcom" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
             <span style={{ fontSize:24 }}>🔵</span>
             <div>
@@ -6904,7 +7106,7 @@ function SuperGateways({ api, pop }) {
 
       {/* PayPal config */}
       {activeGW === "paypal" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
             <span style={{ fontSize:24 }}>🔷</span>
             <div>
@@ -6921,7 +7123,7 @@ function SuperGateways({ api, pop }) {
             <div style={{ display:"flex", gap:8 }}>
               {["sandbox","live"].map(env => (
                 <button key={env} onClick={()=>setSettings(s=>({...s,paypal_env:env}))}
-                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+settings.paypal_env===env?"#003087":G22, background:settings.paypal_env===env?"#EBF0F9":WH2, color:settings.paypal_env===env?"#003087":G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${settings.paypal_env===env?"#003087":G22}`, background:settings.paypal_env===env?"#EBF0F9":WH2, color:settings.paypal_env===env?"#003087":G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
                   {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
                 </button>
               ))}
@@ -6936,7 +7138,7 @@ function SuperGateways({ api, pop }) {
 
       {/* Manual / Bank */}
       {activeGW === "manual" && (
-        <div style={{ background:WH2, border:"1px solid "+G22, borderRadius:12, padding:22 }}>
+        <div style={{ background:WH2, border:`1px solid ${G22}`, borderRadius:12, padding:22 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
             <span style={{ fontSize:24 }}>🏦</span>
             <h3 style={{ fontFamily:"'Playfair Display',serif", margin:0, fontSize:15 }}>Manual Payment Info</h3>
@@ -7029,7 +7231,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
   };
 
   return (
-    <div style={{ marginTop:20, borderTop:"2px solid "+G22, paddingTop:20 }}>
+    <div style={{ marginTop:20, borderTop:`2px solid ${G22}`, paddingTop:20 }}>
       <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, marginBottom:16, color:M2 }}>
         💳 Subscribe / Renew
       </div>
@@ -7044,7 +7246,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
               const price = cycle === "yearly" ? (p.price_yearly || p.price_monthly * 12) : p.price_monthly;
               return (
                 <div key={p.id} onClick={() => setSelPlanId(p.id)}
-                  style={{ border:"2px solid "+isSelected?M2:G22, borderRadius:10, padding:12, cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  style={{ border:`2px solid ${isSelected?M2:G22}`, borderRadius:10, padding:12, cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
                   {isSelected && <div style={{ fontSize:9, fontWeight:700, color:M2, textTransform:"uppercase", letterSpacing:".08em", marginBottom:4 }}>✓ Selected</div>}
                   <div style={{ fontWeight:700, fontSize:13, color:G82 }}>{p.name}</div>
                   <div style={{ fontSize:16, fontWeight:700, color:M2, marginTop:4 }}>
@@ -7069,7 +7271,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
         <div style={{ display:"flex", gap:8 }}>
           {[["monthly","Monthly"],["yearly","Yearly (save ~17%)"]].map(([val,label]) => (
             <button key={val} onClick={() => setCycle(val)}
-              style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+cycle===val?M2:G22, background:cycle===val?M2:WH2, color:cycle===val?WH2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:13 }}>
+              style={{ flex:1, padding:"9px", borderRadius:8, border:`2px solid ${cycle===val?M2:G22}`, background:cycle===val?M2:WH2, color:cycle===val?WH2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:13 }}>
               {label}
             </button>
           ))}
@@ -7096,7 +7298,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
         )}
 
         {hasBank && (
-          <div style={{ border:"1px solid "+G22, borderRadius:10, overflow:"hidden" }}>
+          <div style={{ border:`1px solid ${G22}`, borderRadius:10, overflow:"hidden" }}>
             <div style={{ background:G12, padding:"10px 14px", fontWeight:700, fontSize:13, color:G82 }}>🏦 Bank / Mobile Money Transfer</div>
             <div style={{ padding:"12px 14px" }}>
               {platSettings.bank_name && (
@@ -7168,7 +7370,7 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
     <div style={{ marginBottom:14 }}>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
       <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
-        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
     </div>
   );
 
@@ -7238,12 +7440,12 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
           </div>
 
           {/* Editable fields */}
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, marginBottom:14, borderLeft:"4px solid "+M2, paddingLeft:10 }}>Edit Store Details</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, marginBottom:14, borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Edit Store Details</div>
           {inp("Store Name","name","text","e.g. Sunrise Lodge")}
           <div style={{ marginBottom:14 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
             <textarea value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
             {inp("City","city","text","e.g. Dar es Salaam")}
@@ -7256,14 +7458,14 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
           <div style={{ marginBottom:14 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Status</label>
             <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
               {["trial","active","suspended","terminated"].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
             </select>
           </div>
           <div style={{ marginBottom:20 }}>
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Plan</label>
             <select value={form.plan_id||""} onChange={e=>setForm(f=>({...f,plan_id:e.target.value}))}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
               <option value="">No plan</option>
               {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
             </select>
@@ -7271,8 +7473,8 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
         </div>
 
         {/* Footer */}
-        <div style={{ padding:"14px 22px", borderTop:"1px solid "+G22, display:"flex", gap:10, flexShrink:0, background:WH2 }}>
-          <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+        <div style={{ padding:"14px 22px", borderTop:`1px solid ${G22}`, display:"flex", gap:10, flexShrink:0, background:WH2 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
           <button onClick={save} disabled={saving} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:saving?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
             {saving?"Saving…":"✓ Save Changes"}
           </button>
