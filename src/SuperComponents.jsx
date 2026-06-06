@@ -105,7 +105,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
       <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
         {["all","trial","active","suspended","terminated"].map(s=>(
           <button key={s} onClick={()=>setFilter(s)}
-            style={{ padding:"5px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===s?"#6B1B2A":"#E8E8E8", background:filter===s?"#6B1B2A":"#FFF", color:filter===s?"#FFF":"#666" }}>
+            style={{ padding:"5px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+(filter===s?"#6B1B2A":"#E8E8E8"), background:filter===s?"#6B1B2A":"#FFF", color:filter===s?"#FFF":"#666" }}>
             {s==="all"?"All":s.charAt(0).toUpperCase()+s.slice(1)}
           </button>
         ))}
@@ -222,7 +222,7 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
             <select value={pf.plan_id} onChange={e=>{
               const plan = plans.find(p=>p.id===e.target.value);
               setPf(d=>({...d, plan_id:e.target.value, amount: plan ? (d.billing_cycle==="yearly"?(plan.price_yearly||plan.price_monthly*12):plan.price_monthly) : d.amount }));
-            }} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+pf.plan_id?"#6B1B2A":"#E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
+            }} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+(pf.plan_id?"#6B1B2A":"#E8E8E8"), borderRadius:8, fontSize:14, background:"#FFF" }}>
               <option value="">— Select Plan —</option>
               {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
             </select>
@@ -242,7 +242,7 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
             </div>
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Amount (TZS) *</label>
-              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+pf.amount?"#6B1B2A":"#E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box", fontWeight:700 }}/>
+              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid "+(pf.amount?"#6B1B2A":"#E8E8E8"), borderRadius:8, fontSize:14, boxSizing:"border-box", fontWeight:700 }}/>
             </div>
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Method</label>
@@ -311,7 +311,7 @@ function SuperPlans({ plans, onRefresh, api, pop, fmt }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:16 }}>
         {plans.map(p=>(
-          <div key={p.id} style={{ background:"#FFF", border:"2px solid "+p.is_active?"#C9A84C":"#E8E8E8", borderRadius:12, padding:18 }}>
+          <div key={p.id} style={{ background:"#FFF", border:"2px solid "+(p.is_active?"#C9A84C":"#E8E8E8"), borderRadius:12, padding:18 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
               <div>
                 <div style={{ fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>{p.name}</div>
@@ -534,7 +534,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
       <div style={{ display:"flex", gap:8, marginBottom:22, flexWrap:"wrap" }}>
         {sectionBtns.map(s=>(
           <button key={s.id} onClick={()=>setSection(s.id)}
-            style={{ padding:"8px 16px", borderRadius:99, border:"1px solid "+section===s.id?M2:G22, background:section===s.id?M2:WH2, color:section===s.id?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
+            style={{ padding:"8px 16px", borderRadius:99, border:"1px solid "+(section===s.id?M2:G22), background:section===s.id?M2:WH2, color:section===s.id?WH2:G62, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
             {s.icon} {s.label}
           </button>
         ))}
@@ -623,7 +623,7 @@ function OwnerSettingsTab({ owner, storeId, rooms, api, pop, onStoreUpdate }) {
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
                 {roomPhotos.map((p,i)=>(
                   <div key={i} onClick={()=>{ setForm(f=>({...f,featured_image:p.photo})); save({featured_image:p.photo}); }}
-                    style={{ position:"relative", height:90, borderRadius:8, overflow:"hidden", cursor:"pointer", border:"3px solid "+form.featured_image===p.photo?M2:"transparent", transition:"border-color .15s" }}>
+                    style={{ position:"relative", height:90, borderRadius:8, overflow:"hidden", cursor:"pointer", border:"3px solid "+(form.featured_image===p.photo?M2:"transparent"), transition:"border-color .15s" }}>
                     <img src={p.photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                     <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,.5)", color:WH2, fontSize:9, padding:"3px 6px", fontWeight:600 }}>{p.roomName}</div>
                     {form.featured_image===p.photo && <div style={{ position:"absolute", top:4, right:4, background:M2, color:WH2, borderRadius:99, width:18, height:18, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700 }}>✓</div>}
@@ -941,7 +941,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
                 setStore(s=>({...s, status:newStatus}));
                 pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace");
               } catch(e){ pop(e.message||"Failed","err"); }
-            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:"1px solid "+store?.status==="active"?WA2:OK2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:"1px solid "+(store?.status==="active"?WA2:OK2), borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
               {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
             </button>
           </div>
@@ -959,7 +959,7 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
         <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:15, margin:"0 0 16px", borderLeft:"4px solid "+M2, paddingLeft:10 }}>Available Plans</h3>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,160px),1fr))", gap:10 }}>
           {plans.map(p=>(
-            <div key={p.id} style={{ border:"2px solid "+p.id===store?.plan_id?M2:G22, borderRadius:10, padding:16, background:p.id===store?.plan_id?M2+"08":WH2, position:"relative" }}>
+            <div key={p.id} style={{ border:"2px solid "+(p.id===store?.plan_id?M2:G22), borderRadius:10, padding:16, background:p.id===store?.plan_id?M2+"08":WH2, position:"relative" }}>
               {p.id===store?.plan_id && (
                 <div style={{ position:"absolute", top:-1, right:10, background:M2, color:WH2, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:"0 0 6px 6px" }}>Current</div>
               )}
@@ -1384,7 +1384,7 @@ function SuperChangePlanModal({ storeId, storeName, currentPlanId, plans, api, p
         <div style={{ fontSize:12, color:G62, marginBottom:18 }}>{storeName}</div>
         <div style={{ marginBottom:16 }}>
           {plans.map(p=>(
-            <label key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"2px solid "+planId===p.id?M2:G22, marginBottom:8, cursor:"pointer", background:planId===p.id?"#FFF0F2":WH2 }}>
+            <label key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"2px solid "+(planId===p.id?M2:G22), marginBottom:8, cursor:"pointer", background:planId===p.id?"#FFF0F2":WH2 }}>
               <input type="radio" checked={planId===p.id} onChange={()=>setPlanId(p.id)} style={{ accentColor:M2 }}/>
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:14 }}>{p.name}</div>
@@ -1427,7 +1427,7 @@ function SuperExtendTrialModal({ storeId, storeName, api, pop, onClose, onDone }
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             {[7,14,30,60,90].map(d=>(
               <button key={d} onClick={()=>setDays(d)}
-                style={{ padding:"8px 16px", borderRadius:8, border:"2px solid "+days===d?M2:G22, background:days===d?M2:"transparent", color:days===d?WH2:G62, fontWeight:700, cursor:"pointer", fontSize:13 }}>
+                style={{ padding:"8px 16px", borderRadius:8, border:"2px solid "+(days===d?M2:G22), background:days===d?M2:"transparent", color:days===d?WH2:G62, fontWeight:700, cursor:"pointer", fontSize:13 }}>
                 {d}d
               </button>
             ))}
@@ -1511,7 +1511,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
               const isSelected = selRoomId === rm.id;
               return (
                 <div key={rm.id} onClick={()=>{ setSelRoomId(rm.id); setCopied(false); }}
-                  style={{ border:"2px solid "+isSelected?M2:G22, borderRadius:10, overflow:"hidden", cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  style={{ border:"2px solid "+(isSelected?M2:G22), borderRadius:10, overflow:"hidden", cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
                   {/* Room thumbnail */}
                   <div style={{ height:80, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
                     {rm.photos?.[0]
@@ -1578,7 +1578,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
           <button onClick={()=>{
             navigator.clipboard?.writeText(shareUrl).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2500); pop("Link copied!"); });
           }}
-            style={{ padding:"13px 20px", background:copied?OKB2:WH2, color:copied?OK2:G62, border:"1px solid "+copied?OK2:G22, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            style={{ padding:"13px 20px", background:copied?OKB2:WH2, color:copied?OK2:G62, border:"1px solid "+(copied?OK2:G22), borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             {copied ? "✓ Copied!" : "📋 Copy Link"}
           </button>
           <button onClick={()=>{
@@ -1650,7 +1650,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
           style={{ flex:1, minWidth:200, padding:"9px 13px", border:"1px solid "+G2, borderRadius:8, fontSize:13, outline:"none", fontFamily:"inherit" }}/>
         {["all","paid","balance","checkedIn"].map(f=>(
           <button key={f} onClick={()=>setFilter(f)}
-            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===f?M:G2, background:filter===f?M:WH, color:filter===f?WH:G6 }}>
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+(filter===f?M:G2), background:filter===f?M:WH, color:filter===f?WH:G6 }}>
             {f==="all"?"All":f==="paid"?"Paid":f==="balance"?"Has Balance":"Checked In"}
           </button>
         ))}
@@ -1894,7 +1894,7 @@ function EditBookingModal({ booking, rooms, locs, bookedDates, onClose, onSave }
               Change Room {form.ci && form.co ? "— " + availRooms.length + " available" : "— set dates first"}
             </div>
             <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
-              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+form.roomId===booking.roomId?G22:OK2, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
+              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+(form.roomId===booking.roomId?G22:OK2), borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH2 }}>
               {availRooms.map(r => (
                 <option key={r.id} value={r.id}>
                   {r.id === booking.roomId ? "✓ " : ""}{r.name} — TZS {Number(r.price).toLocaleString()}/night{r.id===booking.roomId?" (current)":""}
@@ -2027,7 +2027,7 @@ function SuperPayments({ stores, plans, api, pop, fmt, fmtDate }) {
           style={{ flex:1, minWidth:200, padding:"8px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:13, outline:"none" }}/>
         {["all","pesapal","selcom","paypal","manual"].map(f => (
           <button key={f} onClick={()=>setFilter(f)}
-            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+filter===f?M2:G22, background:filter===f?M2:WH2, color:filter===f?WH2:G62, textTransform:"capitalize" }}>
+            style={{ padding:"7px 14px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"1px solid "+(filter===f?M2:G22), background:filter===f?M2:WH2, color:filter===f?WH2:G62, textTransform:"capitalize" }}>
             {f==="all"?"All Methods":f}
           </button>
         ))}
@@ -2193,7 +2193,7 @@ function SuperGateways({ api, pop }) {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12, marginBottom:24 }}>
         {gateways.map(gw => (
           <div key={gw.id} onClick={()=>setActiveGW(gw.id)}
-            style={{ background:activeGW===gw.id?gw.bg:WH2, border:"2px solid "+activeGW===gw.id?gw.color:G22, borderRadius:10, padding:16, cursor:"pointer", transition:"all .15s" }}>
+            style={{ background:activeGW===gw.id?gw.bg:WH2, border:"2px solid "+(activeGW===gw.id?gw.color:G22), borderRadius:10, padding:16, cursor:"pointer", transition:"all .15s" }}>
             <div style={{ fontSize:24, marginBottom:6 }}>{gw.logo}</div>
             <div style={{ fontWeight:700, fontSize:14, color:activeGW===gw.id?gw.color:G82 }}>{gw.name}</div>
             <div style={{ fontSize:11, color:G62, marginTop:3, lineHeight:1.5 }}>{gw.desc}</div>
@@ -2220,7 +2220,7 @@ function SuperGateways({ api, pop }) {
             <div style={{ display:"flex", gap:8 }}>
               {["sandbox","live"].map(env => (
                 <button key={env} onClick={()=>setSettings(s=>({...s,pesapal_env:env}))}
-                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+settings.pesapal_env===env?OK2:G22, background:settings.pesapal_env===env?OKB2:WH2, color:settings.pesapal_env===env?OK2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+(settings.pesapal_env===env?OK2:G22), background:settings.pesapal_env===env?OKB2:WH2, color:settings.pesapal_env===env?OK2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
                   {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
                 </button>
               ))}
@@ -2282,7 +2282,7 @@ function SuperGateways({ api, pop }) {
             <div style={{ display:"flex", gap:8 }}>
               {["sandbox","live"].map(env => (
                 <button key={env} onClick={()=>setSettings(s=>({...s,paypal_env:env}))}
-                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+settings.paypal_env===env?"#003087":G22, background:settings.paypal_env===env?"#EBF0F9":WH2, color:settings.paypal_env===env?"#003087":G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
+                  style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+(settings.paypal_env===env?"#003087":G22), background:settings.paypal_env===env?"#EBF0F9":WH2, color:settings.paypal_env===env?"#003087":G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textTransform:"capitalize" }}>
                   {env === "sandbox" ? "🧪 Sandbox (Testing)" : "🚀 Live (Production)"}
                 </button>
               ))}
@@ -2405,7 +2405,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
               const price = cycle === "yearly" ? (p.price_yearly || p.price_monthly * 12) : p.price_monthly;
               return (
                 <div key={p.id} onClick={() => setSelPlanId(p.id)}
-                  style={{ border:"2px solid "+isSelected?M2:G22, borderRadius:10, padding:12, cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
+                  style={{ border:"2px solid "+(isSelected?M2:G22), borderRadius:10, padding:12, cursor:"pointer", background:isSelected?"#FFF0F2":WH2, transition:"border-color .15s" }}>
                   {isSelected && <div style={{ fontSize:9, fontWeight:700, color:M2, textTransform:"uppercase", letterSpacing:".08em", marginBottom:4 }}>✓ Selected</div>}
                   <div style={{ fontWeight:700, fontSize:13, color:G82 }}>{p.name}</div>
                   <div style={{ fontSize:16, fontWeight:700, color:M2, marginTop:4 }}>
@@ -2430,7 +2430,7 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
         <div style={{ display:"flex", gap:8 }}>
           {[["monthly","Monthly"],["yearly","Yearly (save ~17%)"]].map(([val,label]) => (
             <button key={val} onClick={() => setCycle(val)}
-              style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+cycle===val?M2:G22, background:cycle===val?M2:WH2, color:cycle===val?WH2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:13 }}>
+              style={{ flex:1, padding:"9px", borderRadius:8, border:"2px solid "+(cycle===val?M2:G22), background:cycle===val?M2:WH2, color:cycle===val?WH2:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:13 }}>
               {label}
             </button>
           ))}

@@ -1417,7 +1417,7 @@ export default function App() {
         <div style={{ background: WH, borderBottom: "1px solid "+G2 }}>
           <div style={{ display: "flex", maxWidth: 780, margin: "0 auto" }}>
             {["Location", "Dates", "Rooms", "Details", "Confirm"].map((s, i) => (
-              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: "3px solid "+bStep === i + 1 ? M : bStep > i + 1 ? OK : "transparent", color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
+              <div key={i} style={{ flex: 1, padding: "13px 0", textAlign: "center", borderBottom: "3px solid "+(bStep === i + 1?M:bStep) > i + 1 ? OK : "transparent", color: bStep === i + 1 ? M : bStep > i + 1 ? OK : G4, fontSize: 12, fontWeight: 700 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 18, height: 18, borderRadius: "50%", background: bStep > i + 1 ? OK : bStep === i + 1 ? M : G2, color: bStep >= i + 1 ? WH : G4, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
                     {bStep > i + 1 ? "✓" : i + 1}
@@ -1438,7 +1438,7 @@ export default function App() {
                 const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
                 return (
                   <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); goStep(2); }}
-                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: "2px solid "+bD.locId === loc.id ? M : G2, transition: "border-color .15s" }}
+                    style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: "2px solid "+(bD.locId === loc.id?M:G2), transition: "border-color .15s" }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = M}
                     onMouseLeave={e => e.currentTarget.style.borderColor = bD.locId === loc.id ? M : G2}>
                     <div style={{ background: "linear-gradient(135deg,"+MD+","+M+")", height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>{loc.icon}</div>
@@ -1547,7 +1547,7 @@ export default function App() {
                 return (
                 <div key={rm.id}
                   onClick={() => !maintenance && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: "2px solid "+bD.roomId === rm.id ? M : unavail ? G2 : G2, cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
+                  style={{ background: WH, borderRadius: 12, border: "2px solid "+(bD.roomId === rm.id?M:unavail) ? G2 : G2, cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
                   onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
@@ -1749,7 +1749,7 @@ export default function App() {
       <div style={{ background: WH, borderBottom: "1px solid "+G2, display: "flex", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
           <button key={id} onClick={() => { if(id==="newbooking"){navTo("book",1);}else setCustTab(id); }}
-            style={{ padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: "3px solid "+custTab === id ? M : "transparent", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>
+            style={{ padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: custTab === id ? M : G6, borderBottom: "3px solid "+(custTab === id?M:"transparent"), fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>
             {icon} {label}
           </button>
         ))}
@@ -1990,7 +1990,7 @@ export default function App() {
       <NavBar/>
       <div style={{ background:WH, borderBottom:"1px solid "+G2, display:"flex", overflowX:"auto", flexShrink:0 }}>
         {ATABS.map(t=>(
-          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:"3px solid "+aTab===t.id?M:"transparent", display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
+          <button key={t.id} onClick={()=>setATab(t.id)} style={{ padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:700, color:aTab===t.id?M:G6, borderBottom:"3px solid "+(aTab===t.id?M:"transparent"), display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap", fontFamily:"inherit" }}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -2311,7 +2311,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       <div style={{ display: "flex", gap: 7, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {[["active","Active"],["all","All"],["pending","Pending"],["confirmed","Confirmed"],["checkedIn","Checked In"],["checkedOut","Checked Out"],["cancelled","Cancelled"]].map(([s, label]) => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "1px solid "+filter === s ? M : G2, background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
+            style={{ padding: "5px 13px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "1px solid "+(filter === s?M:G2), background: filter === s ? M : WH, color: filter === s ? WH : G6, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
             {s === "checkedIn" && dueToday.length > 0 && <span style={{ marginLeft: 5, background: "#F9A825", color: WH, borderRadius: 99, padding: "0 5px", fontSize: 10 }}>{dueToday.length}</span>}
           </button>
@@ -2383,7 +2383,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {b.status === "pending"   && <button onClick={() => updBook(b.id, "confirmed")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+OK, color: OK, background: "none", cursor: "pointer", fontWeight: 700 }}>Confirm</button>}
                 {b.status === "confirmed" && <button onClick={() => updBook(b.id, "checkedIn")}  style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+M, color: M, background: "none", cursor: "pointer", fontWeight: 700 }}>Check In</button>}
-                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+isDueToday ? "#F9A825" : G6, color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
+                {b.status === "checkedIn" && <button onClick={() => setCoModal(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+(isDueToday?"#F9A825":G6), color: isDueToday ? "#5D4037" : G6, background: isDueToday ? "#FFF8E1" : "none", cursor: "pointer", fontWeight: 700 }}>Check Out / Extend</button>}
                 {bal > 0 && b.status !== "cancelled" && <button onClick={() => setSel(b.id)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+IN, color: IN, background: "none", cursor: "pointer", fontWeight: 700 }}>Pay</button>}
                 {!["cancelled","checkedOut"].includes(b.status) && <button onClick={() => updBook(b.id, "cancelled")} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+ER, color: ER, background: "none", cursor: "pointer", fontWeight: 700 }}>Cancel</button>}
                 {b.status === "cancelled" && deleteBooking && <button onClick={() => deleteBooking(b.id, b.gName)} style={{ padding: "3px 7px", fontSize: 11, borderRadius: 6, border: "1px solid "+ER, color: WH, background: ER, cursor: "pointer", fontWeight: 700 }}>Delete</button>}
@@ -2770,7 +2770,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(70px,1fr))", gap: 6 }}>
             {viewerRoom.photos.map((src, i) => (
               <img key={i} src={src} alt={"thumb "+i+1} onClick={() => setPhotoIdx(i)}
-                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: "2px solid "+i === photoIdx ? M : "transparent", transition: "border-color 0.15s" }} />
+                style={{ width: "100%", height: 60, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: "2px solid "+(i === photoIdx?M:"transparent"), transition: "border-color 0.15s" }} />
             ))}
           </div>
           {/* Video in gallery */}
@@ -3098,7 +3098,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
             return (
               <button key={preset} onClick={()=>applyPreset(preset)}
                 style={{padding:"5px 11px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
-                  border:"1px solid "+active?M:G2,background:active?M:WH,color:active?WH:G6}}>
+                  border:"1px solid "+(active?M:G2),background:active?M:WH,color:active?WH:G6}}>
                 {label}
               </button>
             );
@@ -3117,7 +3117,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           <span style={{fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",flexShrink:0}}>Location</span>
           <select value={locFilter} onChange={e=>setLocFilter(e.target.value)}
-            style={{flex:1,padding:"7px 10px",border:"1px solid "+locFilter?M:G2,borderRadius:7,fontSize:13,fontFamily:"inherit",color:locFilter?M:G6,fontWeight:locFilter?700:400,outline:"none",background:WH}}>
+            style={{flex:1,padding:"7px 10px",border:"1px solid "+(locFilter?M:G2),borderRadius:7,fontSize:13,fontFamily:"inherit",color:locFilter?M:G6,fontWeight:locFilter?700:400,outline:"none",background:WH}}>
             <option value="">All Locations</option>
             {locs.map(l=><option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
           </select>
@@ -3135,7 +3135,7 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
       {/* ── SUB-TABS — scrollable on mobile ── */}
       <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:"1px solid "+G2,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         {[["💰","financial"],["🛏️","occupancy"],["📍","location"],["📤","expenses"],["📋","bookings"]].map(([icon,t])=>(
-          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 14px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:"3px solid "+rt===t?M:"transparent",textTransform:"capitalize",fontFamily:"inherit",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+          <button key={t} onClick={()=>setRt(t)} style={{padding:"10px 14px",border:"none",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:700,color:rt===t?M:G6,borderBottom:"3px solid "+(rt===t?M:"transparent"),textTransform:"capitalize",fontFamily:"inherit",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
             <span>{icon}</span><span>{t}</span>
           </button>
         ))}
@@ -3287,9 +3287,9 @@ function ReportsTab({ books, exps, rooms, locs, allRooms, payMethods, storeId, a
           {payDrillDown && (
             <Modal title="Payment Details" onClose={()=>{setPayDrillDown(false);setPayDrillMethod("");}} wide>
               <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:16}}>
-                <button onClick={()=>setPayDrillMethod("")} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"1px solid "+!payDrillMethod?M:G2,background:!payDrillMethod?M:WH,color:!payDrillMethod?WH:G6}}>All Methods</button>
+                <button onClick={()=>setPayDrillMethod("")} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border: "1px solid "+(!payDrillMethod?M:G2),background:!payDrillMethod?M:WH,color:!payDrillMethod?WH:G6}}>All Methods</button>
                 {byMethod.map((m,i)=>(
-                  <button key={i} onClick={()=>setPayDrillMethod(m.method)} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"1px solid "+payDrillMethod===m.method?M:G2,background:payDrillMethod===m.method?M:WH,color:payDrillMethod===m.method?WH:G6}}>{m.method}</button>
+                  <button key={i} onClick={()=>setPayDrillMethod(m.method)} style={{padding:"5px 13px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"1px solid "+(payDrillMethod===m.method?M:G2),background:payDrillMethod===m.method?M:WH,color:payDrillMethod===m.method?WH:G6}}>{m.method}</button>
                 ))}
               </div>
               {payDrillMethod && byMethod.length > 0 && (
@@ -3585,7 +3585,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
                   ✏️ Edit
                 </button>
                 <button onClick={()=>toggleStaff(s)}
-                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:"1px solid "+s.active?WA:OK, background:"none", cursor:"pointer", color:s.active?WA:OK, fontWeight:700, fontFamily:"inherit" }}>
+                  style={{ flex:2, padding:"7px", fontSize:12, borderRadius:7, border:"1px solid "+(s.active?WA:OK), background:"none", cursor:"pointer", color:s.active?WA:OK, fontWeight:700, fontFamily:"inherit" }}>
                   {s.active ? "Deactivate" : "Activate"}
                 </button>
                 {!isSelf && (
@@ -3622,7 +3622,7 @@ function StaffTab({ staff, saveStaff, toggleStaff, deleteStaff, locs, pop, curre
                 return (
                   <button key={r} onClick={()=>setForm(f=>({...f,role:r}))}
                     style={{ padding:"7px 14px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-                      border:"2px solid "+sel?rc:G2, background:sel?rc+"15":WH, color:sel?rc:G6, transition:"all .15s" }}>
+                      border:"2px solid "+(sel?rc:G2), background:sel?rc+"15":WH, color:sel?rc:G6, transition:"all .15s" }}>
                     {r}
                   </button>
                 );
@@ -3847,7 +3847,7 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
           <div style={{ fontSize:13, color:G6, fontStyle:"italic" }}>Choose check-in and check-out dates above to see available rooms.</div>
         ) : (
           <select value={form.roomId} onChange={e => setForm(f => ({ ...f, roomId: e.target.value }))}
-            style={{ width:"100%", padding:"9px 12px", border:"1px solid "+form.roomId?OK:G2, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH }}>
+            style={{ width:"100%", padding:"9px 12px", border:"1px solid "+(form.roomId?OK:G2), borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", background:WH }}>
             <option value="">Select a room…</option>
             {availRooms.map(r => (
               <option key={r.id} value={r.id}>{r.name} — TZS {Number(r.price).toLocaleString()}/night</option>
@@ -4332,7 +4332,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
               ["📋 Booking ID", selB.id],
               ["📅 Check-in",   fmtDate(selB.check_in)],
               ["📅 Check-out",  fmtDate(selB.check_out)],
-              ["🌙 Nights",     selB.nights+" night"+selB.nights>1?"s":""],
+              ["🌙 Nights",     selB.nights+" night"+(selB.nights>1?"s":"")],
               ["💳 Payment",    selB.payment_method],
               ["💰 Total",      fmt(selB.total_amount)],
               ["✅ Paid",       fmt(selB.paid_amount)],
