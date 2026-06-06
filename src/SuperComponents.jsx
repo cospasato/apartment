@@ -2504,7 +2504,127 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
 }
 
 /* ─── SUPER: STORE DETAIL PANEL ─────────────────────────── */
-function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRefresh }
+function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRefresh }) {
+  const [store, setStore]   = useState(initialStore);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm]     = useState({
+    name:        initialStore.name        || "",
+    description: initialStore.description || "",
+    city:        initialStore.city        || "",
+    country:     initialStore.country     || "",
+    email:       initialStore.email       || "",
+    phone:       initialStore.phone       || "",
+    website:     initialStore.website     || "",
+    slug:        initialStore.slug        || "",
+    status:      initialStore.status      || "trial",
+    plan_id:     initialStore.plan_id     || "",
+  });
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",ER2="#C62828",ERB2="#FFEBEE",WA2="#B76E00",WAB2="#FFF3E0",IN2="#1565C0",INB2="#E3F2FD";
+  const sC = s=>({active:OK2,trial:IN2,suspended:WA2,terminated:ER2}[s]||G62);
+  const sB = s=>({active:OKB2,trial:INB2,suspended:WAB2,terminated:ERB2}[s]||G12);
+
+  const inp = (label, key, type="text", ph="") => (
+    <div style={{ marginBottom:14 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+      <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
+        style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+    </div>
+  );
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateStore(store.id, form);
+      setStore(s=>({...s,...form}));
+      pop("Store updated successfully");
+      onRefresh();
+    } catch(e) { pop(e.message,"err"); }
+    setSaving(false);
+  };
+
+  const quickStatus = async (status) => {
+    try {
+      await api.updateStore(store.id, { status });
+      setStore(s=>({...s,status}));
+      setForm(f=>({...f,status}));
+      pop("Status changed to "+status);
+      onRefresh();
+    } catch(e) { pop(e.message,"err"); }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9990 }}/>
+      <div style={{ position:"fixed", top:0, right:0, bottom:0, width:"min(520px,100vw)", background:WH2, zIndex:9991, display:"flex", flexDirection:"column", boxShadow:"-4px 0 32px rgba(0,0,0,.2)", overflowY:"auto" }}>
+        <div style={{ background:M2, color:WH2, padding:"18px 22px", display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexShrink:0 }}>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700 }}>{store.name}</div>
+            <div style={{ fontSize:12, opacity:.7, marginTop:2 }}>{store.id} · /{store.slug}</div>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH2, borderRadius:7, padding:"6px 12px", fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+        <div style={{ padding:"20px 22px", flex:1 }}>
+          <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ background:sB(store.status), color:sC(store.status), borderRadius:99, padding:"5px 14px", fontSize:13, fontWeight:700, textTransform:"uppercase" }}>{store.status}</span>
+            <span style={{ background:G12, color:G62, borderRadius:99, padding:"5px 12px", fontSize:12 }}>{plans.find(p=>p.id===store.plan_id)?.name||"No Plan"}</span>
+            <div style={{ display:"flex", gap:6, marginLeft:"auto" }}>
+              {store.status!=="active"     && <button onClick={()=>quickStatus("active")}      style={{ background:OKB2, color:OK2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Activate</button>}
+              {store.status==="active"     && <button onClick={()=>quickStatus("suspended")}  style={{ background:WAB2, color:WA2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>⏸ Suspend</button>}
+              {store.status!=="terminated" && <button onClick={()=>quickStatus("terminated")} style={{ background:ERB2, color:ER2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>✕ Terminate</button>}
+            </div>
+          </div>
+          <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
+              <div><span style={{ color:G62 }}>Name: </span><strong>{store.owner_name||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Email: </span><strong>{store.owner_email||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Rooms: </span><strong>{store.room_count||0}</strong></div>
+              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
+            </div>
+          </div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, marginBottom:14, borderLeft:"4px solid "+M2, paddingLeft:10 }}>Edit Store Details</div>
+          {inp("Store Name","name","text","e.g. Sunrise Lodge")}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
+            <textarea value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
+              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+            {inp("City","city","text","e.g. Dar es Salaam")}
+            {inp("Country","country","text","e.g. Tanzania")}
+            {inp("Email","email","email","")}
+            {inp("Phone","phone","tel","")}
+            {inp("Website","website","url","")}
+            {inp("Subdomain Slug","slug","text","e.g. sunrise-lodge")}
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Status</label>
+            <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}
+              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              {["trial","active","suspended","terminated"].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Plan</label>
+            <select value={form.plan_id||""} onChange={e=>setForm(f=>({...f,plan_id:e.target.value}))}
+              style={{ width:"100%", padding:"9px 12px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              <option value="">No plan</option>
+              {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ padding:"14px 22px", borderTop:"1px solid "+G22, display:"flex", gap:10, flexShrink:0, background:WH2 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:saving?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
+            {saving?"Saving…":"✓ Save Changes"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export {
   SuperSecTitle, SuperKPI2, SuperDash, SuperStores, SuperBilling, SuperPlans,
