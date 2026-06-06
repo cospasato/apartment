@@ -3848,12 +3848,13 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
   const isRoomAvailable = (r) => {
     // "maintenance" always blocks
     if (r.status === "maintenance") return false;
-    // No dates selected yet: only show rooms that are currently "available"
-    // (occupied rooms shown as unavailable until dates are picked)
+    // "occupied" always blocks in the add-booking form
+    // Staff must first check out the current guest before booking the same room
+    if (r.status === "occupied") return false;
+    // No dates selected: only show available rooms
     if (!form.ci || !form.co) return r.status === "available";
-    // Dates selected: check actual booking overlap (occupied room may be free for chosen dates)
+    // Dates selected: also check booking overlap via bookedDatesMap if available
     const booked = (bookedDatesMap || {})[r.id] || [];
-    // Checkout is 12:00 — strict > means same-day checkout/checkin is allowed
     return !booked.some(b => b.ci < form.co && b.co > form.ci);
   };
 
