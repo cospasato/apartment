@@ -234,9 +234,11 @@ CREATE INDEX IF NOT EXISTS idx_stores_status      ON stores(status);
 INSERT INTO subscription_plans (id, name, price_monthly, price_yearly, max_locations, max_rooms, max_staff, features, sort_order) VALUES
   ('PLN001', 'Free Trial',    0,       0,         1,   10,  2,   ARRAY['Basic booking','Reports'],                                           0),
   ('PLN002', 'Starter',       29000,   290000,    1,   15,  3,   ARRAY['Basic booking','Reports','Customer portal'],                         1),
-  ('PLN003', 'Professional',  79000,   790000,    5,   50,  10,  ARRAY['Everything in Starter','Multi-location','Analytics','Priority support'], 2),
-  ('PLN004', 'Enterprise',    199000,  1990000,   999, 999, 999, ARRAY['Unlimited everything','Custom branding','API access','Dedicated support'], 3)
+  ('PLN004', 'Enterprise',    199000,  1990000,   999, 999, 999, ARRAY['Unlimited everything','Custom branding','API access','Dedicated support'], 2)
 ON CONFLICT (id) DO NOTHING;
+
+-- Remove Professional plan if it exists (migration)
+UPDATE subscription_plans SET is_active = false WHERE id = 'PLN003';
 
 INSERT INTO platform_settings (key, value) VALUES
   ('platform_name',     'BNBMIS'),
@@ -258,6 +260,12 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
 
 -- If existing stores have long IDs, no action needed — new stores will get short IDs
+
+-- ── Remove Professional plan ──
+-- Run this once to deactivate it in existing databases:
+-- UPDATE subscription_plans SET is_active = false WHERE id = 'PLN003';
+-- Or to delete it entirely (only if no stores are on this plan):
+-- DELETE FROM subscription_plans WHERE id = 'PLN003';
 -- Store IDs are now format: ST + 4 chars, e.g. STABCD (easy to share with staff)
 
 -- ============================================================
