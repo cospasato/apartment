@@ -436,18 +436,20 @@ export default function App() {
 
     // ── Handle return from Pesapal ──
     if (paymentDone === "done") {
-      // Clean URL
+      // Clean URL without reload
       window.history.replaceState({}, "", window.location.pathname);
-      // If owner is logged in, refresh their store data and show success
       const ownerData = localStorage.getItem("bnbmis_owner");
       if (ownerData) {
         try {
-          const od = JSON.parse(ownerData);
+          JSON.parse(ownerData); // verify valid JSON
           setTimeout(() => {
             pop("🎉 Payment received! Your subscription is now active.", "ok");
-            // Reload the page to reflect new status
-            setTimeout(() => window.location.reload(), 2000);
-          }, 500);
+          }, 300);
+          // Navigate to billing tab
+          setTimeout(() => {
+            setView("owner_dash");
+            setATab("billing");
+          }, 100);
         } catch {}
       }
     }

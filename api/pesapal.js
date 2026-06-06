@@ -93,12 +93,11 @@ module.exports = async function handler(req, res) {
       // Build a unique merchant reference
       const merchantRef = 'BNBMIS-' + store_id.slice(-6).toUpperCase() + '-' + Date.now();
 
-      // Determine callback URL
-      const appUrl = process.env.VERCEL_URL
-        ? 'https://' + process.env.VERCEL_URL
-        : 'https://bnbmis.com';
-      const callbackUrl = `${appUrl}/api/pesapal?action=callback&store_id=${store_id}&plan_id=${plan_id}&cycle=${billing_cycle||'monthly'}&ref=${merchantRef}`;
-      const ipnUrl      = `${appUrl}/api/pesapal?action=ipn`;
+      // Use the actual domain from the request Host header (not VERCEL_URL which is a preview URL)
+      const host    = req.headers['x-forwarded-host'] || req.headers['host'] || 'bnbmis.com';
+      const appUrl  = 'https://' + host;
+      const callbackUrl = appUrl + '/api/pesapal?action=callback&store_id=' + store_id + '&plan_id=' + plan_id + '&cycle=' + (billing_cycle||'monthly') + '&ref=' + merchantRef;
+      const ipnUrl      = appUrl + '/api/pesapal?action=ipn';
 
       // Get Pesapal auth token
       const { token, base } = await getPesapalToken(consumerKey, consumerSecret, isLive);
@@ -110,8 +109,10 @@ module.exports = async function handler(req, res) {
       // Submit order to Pesapal
       const order = {
         id:               merchantRef,
-        currency:         cfg.payment_currency || 'TZS',
-        amount:           Number(amount),
+        // Use configured currency (TZS by default for Tanzania)
+        // Pesapal supports TZS natively — no conversion needed
+        currency:         (cfg.payment_currency || cfg.platform_currency || 'TZS').toUpperCase(),
+        amount:           Math.round(Number(amount)), // Pesapal expects integer cents for some currencies
         description:      `BNBMIS ${plan.name} subscription (${billing_cycle||'monthly'})`,
         callback_url:     callbackUrl,
         notification_id:  ipnId || '',
@@ -163,9 +164,11 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // Redirect to billing page
-      const appUrl = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://bnbmis.com';
-      return res.redirect(302, `${appUrl}/?payment=done&store=${storeId}`);
+      // Redirect back to the billing tab on the actual domain used
+      const host2   = req.headers['x-forwarded-host'] || req.headers['host'] || 'bnbmis.com';
+      const appUrl2 = 'https://' + host2;
+      // ?payment=done triggers the success handler; #billing scrolls to billing tab
+      return res.redirect(302, appUrl2 + '/?payment=done&store=' + storeId + '&tab=billing');
     }
 
     // ─────────────────────────────────────────────────────────
