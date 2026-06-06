@@ -130,6 +130,21 @@ module.exports = async function handler(req, res) {
     }
 
     // ── SUPER ADMIN: List all stores ──
+    if (req.method === 'GET' && action === 'settings') {
+      // Super admin gets all settings; owners/public get non-secret keys only
+      const token = verifyToken(req);
+      const isSuper = token && token.type === 'super';
+      const secretKeys = ['pesapal_consumer_secret','selcom_api_secret','paypal_client_secret','africastalking_key'];
+      const rows = await sql`SELECT key, value FROM platform_settings ORDER BY key`;
+      const settings = {};
+      rows.forEach(r => {
+        // Hide secret keys from non-super users
+        if (!isSuper && secretKeys.includes(r.key)) return;
+        settings[r.key] = r.value;
+      });
+      return res.status(200).json(settings);
+    }
+
     if (req.method === 'GET' && !id) {
       const token = verifyToken(req);
       if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin access required' });
@@ -284,25 +299,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ── PLATFORM SETTINGS (action=settings) ──────────────
-    // GET /api/stores?action=settings  — read all settings
-    if (req.method === 'GET' && action === 'settings') {
-      // Super admin gets all settings; owners/public get non-secret keys only
-      const token = verifyToken(req);
-      const isSuper = token && token.type === 'super';
-      const secretKeys = ['pesapal_consumer_secret','selcom_api_secret','paypal_client_secret','africastalking_key'];
-      const rows = await sql`SELECT key, value FROM platform_settings ORDER BY key`;
-      const settings = {};
-      rows.forEach(r => {
-        // Hide secret keys from non-super users
-        if (!isSuper && secretKeys.includes(r.key)) return;
-        // Treat "undefined" (from buggy old saves) as empty string
-        settings[r.key] = (r.value === "undefined" || r.value === "null") ? "" : r.value;
-      });
-      return res.status(200).json(settings);
-    }
-
-    // POST /api/stores?action=change_password  — super admin password change
+    // ── PLATFORM SETTINGS (action=settings) ──────────────    // POST /api/stores?action=change_password  — super admin password change
     if (req.method === 'POST' && action === 'change_password') {
       const token = verifyToken(req);
       if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin required' });
