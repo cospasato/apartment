@@ -1863,7 +1863,7 @@ export default function App() {
 
     /* ── DESKTOP LAYOUT ── */
     return (
-      <div style={{ display:"flex", minHeight:"100vh", minHeight:"-webkit-fill-available", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ display:"flex", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
@@ -4806,6 +4806,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
     (filter==="all"||s.status===filter) &&
     (!search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.owner_email||"").toLowerCase().includes(search.toLowerCase()))
   );
+  const [detailStore, setDetailStore] = useState(null);
   const updateStatus = async (id, status) => {
     try { await api.updateStore(id, {status}); onRefresh(); pop(`Store ${status}`); } catch(e) { pop(e.message,"err"); }
   };
@@ -4837,7 +4838,10 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
             </tr></thead>
             <tbody>{filtered.map((s,i)=>(
               <tr key={i} style={{ borderBottom:"1px solid #F5F5F5" }}>
-                <td style={{ padding:"9px 10px" }}><div style={{ fontWeight:700 }}>{s.name}</div><div style={{ fontSize:11, color:"#AAA" }}>/{s.slug}</div></td>
+                <td style={{ padding:"9px 10px", cursor:"pointer" }} onClick={()=>setDetailStore(s)}>
+                  <div style={{ fontWeight:700, color:"#1565C0", textDecoration:"underline dotted" }}>{s.name}</div>
+                  <div style={{ fontSize:11, color:"#AAA" }}>/{s.slug} · {s.id}</div>
+                </td>
                 <td style={{ padding:"9px 10px" }}><div style={{ fontSize:12 }}>{s.owner_name}</div><div style={{ fontSize:11, color:"#AAA" }}>{s.owner_email}</div></td>
                 <td style={{ padding:"9px 10px", fontSize:12 }}>{s.city||"—"}</td>
                 <td style={{ padding:"9px 10px" }}><span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span></td>
@@ -4863,6 +4867,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
       </div>
       {planModal  && <SuperChangePlanModal {...planModal}  plans={plans} api={api} pop={pop} onClose={()=>setPlanModal(null)}  onDone={onRefresh}/>}
       {trialModal && <SuperExtendTrialModal {...trialModal}             api={api} pop={pop} onClose={()=>setTrialModal(null)} onDone={onRefresh}/>}
+      {detailStore && <SuperStoreDetail store={detailStore} plans={plans} api={api} pop={pop} onClose={()=>setDetailStore(null)} onRefresh={()=>{onRefresh();setDetailStore(null);}}/>}
     </div>
   );
 }
@@ -4926,36 +4931,60 @@ function SuperBilling({ stores, plans, api, pop, setModal, fmt, fmtDate }) {
             <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Store *</label>
             <select value={pf.store_id} onChange={e=>setPf(d=>({...d,store_id:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
               <option value="">— Select Store —</option>
-              {stores.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              {stores.map(s=><option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:13 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Plan * (auto-fills amount)</label>
+            <select value={pf.plan_id} onChange={e=>{
+              const plan = plans.find(p=>p.id===e.target.value);
+              setPf(d=>({...d, plan_id:e.target.value, amount: plan ? (d.billing_cycle==="yearly"?(plan.price_yearly||plan.price_monthly*12):plan.price_monthly) : d.amount }));
+            }} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${pf.plan_id?"#6B1B2A":"#E8E8E8"}`, borderRadius:8, fontSize:14, background:"#FFF" }}>
+              <option value="">— Select Plan —</option>
+              {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
             </select>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
             <div style={{ marginBottom:13 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Billing Cycle</label>
+              <select value={pf.billing_cycle} onChange={e=>{
+                const cycle = e.target.value;
+                const plan = plans.find(p=>p.id===pf.plan_id);
+                setPf(d=>({...d, billing_cycle:cycle, amount: plan ? (cycle==="yearly"?(plan.price_yearly||plan.price_monthly*12):plan.price_monthly) : d.amount }));
+              }} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+            <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Amount (TZS) *</label>
-              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box" }}/>
+              <input type="number" value={pf.amount} onChange={e=>setPf(d=>({...d,amount:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:`1px solid ${pf.amount?"#6B1B2A":"#E8E8E8"}`, borderRadius:8, fontSize:14, boxSizing:"border-box", fontWeight:700 }}/>
             </div>
             <div style={{ marginBottom:13 }}>
               <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Method</label>
               <select value={pf.method} onChange={e=>setPf(d=>({...d,method:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
-                {["Cash","M-Pesa","Tigo Pesa","Airtel Money","Bank Transfer","Card","Manual"].map(m=><option key={m}>{m}</option>)}
+                {["Cash","M-Pesa","Tigo Pesa","Airtel Money","Bank Transfer","Pesapal","Card","Manual"].map(m=><option key={m}>{m}</option>)}
               </select>
+            </div>
+            <div style={{ marginBottom:13 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Reference #</label>
+              <input type="text" value={pf.reference} onChange={e=>setPf(d=>({...d,reference:e.target.value}))} placeholder="e.g. TXN123456" style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box" }}/>
             </div>
           </div>
           <div style={{ marginBottom:13 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Plan (optional)</label>
-            <select value={pf.plan_id} onChange={e=>setPf(d=>({...d,plan_id:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, background:"#FFF" }}>
-              <option value="">No change</option>
-              {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Notes</label>
+            <input type="text" value={pf.notes||""} onChange={e=>setPf(d=>({...d,notes:e.target.value}))} placeholder="e.g. Paid via M-Pesa" style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box" }}/>
           </div>
-          <div style={{ marginBottom:13 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#333", marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Reference #</label>
-            <input type="text" value={pf.reference} onChange={e=>setPf(d=>({...d,reference:e.target.value}))} style={{ width:"100%", padding:"9px 12px", border:"1px solid #E8E8E8", borderRadius:8, fontSize:14, boxSizing:"border-box" }}/>
-          </div>
+          {pf.plan_id && pf.amount && (
+            <div style={{ background:"#E8F5E9", borderRadius:8, padding:"10px 14px", marginBottom:12, fontSize:13, color:"#2E7D32", fontWeight:600 }}>
+              ✓ Will activate store and set plan to {plans.find(p=>p.id===pf.plan_id)?.name} · TZS {Number(pf.amount).toLocaleString()}
+            </div>
+          )}
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={()=>setShowModal(false)} style={{ padding:"9px 18px", borderRadius:8, border:"1px solid #E8E8E8", background:"transparent", color:"#666", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
-            <button onClick={recordPay} disabled={busy} style={{ padding:"9px 18px", borderRadius:8, border:"none", background:"#6B1B2A", color:"#FFF", fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:busy?.7:1 }}>
-              {busy?"Saving…":"Record Payment"}
+            <button onClick={recordPay} disabled={busy||!pf.store_id||!pf.amount} style={{ padding:"9px 18px", borderRadius:8, border:"none", background:"#6B1B2A", color:"#FFF", fontWeight:700, cursor:busy?"not-allowed":"pointer", fontFamily:"inherit", opacity:(busy||!pf.store_id||!pf.amount)?.6:1 }}>
+              {busy?"Saving…":"✓ Record & Activate"}
             </button>
           </div>
         </Modal>
@@ -5604,9 +5633,18 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
           <div style={{ fontSize:13, color:G62, lineHeight:1.7 }}>
             To upgrade your plan or renew your subscription, contact BNBMIS support.
           </div>
-          <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", marginTop:12, background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
-            Contact Support
-          </a>
+          <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+            <a href="mailto:support@bnbmis.com" style={{ display:"inline-block", background:M2, color:WH2, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, textDecoration:"none" }}>
+              Contact Support
+            </a>
+            <button onClick={async()=>{
+              const newStatus = store?.status==="active"?"suspended":"active";
+              try { await api.updateStore(storeId,{status:newStatus}); setStore(s=>({...s,status:newStatus})); pop(newStatus==="suspended"?"Store paused — hidden from marketplace":"Store reactivated on marketplace"); }
+              catch(e){ pop(e.message,"err"); }
+            }} style={{ display:"inline-block", background:store?.status==="active"?"#FFF3E0":"#E8F5E9", color:store?.status==="active"?WA2:OK2, border:`1px solid ${store?.status==="active"?WA2:OK2}`, borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              {store?.status==="active" ? "⏸ Pause Marketplace" : "▶ Activate Marketplace"}
+            </button>
+          </div>
           {/* ── PAY NOW SECTION ── */}
           <PayNowSection
             storeId={storeId} store={store} owner={owner}
@@ -7268,5 +7306,145 @@ function PayNowSection({ storeId, store, owner, plans, platSettings, pop }) {
         )}
       </div>
     </div>
+  );
+}
+
+/* ─── SUPER: STORE DETAIL PANEL ─────────────────────────── */
+function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRefresh }) {
+  const [store, setStore]   = useState(initialStore);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm]     = useState({
+    name:        initialStore.name        || "",
+    description: initialStore.description || "",
+    city:        initialStore.city        || "",
+    country:     initialStore.country     || "",
+    email:       initialStore.email       || "",
+    phone:       initialStore.phone       || "",
+    website:     initialStore.website     || "",
+    slug:        initialStore.slug        || "",
+    status:      initialStore.status      || "trial",
+    plan_id:     initialStore.plan_id     || "",
+  });
+
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const OK2="#2E7D32",OKB2="#E8F5E9",ER2="#C62828",ERB2="#FFEBEE",WA2="#B76E00",WAB2="#FFF3E0",IN2="#1565C0",INB2="#E3F2FD";
+  const sC = s=>({active:OK2,trial:IN2,suspended:WA2,terminated:ER2}[s]||G62);
+  const sB = s=>({active:OKB2,trial:INB2,suspended:WAB2,terminated:ERB2}[s]||G12);
+
+  const inp = (label, key, type="text", ph="") => (
+    <div style={{ marginBottom:14 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>{label}</label>
+      <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
+        style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }}/>
+    </div>
+  );
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateStore(store.id, form);
+      setStore(s=>({...s,...form}));
+      pop("Store updated successfully");
+      onRefresh();
+    } catch(e) { pop(e.message,"err"); }
+    setSaving(false);
+  };
+
+  const quickStatus = async (status) => {
+    try {
+      await api.updateStore(store.id, { status });
+      setStore(s=>({...s,status}));
+      setForm(f=>({...f,status}));
+      pop("Status changed to "+status);
+      onRefresh();
+    } catch(e) { pop(e.message,"err"); }
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:9990 }}/>
+      {/* Panel */}
+      <div style={{
+        position:"fixed", top:0, right:0, bottom:0, width:"min(520px,100vw)",
+        background:WH2, zIndex:9991, display:"flex", flexDirection:"column",
+        boxShadow:"-4px 0 32px rgba(0,0,0,.2)", overflowY:"auto",
+      }}>
+        {/* Header */}
+        <div style={{ background:M2, color:WH2, padding:"18px 22px", display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexShrink:0 }}>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700 }}>{store.name}</div>
+            <div style={{ fontSize:12, opacity:.7, marginTop:2 }}>{store.id} · /{store.slug}</div>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH2, borderRadius:7, padding:"6px 12px", fontSize:18, cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+
+        <div style={{ padding:"20px 22px", flex:1 }}>
+          {/* Status badges + quick actions */}
+          <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ background:sB(store.status), color:sC(store.status), borderRadius:99, padding:"5px 14px", fontSize:13, fontWeight:700, textTransform:"uppercase" }}>{store.status}</span>
+            <span style={{ background:G12, color:G62, borderRadius:99, padding:"5px 12px", fontSize:12 }}>{plans.find(p=>p.id===store.plan_id)?.name||"No Plan"}</span>
+            <div style={{ display:"flex", gap:6, marginLeft:"auto" }}>
+              {store.status!=="active"     && <button onClick={()=>quickStatus("active")}     style={{ background:OKB2, color:OK2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Activate</button>}
+              {store.status==="active"     && <button onClick={()=>quickStatus("suspended")} style={{ background:WAB2, color:WA2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>⏸ Suspend</button>}
+              {store.status!=="terminated" && <button onClick={()=>quickStatus("terminated")} style={{ background:ERB2, color:ER2, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>✕ Terminate</button>}
+            </div>
+          </div>
+
+          {/* Owner info (read-only) */}
+          <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
+              <div><span style={{ color:G62 }}>Name: </span><strong>{store.owner_name||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Email: </span><strong>{store.owner_email||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Rooms: </span><strong>{store.room_count||0}</strong></div>
+              <div><span style={{ color:G62 }}>Bookings: </span><strong>{store.booking_count||0}</strong></div>
+              <div><span style={{ color:G62 }}>Revenue: </span><strong style={{ color:OK2 }}>TZS {Number(store.total_revenue||0).toLocaleString()}</strong></div>
+              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
+            </div>
+          </div>
+
+          {/* Editable fields */}
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:14, fontWeight:700, marginBottom:14, borderLeft:`4px solid ${M2}`, paddingLeft:10 }}>Edit Store Details</div>
+          {inp("Store Name","name","text","e.g. Sunrise Lodge")}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Description</label>
+            <textarea value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}/>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+            {inp("City","city","text","e.g. Dar es Salaam")}
+            {inp("Country","country","text","e.g. Tanzania")}
+            {inp("Email","email","email","")}
+            {inp("Phone","phone","tel","")}
+            {inp("Website","website","url","")}
+            {inp("Subdomain Slug","slug","text","e.g. sunrise-lodge")}
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Status</label>
+            <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              {["trial","active","suspended","terminated"].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G82, marginBottom:4, textTransform:"uppercase", letterSpacing:".05em" }}>Plan</label>
+            <select value={form.plan_id||""} onChange={e=>setForm(f=>({...f,plan_id:e.target.value}))}
+              style={{ width:"100%", padding:"9px 12px", border:`1px solid ${G22}`, borderRadius:8, fontSize:14, fontFamily:"inherit", background:WH2, outline:"none" }}>
+              <option value="">No plan</option>
+              {plans.map(p=><option key={p.id} value={p.id}>{p.name} — TZS {Number(p.price_monthly||0).toLocaleString()}/mo</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:"14px 22px", borderTop:`1px solid ${G22}`, display:"flex", gap:10, flexShrink:0, background:WH2 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:`1px solid ${G22}`, background:"transparent", color:G62, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:saving?"#aaa":M2, color:WH2, fontWeight:700, cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
+            {saving?"Saving…":"✓ Save Changes"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
