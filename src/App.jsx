@@ -1915,6 +1915,7 @@ export default function App() {
   }
 
   /* ── ADMIN DASHBOARD ── */
+  if (view === "admin" && user) {
   const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
   const totExp = exps.reduce((s,e)=>s+e.amt,0);
   const netPro = totRev - totExp;
@@ -1981,6 +1982,23 @@ export default function App() {
       {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={user} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       {modal==="login"   && <LoginModal loginF={loginF} setLoginF={setLoginF} loginErr={loginErr} doLogin={doLogin} onClose={()=>{setModal(null);setLoginErr("");}} />}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
+    </div>
+  );
+  } // end if (view === "admin" && user)
+
+  // ── FALLBACK: nothing matched — force view to "land" and show spinner ──
+  // Handles: Instagram WebView, in-app browsers that block localStorage
+  // view="land"/"book"/"customer" are caught by early returns above, so we're safe here
+  if (view !== "land") {
+    setTimeout(() => setView("land"), 0);
+  }
+  // Return a safe loading screen while the view resets
+  return (
+    <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:900, color:"#6B1B2A", letterSpacing:"-1px", marginBottom:8 }}>BNBMIS</div>
+        <div style={{ fontSize:13, color:"#999" }}>Loading…</div>
+      </div>
     </div>
   );
 }
