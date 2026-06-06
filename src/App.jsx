@@ -3846,11 +3846,14 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
 
   // Rooms for selected location — filtered by availability after dates chosen
   const isRoomAvailable = (r) => {
-    // "maintenance" blocks all dates; "occupied" only blocks overlapping dates
+    // "maintenance" always blocks
     if (r.status === "maintenance") return false;
-    if (!form.ci || !form.co) return r.status !== "maintenance"; // no dates yet — show all non-maintenance
+    // No dates selected yet: only show rooms that are currently "available"
+    // (occupied rooms shown as unavailable until dates are picked)
+    if (!form.ci || !form.co) return r.status === "available";
+    // Dates selected: check actual booking overlap (occupied room may be free for chosen dates)
     const booked = (bookedDatesMap || {})[r.id] || [];
-    // checkout is 12:00 — strict > means same-day checkout/checkin is allowed
+    // Checkout is 12:00 — strict > means same-day checkout/checkin is allowed
     return !booked.some(b => b.ci < form.co && b.co > form.ci);
   };
 
