@@ -1529,19 +1529,21 @@ export default function App() {
             {availLoading && <div style={{padding:"8px 0",fontSize:13,color:G6}}>Checking availability…</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {rooms.filter(r => r.locId === bD.locId).map(rm => {
-                const occupied = rm.status !== "available";
-                const dateTaken = !isAvailableForDates(rm.id);
-                const unavail = occupied || dateTaken;
+                // "occupied" = guest currently checked in — CAN still book future dates
+                // "maintenance" = blocked for ALL dates
+                const maintenance = rm.status === "maintenance";
+                const dateTaken   = !isAvailableForDates(rm.id);
+                const unavail     = maintenance || dateTaken;
                 return (
                 <div key={rm.id}
-                  onClick={() => !unavail && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: unavail ? "default" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
+                  onClick={() => !maintenance && setBD(d => ({ ...d, roomId: rm.id }))}
+                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
                   onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
                     <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
                       onClick={e => { e.stopPropagation(); setRoomDetail(rm.id); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: unavail ? "grayscale(60%)" : "none" }} />
+                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(50%)" : "none" }} />
                       <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: WH, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, display:"flex", alignItems:"center", gap:5 }}>
                         🔍 View {rm.photos.length > 1 ? rm.photos.length + " photos" : "photo"}{rm.video ? " · 🎬" : ""}
                       </div>
@@ -1551,13 +1553,15 @@ export default function App() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap:"wrap" }}>
                         <span style={{ fontSize: 15, fontWeight: 700, color: BK, fontFamily: "'Playfair Display',serif" }}>{rm.name}</span>
-                        {unavail
-                          ? <span style={{background:dateTaken?"#FFF3E0":"#FFEBEE", color:dateTaken?WA:ER, padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700}}>
-                              {dateTaken ? "📅 Dates Taken" : "🚫 Unavailable"}
-                            </span>
-                          : bD.roomId === rm.id
-                            ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
-                            : <Badge s={rm.status}/>
+                        {dateTaken
+                          ? <span style={{background:"#FFF3E0", color:WA, padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700}}>📅 Dates Taken</span>
+                          : maintenance
+                            ? <span style={{background:ERB, color:ER, padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700}}>🔧 Maintenance</span>
+                            : bD.roomId === rm.id
+                              ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
+                              : rm.status === "occupied"
+                                ? <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied Now</span>
+                                : <Badge s={rm.status}/>
                         }
                       </div>
                       <div style={{ fontSize: 12, color: G6, marginBottom: 7 }}>{rm.type} · {rm.beds} bed · up to {rm.guests} guests</div>
@@ -1596,9 +1600,18 @@ export default function App() {
                       </button>
                     </div>
                   )}
-                  {occupied && !dateTaken && (
+                  {rm.status === "occupied" && !dateTaken && !maintenance && (
+                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                      <span style={{ fontSize: 12, color: WA, fontWeight: 600 }}>🏠 Currently occupied — available for future dates</span>
+                      <button onClick={e => { e.stopPropagation(); goStep(2); }}
+                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                        📅 Pick Dates
+                      </button>
+                    </div>
+                  )}
+                  {maintenance && (
                     <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
-                      🚫 Currently occupied — check back later
+                      🔧 Under maintenance — not available for booking
                     </div>
                   )}
                 </div>
@@ -3833,8 +3846,9 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
 
   // Rooms for selected location — filtered by availability after dates chosen
   const isRoomAvailable = (r) => {
-    if (r.status !== "available") return false;
-    if (!form.ci || !form.co) return true; // no dates yet — show all
+    // "maintenance" blocks all dates; "occupied" only blocks overlapping dates
+    if (r.status === "maintenance") return false;
+    if (!form.ci || !form.co) return r.status !== "maintenance"; // no dates yet — show all non-maintenance
     const booked = (bookedDatesMap || {})[r.id] || [];
     // checkout is 12:00 — strict > means same-day checkout/checkin is allowed
     return !booked.some(b => b.ci < form.co && b.co > form.ci);
@@ -3903,9 +3917,13 @@ function NewBookModal({ rooms, locs, user, onClose, onSave, payMethods, bookedDa
             {availRooms.map(r => (
               <option key={r.id} value={r.id}>{r.name} — TZS {Number(r.price).toLocaleString()}/night</option>
             ))}
-            {unavailRooms.length > 0 && <option disabled>── Unavailable for these dates ──</option>}
-            {unavailRooms.map(r => (
-              <option key={r.id} value={r.id} disabled>✕ {r.name} (taken)</option>
+            {unavailRooms.filter(r=>r.status!=="maintenance").length > 0 && <option disabled>── Dates taken ──</option>}
+            {unavailRooms.filter(r=>r.status!=="maintenance").map(r => (
+              <option key={r.id} value={r.id} disabled>📅 {r.name} (dates taken)</option>
+            ))}
+            {unavailRooms.filter(r=>r.status==="maintenance").length > 0 && <option disabled>── Under maintenance ──</option>}
+            {unavailRooms.filter(r=>r.status==="maintenance").map(r => (
+              <option key={r.id} value={r.id} disabled>🔧 {r.name} (maintenance)</option>
             ))}
           </select>
         )}
