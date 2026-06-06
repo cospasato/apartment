@@ -1,4 +1,31 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Component } from "react";
+
+/* ─── ERROR BOUNDARY ─────────────────────────────────────── */
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  componentDidCatch(e, info) { console.error("BNBMIS Error:", e, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"sans-serif" }}>
+          <div style={{ background:"#FFF", borderRadius:12, padding:28, maxWidth:420, textAlign:"center", boxShadow:"0 4px 20px rgba(0,0,0,.1)" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>⚠️</div>
+            <div style={{ fontWeight:700, fontSize:16, color:"#C62828", marginBottom:8 }}>Something went wrong</div>
+            <div style={{ fontSize:13, color:"#666", marginBottom:20, lineHeight:1.6 }}>
+              {this.state.error?.message || "An unexpected error occurred. Please try again."}
+            </div>
+            <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+              Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { api } from "./api";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
@@ -1859,9 +1886,10 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
-      <>
-        {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
-        <MobilePortal
+      <ErrorBoundary>
+        <>
+          {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
+          <MobilePortal
           storeName={owner.store?.name||"My Store"} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
@@ -1872,8 +1900,9 @@ export default function App() {
         >
           {content}
         </MobilePortal>
-        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
-      </>
+          {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
+        </>
+      </ErrorBoundary>
     );
 
     /* ── DESKTOP LAYOUT ── */
