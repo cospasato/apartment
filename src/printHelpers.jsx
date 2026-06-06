@@ -1,5 +1,5 @@
-// printHelpers.js — HTML print templates extracted from App.jsx
-// Kept separate to avoid confusing esbuild's JSX parser with multiline HTML
+// Print helper functions — HTML templates for receipts and invoices
+// Kept in .jsx to allow JSX syntax; extracted from App.jsx to avoid esbuild parse issues
 
 export function getPrintReceiptHTML(docType, storeName, b, rm, bal) {
   return `<!DOCTYPE html><html><head><title>${docType}</title><style>
@@ -71,16 +71,14 @@ export function getPrintReceiptHTML(docType, storeName, b, rm, bal) {
     <br/>
     <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
     <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
-    </body></html>;
+    </body></html>`;
 }
 
 export function getPaymentReportHTML(storeName, rows, rooms, dateFrom, dateTo) {
   return `<html><head><title>Payments Report</title><style>body{font-family:Arial;padding:24px}h1{color:#6B1B2A}table{width:100%;border-collapse:collapse}th{background:#6B1B2A;color:#FFF;padding:8px;text-align:left;font-size:12px}td{padding:8px;border-bottom:1px solid #eee;font-size:13px}.ok{color:#2E7D32;font-weight:700}.er{color:#C62828;font-weight:700}@media print{button{display:none}}</style></head><body>
             <h1>BNBMIS — Payments Report</h1><p style="color:#666">Printed: ${new Date().toLocaleString()}</p>
             <table><tr><th>Booking ID</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Total</th><th>Paid</th><th>Balance</th><th>Method</th><th>Status</th></tr>
-            ${rows.map(b=>`<tr><td>${b.id}</td><td>${b.gName}</td><td>${rooms.find(r=>r.id===b.roomId)?.name||"—"}</td><td>${b.ci||""}</td><td>TZS ${Number(b.total||0).toLocaleString()}</td><td class="ok">TZS ${Number(b.paid||0).toLocaleString()}</td><td class="${(b.total-b.paid)>0?"er":"ok"}">TZS ${Number((b.total||0)-(b.paid||0)).toLocaleString()}</td><td>${b.method||""}</td><td>${b.status}</td></tr>`).join("")}
-            </table><br/><button onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer">🖨 Print</button>
-            </body></html>;
+            ${rows.map(b=>`<tr><td>${b.id}</td><td>${b.gName}</td><td>${rooms.find(r=>r.id===b.roomId)?.name||"—"}</td><td>${b.ci||""}</td><td>TZS ${Number(b.total||0).toLocaleString()}</td><td class="ok">TZS ${Number(b.paid||0).toLocaleString()}</td><td class="${(b.total-b.paid)>0?"er":"ok"}">TZS ${Number((b.total||0)-(b.paid||0)).toLocaleString()}</td><td>${b.method||""}</td><td>${b.status}</td></tr>`;
 }
 
 export function getCustomerReceiptHTML(selB, rooms) {
@@ -108,12 +106,12 @@ export function getCustomerReceiptHTML(selB, rooms) {
               <div class="footer">Thank you for your stay!<br/>support@bnbmis.com &nbsp;|&nbsp; bnbmis.com</div>
               <br/><button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
               <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
-              </body></html>;
+              </body></html>`;
 }
 
 export function getInvoiceHTML(docType, storeName, b, rooms, locs) {
-  const rm = rooms.find(r => r.id === b.roomId);
-  const loc = locs.find(l => l.id === b.locId);
+  const rm  = rooms.find(r => r.id === b.roomId);
+  const loc = locs ? locs.find(l => l.id === b.locId) : null;
   const bal = (b.total||0) - (b.paid||0);
   return `<!DOCTYPE html><html><head><title>${docType} – ${b.id}</title>
 <style>
@@ -221,5 +219,5 @@ export function getInvoiceHTML(docType, storeName, b, rooms, locs) {
     <button class="btn btn-sec" onclick="window.close()">Close</button>
   </div>
 </div>
-</body></html>;
+</body></html>`;
 }

@@ -200,23 +200,6 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, status: visibility });
     }
 
-    // ── PLATFORM SETTINGS: must come before general PUT to avoid "id required" ──
-    if (req.method === 'PUT' && action === 'settings') {
-      const token = verifyToken(req);
-      if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin required' });
-      const settings = req.body || {};
-      for (const [key, value] of Object.entries(settings)) {
-        if (key && value !== undefined) {
-          await sql`
-            INSERT INTO platform_settings (key, value, updated_at)
-            VALUES (${key}, ${String(value)}, NOW())
-            ON CONFLICT (key) DO UPDATE SET value = ${String(value)}, updated_at = NOW()
-          `;
-        }
-      }
-      return res.status(200).json({ success: true });
-    }
-
     // ── SUPER ADMIN or OWNER: Update store ──
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'id required' });
