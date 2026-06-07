@@ -12,11 +12,12 @@ export default defineConfig({
     },
   },
   build: {
-    // Generate source maps for debugging
     sourcemap: false,
+    // Target iOS 13+ (covers 99%+ of active iPhones)
+    // This tells esbuild to transpile modern JS for older WebKit
+    target: ['es2015', 'safari13'],
     rollupOptions: {
       output: {
-        // Split chunks for better caching
         manualChunks: {
           react: ['react', 'react-dom'],
         }

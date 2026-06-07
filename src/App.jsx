@@ -535,7 +535,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p?.store?.id?p:null); } catch{return null;} });
+  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -545,7 +545,7 @@ export default function App() {
   const [mktLoading, setMktLoading] = useState(false);
   const [mktSelStore, setMktSelStore] = useState(null);
 
-  const storeId = owner?.store?.id || null;
+  const storeId = (owner&&owner.store?owner.store.id:null) || null;
 
   // ── ORIGINAL BNC STATE ──
   const [locs, setLocs]   = useState([]);
@@ -559,7 +559,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      try{const ow=localStorage.getItem("bnbmis_owner");if(ow){const p=JSON.parse(ow);if(p?.store?.id)return "owner_dash";}}catch{}
+      try{const ow=localStorage.getItem("bnbmis_owner");if(ow){const p=JSON.parse(ow);if(p&&p.store&&p.store.id)return "owner_dash";}}catch{}
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -775,7 +775,7 @@ export default function App() {
           }
         };
 
-        if (navigator.serviceWorker?.controller) {
+        if (navigator.serviceWorker&&navigator.serviceWorker.controller) {
           navigator.serviceWorker.ready.then(doShow).catch(() => doShow(null));
         } else {
           doShow(null);
@@ -789,11 +789,12 @@ export default function App() {
 
   // ── Polling: check for new bookings every 15 seconds ──
   useEffect(() => {
-    const sid = owner?.store?.id || user?.storeId;
+    const sid = (owner && owner.store && owner.store.id) ? owner.store.id : (user ? user.storeId : null);
     if (!sid) return;
 
     // Auto-request permission 3 seconds after login
-    if (Notification.permission === "default") {
+    // Guard: Notification API not available on all iOS browsers
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
       setTimeout(() => requestNotifPermission(), 3000);
     }
 
@@ -823,7 +824,7 @@ export default function App() {
     }, 15000); // every 15 seconds
 
     return () => clearInterval(poll);
-  }, [owner?.store?.id, user?.storeId, sendBookingNotif]);
+  }, [(owner&&owner.store?owner.store.id:null), (user?user.storeId:null), sendBookingNotif]);
 
   // Unread notification count
   const unreadNotifs = notifInbox.filter(n => !n.read).length;
@@ -1053,7 +1054,7 @@ export default function App() {
   const saveRoom = async (form, isEdit, statusOverride) => {
     try {
       const amen = typeof form.amen === "string" ? form.amen.split(",").map(a=>a.trim()).filter(Boolean) : form.amen;
-      const sid = storeId || user?.storeId;
+      const sid = storeId || (user?user.storeId:null);
       const locObj = locs.find(l => l.id === form.locId);
       const payload = {
         store_id: sid, location_id: form.locId, name: form.name, type: form.type,
@@ -1080,7 +1081,7 @@ export default function App() {
   };
 
   const saveExp = async (form) => {
-    const sid = storeId || user?.storeId;
+    const sid = storeId || (user?user.storeId:null);
     try {
       const created = await api.createExpense({
         store_id: sid, location_id: form.locId, category: form.cat,
@@ -1093,7 +1094,7 @@ export default function App() {
   };
 
   const saveStaff = async (form, isEdit) => {
-    const sid = storeId || user?.storeId;
+    const sid = storeId || (user?user.storeId:null);
     try {
       const payload = { store_id: sid, name: form.name, email: form.email, phone: form.phone, role: form.role, location_id: form.locId || null };
       if (form.pin) payload.pin = form.pin;
@@ -1130,7 +1131,7 @@ export default function App() {
   };
 
   const saveLoc = async (form, isEdit) => {
-    const sid = storeId || user?.storeId;
+    const sid = storeId || (user?user.storeId:null);
     try {
       if (isEdit) {
         const updated = await api.updateLocation(form.id, { name: form.name, city: form.city, address: form.addr, icon: form.icon, description: form.desc });
@@ -1158,7 +1159,7 @@ export default function App() {
   };
 
   const createNewBooking = async (form, base, da, total) => {
-    const sid = storeId || user?.storeId;
+    const sid = storeId || (user?user.storeId:null);
     try {
       const created = await api.createBooking({
         store_id: sid,
@@ -1182,7 +1183,7 @@ export default function App() {
     const email = loginF.email.trim().toLowerCase();
     const pin   = loginF.pin.trim();
     // Priority: form field > subdomain-detected store > already-logged-in owner
-    const storeIdForLogin = loginF.storeId?.trim() || subdomainStoreId || owner?.store?.id;
+    const storeIdForLogin = loginF.storeId?.trim() || subdomainStoreId || (owner&&owner.store?owner.store.id:null);
     if (!storeIdForLogin) { setLoginErr("Please enter your Store ID. Ask your manager for it."); return; }
     if (!email)           { setLoginErr("Please enter your email address."); return; }
     if (!pin)             { setLoginErr("Please enter your PIN."); return; }
@@ -1198,10 +1199,10 @@ export default function App() {
   };
 
   // Role-based tab permissions
-  const isAdmin    = user?.role === "Admin";
-  const isManager  = user?.role === "Manager";
-  const isAcct     = user?.role === "Accountant";
-  const isRecept   = user?.role === "Receptionist";
+  const isAdmin    = (user?user.role:null) === "Admin";
+  const isManager  = (user?user.role:null) === "Manager";
+  const isAcct     = (user?user.role:null) === "Accountant";
+  const isRecept   = (user?user.role:null) === "Receptionist";
   const canDash    = isAdmin || isManager || isRecept;
   const canReports = isAdmin || isManager || isAcct;
   const canStaff   = isAdmin || isManager;
@@ -1226,7 +1227,7 @@ export default function App() {
   ];
 
   const NavBar = () => {
-    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
+    const storeName = mktSelStore?.name || (owner&&owner.store?owner.store.name:'') || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
@@ -1257,7 +1258,7 @@ export default function App() {
                 {((user||owner)?.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
               </div>
               <span>{(user||owner)?.name}</span>
-              {user && <span style={{ color:GOLD }}>· {user?.role}</span>}
+              {user && <span style={{ color:GOLD }}>· {(user?user.role:null)}</span>}
             </button>
             <button onClick={logout} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
           </>
@@ -1422,7 +1423,7 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u?.store?.id){pop("Login error — store data missing","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error — store data missing","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
         onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
@@ -1842,7 +1843,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner?.store?.id) {
+  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -1873,14 +1874,14 @@ export default function App() {
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
-        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
+        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={(owner&&owner.store?owner.store.slug:'')}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={(owner&&owner.store?owner.store.name:'')}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
         {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
-        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop} storeName={owner?.store?.name}/>}
+        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop} storeName={(owner&&owner.store?owner.store.name:'')}/>}
         {!loading && aTab==="share"     && <ShareStoreTab owner={owner} storeId={sid} rooms={rooms} locs={locs} pop={pop}/>}
         {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
         {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
@@ -1893,7 +1894,7 @@ export default function App() {
         <>
           {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
           <MobilePortal
-          storeName={owner.store?.name||"My Store"} role="Store Owner"
+          storeName={(owner&&owner.store&&owner.store.name?owner.store.name:"My Store")} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -1916,7 +1917,7 @@ export default function App() {
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store?.name||"My Store"}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{(owner&&owner.store&&owner.store.name?owner.store.name:"My Store")}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -1975,17 +1976,17 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={(user?user.role:null)}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
-      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
-      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
+      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={(owner&&owner.store?owner.store.slug:'')||(stores.find(s=>s.id===(user?user.storeId:null))?.slug)||subdomainSlug}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={(user?user.storeId:null)} storeName={stores.find(s=>s.id===(user?user.storeId:null))?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
-      {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
+      {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={(user?user.storeId:null)} api={api}/>}
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-      {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
-      {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={user?.storeId} api={api} pop={pop}/>}
-      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
-      {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={user?.storeId} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
+      {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={(user?user.storeId:null)}/>}
+      {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={(user?user.storeId:null)} api={api} pop={pop}/>}
+      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop} storeName={stores.find(s=>s.id===(user?user.storeId:null))?.name}/>}
+      {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={(user?user.storeId:null)} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===(user?user.storeId:null))?.slug)||subdomainSlug}/>}
       {!loading && aTab==="profile"   && <ProfileTab user={user} updateProfile={updateProfile}/>}
     </>
   );
@@ -1995,7 +1996,7 @@ export default function App() {
   if (isMobileAdmin) return (
     <>
       <MobilePortal
-        storeName={user?.name||"Staff"} role={user?.role||"Staff"}
+        storeName={user?.name||"Staff"} role={(user?user.role:null)||"Staff"}
         tabs={staffTabs} activeTab={aTab} setTab={setATab}
         onNewBooking={()=>setModal("newBook")}
         onLogout={logout}
@@ -2608,7 +2609,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
             </div>
           )}
           {/* Modify booking — Admin/Manager only */}
-          {["confirmed","pending","checkedIn"].includes(selB.status) && (user?.role==="Admin"||user?.role==="Manager"||!user) && modifyBooking && (
+          {["confirmed","pending","checkedIn"].includes(selB.status) && ((user?user.role:null)==="Admin"||(user?user.role:null)==="Manager"||!user) && modifyBooking && (
             <div style={{ marginTop:14 }}>
               <button onClick={() => { setEditBook(selB); setSel(null); }}
                 style={{ width:"100%", background:"#E3F2FD", color:"#1565C0", border:"1px solid #1565C0", borderRadius:8, padding:"10px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
@@ -3076,7 +3077,7 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
       </Card>
       {modal && (
         <Modal title="Add Expense" onClose={() => setModal(false)}>
-          {user?.role === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
+          {(user?user.role:null) === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
           <Sel label="Category" value={form.cat} onChange={e => setForm(f => ({ ...f, cat: e.target.value }))}>{["Utilities", "Maintenance", "Supplies", "Staff", "Marketing", "Rent", "Other"].map(c => <option key={c}>{c}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Electricity bill" />
           <Inp label="Amount (TZS)" type="number" value={form.amt} onChange={e => setForm(f => ({ ...f, amt: e.target.value }))} />
@@ -3800,7 +3801,7 @@ function ProfileTab({ user, updateProfile }) {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{user?.name}</div>
-          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{user?.role}</div>
+          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{(user?user.role:null)}</div>
           <div style={{ fontSize: 12, color: G6, marginTop: 2 }}>{user?.email}</div>
         </div>
       </Card>
@@ -4507,7 +4508,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
             </button>
           </div>
 
-          {["pending","confirmed"].includes(selB.status) && (user?.role === "Admin" || user?.role === "Manager") && (
+          {["pending","confirmed"].includes(selB.status) && ((user?user.role:null) === "Admin" || (user?user.role:null) === "Manager") && (
             <div style={{ paddingTop:10 }}>
               <button onClick={() => { onCancel(selB.id); setSel(null); }}
                 style={{ width:"100%", padding:"12px", border:`2px solid ${ER}`, borderRadius:9,
@@ -6351,8 +6352,8 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
   const [selRoomId, setSelRoomId] = useState("");
   const [copied, setCopied]   = useState(false);
 
-  const slug    = slugProp || owner?.store?.slug || "";
-  const storeName = owner?.store?.name || "Our Store";
+  const slug    = slugProp || (owner&&owner.store?owner.store.slug:'') || "";
+  const storeName = (owner&&owner.store?owner.store.name:'') || "Our Store";
   const storeImg  = owner?.store?.featured_image || "";
   const baseUrl   = slug ? "https://" + slug + ".bnbmis.com" : "https://bnbmis.com";
   const selRoom   = rooms.find(r => r.id === selRoomId);
