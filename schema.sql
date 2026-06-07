@@ -100,15 +100,16 @@ CREATE TABLE IF NOT EXISTS super_admins (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS locations (
-  id          TEXT        PRIMARY KEY DEFAULT 'L' || upper(substr(md5(random()::text), 1, 6)),
-  store_id    TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-  name        TEXT        NOT NULL,
-  city        TEXT        NOT NULL,
-  address     TEXT        NOT NULL DEFAULT '',
-  icon        TEXT        NOT NULL DEFAULT '🏙️',
-  description TEXT        NOT NULL DEFAULT '',
-  active      BOOLEAN     NOT NULL DEFAULT true,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              TEXT        PRIMARY KEY DEFAULT 'L' || upper(substr(md5(random()::text), 1, 6)),
+  store_id        TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name            TEXT        NOT NULL,
+  city            TEXT        NOT NULL,
+  address         TEXT        NOT NULL DEFAULT '',
+  icon            TEXT        NOT NULL DEFAULT '🏙️',
+  description     TEXT        NOT NULL DEFAULT '',
+  featured_image  TEXT,
+  active          BOOLEAN     NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS rooms (
@@ -269,6 +270,9 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
 -- Store IDs are now format: ST + 4 chars, e.g. STABCD (easy to share with staff)
 
 -- ============================================================
+-- MIGRATION: Add featured_image to locations
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS featured_image TEXT;
+
 -- MIGRATION: Add featured_image column if not exists
 -- ============================================================
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;

@@ -27,11 +27,11 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const token = verifyToken(req);
       if (!token || !['super','owner','staff'].includes(token.type)) return res.status(401).json({ error: 'Auth required' });
-      const { store_id: sid, name, city, country, phone, address, icon, description } = req.body || {};
+      const { store_id: sid, name, city, country, phone, address, icon, description, featured_image } = req.body || {};
       if (!sid || !name || !city) return res.status(400).json({ error: 'store_id, name and city are required' });
       const rows = await sql`
-        INSERT INTO locations (store_id, name, city, address, icon, description)
-        VALUES (${sid}, ${name}, ${city}, ${address || ''}, ${icon || '🏙️'}, ${description || ''})
+        INSERT INTO locations (store_id, name, city, address, icon, description, featured_image)
+        VALUES (${sid}, ${name}, ${city}, ${address || ''}, ${icon || '🏙️'}, ${description || ''}, ${featured_image || null})
         RETURNING *
       `;
       return res.status(201).json(rows[0]);
@@ -39,15 +39,16 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'PUT') {
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { name, city, address, icon, description, active } = req.body || {};
+      const { name, city, address, icon, description, active, featured_image } = req.body || {};
       const rows = await sql`
         UPDATE locations SET
-          name        = COALESCE(${name        ?? null}, name),
-          city        = COALESCE(${city        ?? null}, city),
-          address     = COALESCE(${address     ?? null}, address),
-          icon        = COALESCE(${icon        ?? null}, icon),
-          description = COALESCE(${description ?? null}, description),
-          active      = COALESCE(${active      ?? null}, active)
+          name            = COALESCE(${name            ?? null}, name),
+          city            = COALESCE(${city            ?? null}, city),
+          address         = COALESCE(${address         ?? null}, address),
+          icon            = COALESCE(${icon            ?? null}, icon),
+          description     = COALESCE(${description     ?? null}, description),
+          featured_image  = COALESCE(${featured_image  ?? null}, featured_image),
+          active          = COALESCE(${active          ?? null}, active)
         WHERE id = ${id} RETURNING *
       `;
       if (!rows.length) return res.status(404).json({ error: 'Location not found' });

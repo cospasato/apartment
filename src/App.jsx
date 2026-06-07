@@ -3527,7 +3527,7 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
+        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "", featured_image: "" }); setModal(true); }}>+ Add Location</Btn>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
         {locs.map(loc => {
@@ -3535,25 +3535,43 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
           const lb = books.filter(b => b.locId === loc.id);
           const rev = lb.reduce((s, b) => s + b.paid, 0);
           return (
-            <Card key={loc.id}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
-                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
+            <div key={loc.id} style={{ background:WH, borderRadius:14, overflow:"hidden", border:"1px solid "+G2, boxShadow:"0 1px 6px rgba(0,0,0,.06)" }}>
+              {/* Featured image */}
+              {loc.featured_image ? (
+                <div style={{ height:160, overflow:"hidden", position:"relative" }}>
+                  <img src={loc.featured_image} alt={loc.name}
+                    style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                    onError={e=>{e.target.parentNode.style.display="none";}}/>
+                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,.45) 0%,transparent 55%)" }}/>
+                  <div style={{ position:"absolute", bottom:10, left:14, color:"#FFF", fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700, textShadow:"0 1px 4px rgba(0,0,0,.5)" }}>{loc.name}</div>
                 </div>
-                <div style={{ display:"flex", gap:5 }}>
-                <button onClick={() => { setForm({ ...loc, country: loc.country || "" }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
-                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
+              ) : (
+                <div style={{ height:70, background:"linear-gradient(135deg,"+M+" 0%,#4A1019 100%)", display:"flex", alignItems:"center", padding:"0 16px", gap:10 }}>
+                  <span style={{ fontSize:24 }}>{loc.icon}</span>
+                  <div style={{ color:"#FFF", fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{loc.name}</div>
+                </div>
+              )}
+              <div style={{ padding:14 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                  {loc.featured_image
+                    ? <div style={{ fontSize:12, color:G6 }}>{loc.city}{loc.addr?" · "+loc.addr+"":""}</div>
+                    : <div style={{ fontSize:12, color:G6 }}>{loc.city}</div>
+                  }
+                  <div style={{ display:"flex", gap:5 }}>
+                    <button onClick={()=>{ setForm({...loc, country:loc.country||"", featured_image:loc.featured_image||""}); setModal(true); }}
+                      style={{ background:"none", border:"1px solid "+G2, borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>Edit</button>
+                    <button onClick={()=>deleteLoc(loc.id, loc.name)}
+                      style={{ background:"none", border:"1px solid "+ER, borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", color:ER, fontFamily:"inherit" }}>Delete</button>
+                  </div>
+                </div>
+                {loc.desc && <div style={{ fontSize:12, color:G6, marginBottom:10, fontStyle:"italic", lineHeight:1.5 }}>{loc.desc}</div>}
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  <span style={{ background:G1, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{lr.length} rooms</span>
+                  <span style={{ background:MF, color:M, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{lb.length} bookings</span>
+                  <span style={{ background:OKB, color:OK, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{fmt(rev)}</span>
+                </div>
               </div>
-              </div>
-              <div style={{ fontSize: 12, color: G6, marginBottom: 8 }}>{loc.addr}</div>
-              <div style={{ fontSize: 12, color: G6, marginBottom: 12, fontStyle: "italic" }}>{loc.desc}</div>
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                <span style={{ background: G1, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lr.length} rooms</span>
-                <span style={{ background: MF, color: M, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lb.length} bookings</span>
-                <span style={{ background: OKB, color: OK, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{fmt(rev)}</span>
-              </div>
-            </Card>
+            </div>
           );
         })}
       </div>
@@ -3580,6 +3598,20 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
           <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="e.g. Masaki Peninsula, Plot 12" />
           <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
+          {/* Featured image upload */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:6, textTransform:"uppercase", letterSpacing:".05em" }}>Featured Photo (optional)</label>
+            {form.featured_image ? (
+              <div style={{ position:"relative", borderRadius:10, overflow:"hidden", marginBottom:8, height:140 }}>
+                <img src={form.featured_image} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                  onError={e=>{e.target.style.display="none";}}/>
+                <button onClick={()=>setForm(f=>({...f,featured_image:""}))}
+                  style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.55)", border:"none", borderRadius:"50%", width:26, height:26, color:"#FFF", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+              </div>
+            ) : null}
+            <Inp label="" value={form.featured_image||""} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="Paste image URL (https://...)" />
+            <div style={{ fontSize:11, color:G4, marginTop:4 }}>Paste a direct image URL (jpg, png, webp). You can upload to imgbb.com or similar for free.</div>
+          </div>
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
             <Btn onClick={save} disabled={!form.name || !form.city || form.city === "__other__"} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
