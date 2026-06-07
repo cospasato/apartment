@@ -448,6 +448,21 @@ const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
+  // Global error handler - helps debug iOS blank screen issues
+  useEffect(() => {
+    const handler = (event) => {
+      console.error("Global error:", event.error?.message || event.message);
+    };
+    const rejHandler = (event) => {
+      console.error("Unhandled promise:", event.reason);
+    };
+    window.addEventListener("error", handler);
+    window.addEventListener("unhandledrejection", rejHandler);
+    return () => {
+      window.removeEventListener("error", handler);
+      window.removeEventListener("unhandledrejection", rejHandler);
+    };
+  }, []);
   // ── SUBDOMAIN DETECTION ──
   // e.g. sunrise.bnbmis.com → slug="sunrise", admin.bnbmis.com → super admin portal
   const [subdomainStoreId, setSubdomainStoreId] = useState(null);
@@ -1895,6 +1910,7 @@ export default function App() {
 
     /* ── DESKTOP LAYOUT ── */
     return (
+      <ErrorBoundary>
       <div style={{ display:"flex", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         {/* Sidebar */}
@@ -1943,6 +1959,7 @@ export default function App() {
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
         {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       </div>
+      </ErrorBoundary>
     );
   }
 
