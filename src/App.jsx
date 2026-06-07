@@ -1447,7 +1447,7 @@ export default function App() {
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 22, color: BK }}>Choose a Location</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
               {locs.map(loc => {
-                const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
+
                 return (
                   <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); goStep(2); }}
                     style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: `2px solid ${bD.locId === loc.id ? M : G2}`, transition: "border-color .15s" }}
@@ -1466,7 +1466,7 @@ export default function App() {
                           📍 {loc.addr}
                         </a>
                       )}
-                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700, marginBottom: 10 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
+
                       {/* Contact actions */}
                       {(loc.phone || loc.addr) && (
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }} onClick={e=>e.stopPropagation()}>
@@ -1582,7 +1582,10 @@ export default function App() {
                             : bD.roomId === rm.id
                               ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
                               : rm.status === "occupied"
-                                ? <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied Now</span>
+                                ? (bD.ci && bD.co
+                                    ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Available for your dates</span>
+                                    : <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied — pick dates to check</span>
+                                  )
                                 : <Badge s={rm.status}/>
                         }
                       </div>
@@ -1622,15 +1625,7 @@ export default function App() {
                       </button>
                     </div>
                   )}
-                  {rm.status === "occupied" && !dateTaken && !maintenance && (
-                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-                      <span style={{ fontSize: 12, color: WA, fontWeight: 600 }}>🏠 Currently occupied — available for future dates</span>
-                      <button onClick={e => { e.stopPropagation(); goStep(2); }}
-                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
-                        📅 Pick Dates
-                      </button>
-                    </div>
-                  )}
+
                   {maintenance && (
                     <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
                       🔧 Under maintenance — not available for booking
