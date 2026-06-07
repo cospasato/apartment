@@ -1215,13 +1215,7 @@ export default function App() {
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
-        <div style={{ width:36, height:36, background:M, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <span style={{ color:WH, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
-        </div>
-        <div>
-          <div style={{ color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", lineHeight:1.2 }}>{storeName}</div>
-          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Property Management</div>
-        </div>
+        <div style={{ color:WH, fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>{storeName}</div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
         {view !== "book" && view !== "customer" && view !== "admin" && view !== "owner_dash" && (
@@ -1240,7 +1234,6 @@ export default function App() {
         ) : !customer && view !== "admin" && view !== "owner_dash" ? (
           <>
             <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>My Account</button>
-            <button onClick={()=>setModal("bnbmis_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Login</button>
           </>
         ) : (user || owner) ? (
           <>
@@ -1349,7 +1342,7 @@ export default function App() {
                 <div key={store.id} onClick={goStore}
                   onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(107,27,42,.14)";}}
                   onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
-                  style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
+                  style={{ background:WH, border:"1px solid "+G2, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s", WebkitTapHighlightColor:"rgba(107,27,42,.1)", userSelect:"none" }}>
                   {/* Featured image — top banner */}
                   <div style={{ height:180, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
                     {hasImg && (
