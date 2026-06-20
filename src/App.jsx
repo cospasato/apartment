@@ -1768,7 +1768,7 @@ export default function App() {
         <RoomDetailModal
           dr={rooms.find(r => r.id === roomDetail)}
           loc={locs.find(l => l.id === rooms.find(r => r.id === roomDetail)?.locId)}
-          avail={!["occupied","maintenance"].includes(rooms.find(r => r.id === roomDetail)?.status)}
+          avail={rooms.find(r=>r.id===roomDetail)?.status!=="maintenance" && !(!isAvailableForDates(roomDetail))}
           dateTaken={!isAvailableForDates(roomDetail)}
           bD={bD} selRoom={selRoom}
           onClose={() => setRoomDetail(null)}
@@ -4200,9 +4200,19 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
           📅 Not available for {bD.ci} → {bD.co}
         </div>
       )}
-      {!avail && (
-        <div style={{ background: ERB, border: `1px solid ${ER}30`, borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: ER, fontWeight: 700 }}>
-          🚫 This room is currently {dr.status}
+      {!avail && dr.status === "maintenance" && (
+        <div style={{ background: ERB, border: "1px solid "+ER+"30", borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: ER, fontWeight: 700 }}>
+          🔧 This room is under maintenance and cannot be booked
+        </div>
+      )}
+      {!avail && dr.status === "occupied" && (
+        <div style={{ background: WAB, border: "1px solid "+WA+"30", borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: WA, fontWeight: 700 }}>
+          🏠 Currently occupied — select dates to check future availability
+        </div>
+      )}
+      {avail && dr.status === "occupied" && (
+        <div style={{ background: OKB, border: "1px solid "+OK+"30", borderRadius: 9, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: OK, fontWeight: 700 }}>
+          ✓ Available for your selected dates
         </div>
       )}
 
