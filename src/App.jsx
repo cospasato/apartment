@@ -923,8 +923,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Load booked dates as soon as we have a location — not just at step 3
-    // This ensures occupied rooms can be checked for future date availability
+    // Reload booked dates whenever location changes OR we reach the room selection step
     if (bD.locId) {
       setAvailLoading(true);
       api.getBookedDates(bD.locId)
@@ -932,7 +931,7 @@ export default function App() {
         .catch(() => setBookedDates({}))
         .finally(() => setAvailLoading(false));
     }
-  }, [bD.locId]);
+  }, [bD.locId, bStep]);
 
   useEffect(() => {
     if (payMethods?.length && (bD.method === "Cash" || !bD.method)) {
@@ -941,10 +940,15 @@ export default function App() {
   }, [payMethods]);
 
   const isAvailableForDates = (roomId) => {
-    if (!bD.ci || !bD.co) return true;
-    // Checkout is always 12:00 — so checkout day == next checkin day is NOT a conflict.
-    // Strict > on b.co means: if existing checkout = new checkin, no conflict (room free by noon).
-    return !(bookedDates[roomId]||[]).some(b => b.ci < bD.co && b.co > bD.ci);
+    if (!bD.ci || !bD.co) return true; // no dates selected = treat as available
+    const bookings = bookedDates[roomId] || [];
+    // A conflict exists when: existing checkin < new checkout AND existing checkout > new checkin
+    // Strict comparison means same-day checkout/checkin is allowed (room free by noon)
+    return !bookings.some(b => {
+      const bci = String(b.ci||"").split("T")[0]; // ensure YYYY-MM-DD format
+      const bco = String(b.co||"").split("T")[0];
+      return bci < bD.co && bco > bD.ci;
+    });
   };
 
   const selRoom = rooms.find(r => r.id === bD.roomId);
@@ -1654,8 +1658,8 @@ export default function App() {
                 return (
                 <div key={rm.id}
                   onClick={() => !maintenance && setBD(d => ({ ...d, roomId: rm.id }))}
-                  style={{ background: WH, borderRadius: 12, border: `2px solid ${bD.roomId === rm.id ? M : unavail ? G2 : G2}`, cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 1 : 1 }}
-                  onMouseEnter={e => { if (!unavail) e.currentTarget.style.borderColor = M; }}
+                  style={{ background: WH, borderRadius: 12, border: "2px solid "+(bD.roomId === rm.id ? M : unavail ? G2 : (rm.status==="occupied"&&bD.ci&&bD.co&&!dateTaken) ? OK : G2), cursor: maintenance ? "not-allowed" : "pointer", overflow: "hidden", transition: "border-color .15s", opacity: unavail ? 0.6 : 1 }}
+                  onMouseEnter={e => { if (!maintenance) e.currentTarget.style.borderColor = M; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = bD.roomId === rm.id ? M : G2; }}>
                   {rm.photos && rm.photos.length > 0 && (
                     <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
@@ -1718,13 +1722,19 @@ export default function App() {
                     </div>
                   )}
                   {rm.status === "occupied" && !dateTaken && !maintenance && (
-                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-                      <span style={{ fontSize: 12, color: WA, fontWeight: 600 }}>🏠 Currently occupied — available for future dates</span>
-                      <button onClick={e => { e.stopPropagation(); goStep(2); }}
-                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
-                        📅 Pick Dates
-                      </button>
-                    </div>
+                    bD.ci && bD.co ? (
+                      <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: OKB, borderRadius: 8, fontSize: 12, color: OK, fontWeight: 600 }}>
+                        ✅ Available for your dates — tap to select
+                      </div>
+                    ) : (
+                      <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                        <span style={{ fontSize: 12, color: WA, fontWeight: 600 }}>🏠 Currently occupied — pick dates to check availability</span>
+                        <button onClick={e => { e.stopPropagation(); goStep(2); }}
+                          style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                          📅 Pick Dates
+                        </button>
+                      </div>
+                    )
                   )}
                   {maintenance && (
                     <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
