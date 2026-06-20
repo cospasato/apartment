@@ -15,14 +15,17 @@ module.exports = async function handler(req, res) {
       // Fast query: no RANDOM() (done client-side), no heavy review aggregation
       const rows = await sql`
         SELECT r.id, r.name, r.type, r.beds, r.max_guests, r.price_per_night AS price,
-               r.photos, r.amenities, r.status, r.is_featured, r.description,
+               r.photos, r.amenities, r.status,
+               COALESCE(r.is_featured, false) AS is_featured,
+               COALESCE(r.description, '') AS description,
                l.name AS location_name, l.city AS location_city,
                s.id AS store_id, s.name AS store_name, s.slug AS store_slug
         FROM rooms r
         JOIN locations l ON l.id = r.location_id AND l.active = true
         JOIN stores s ON s.id = r.store_id AND s.status IN ('active','trial')
-        WHERE r.status != 'maintenance' AND array_length(r.photos, 1) > 0
-        ORDER BY r.is_featured DESC, r.created_at DESC
+        WHERE r.status != 'maintenance'
+          AND r.photos IS NOT NULL AND array_length(r.photos, 1) > 0
+        ORDER BY COALESCE(r.is_featured, false) DESC, r.created_at DESC
       `;
       return res.status(200).json(rows);
     }
@@ -34,9 +37,12 @@ module.exports = async function handler(req, res) {
       if (!token || token.type !== 'super') return res.status(401).json({ error: 'Super admin required' });
       const { id: rid } = req.query;
       if (!rid) return res.status(400).json({ error: 'id required' });
+      // Ensure column exists before toggling
+      await sql`ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT false`;
       const rows = await sql`
-        UPDATE rooms SET is_featured = NOT is_featured WHERE id = ${rid} RETURNING id, name, is_featured
+        UPDATE rooms SET is_featured = NOT COALESCE(is_featured, false) WHERE id = ${rid} RETURNING id, name, is_featured
       `;
+      if (!rows.length) return res.status(404).json({ error: 'Room not found' });
       return res.status(200).json(rows[0]);
     }
 

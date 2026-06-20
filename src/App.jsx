@@ -923,14 +923,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (bD.locId && bStep >= 3) {
+    // Load booked dates as soon as we have a location — not just at step 3
+    // This ensures occupied rooms can be checked for future date availability
+    if (bD.locId) {
       setAvailLoading(true);
       api.getBookedDates(bD.locId)
         .then(data => setBookedDates(data||{}))
         .catch(() => setBookedDates({}))
         .finally(() => setAvailLoading(false));
     }
-  }, [bD.locId, bStep, bD.ci, bD.co]);
+  }, [bD.locId]);
 
   useEffect(() => {
     if (payMethods?.length && (bD.method === "Cash" || !bD.method)) {
