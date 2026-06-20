@@ -500,6 +500,8 @@ export default function App() {
   const [platStats, setPlatStats]   = useState(null);
   const [mktCity, setMktCity]       = useState("");
   const [mktStores, setMktStores]   = useState([]);
+  const [mktRooms,  setMktRooms]    = useState([]);
+  const [mktRoomsLoading, setMktRoomsLoading] = useState(false);
   const [mktLoading, setMktLoading] = useState(false);
   const [mktSelStore, setMktSelStore] = useState(null);
 
@@ -852,6 +854,13 @@ export default function App() {
     setMktLoading(false);
   };
 
+  const loadMarketplaceRooms = async () => {
+    setMktRoomsLoading(true);
+    try { const data = await api.getMarketplaceRooms(); setMktRooms(data || []); }
+    catch { setMktRooms([]); }
+    setMktRoomsLoading(false);
+  };
+
   useEffect(() => {
     if (view === "super")          loadSuperData();
     if (view === "owner_dash" && storeId) { loadAll(null, storeId); }
@@ -861,7 +870,7 @@ export default function App() {
       if (sid) loadPublic(sid);
     }
     if (view === "customer" && customer) loadCustBooks(customer.id);
-    if (view === "land" && !subdomainStoreId) loadMarketplace();
+    if (view === "land" && !subdomainStoreId) { loadMarketplace(); loadMarketplaceRooms(); }
   }, [view]);
 
   // On app start: reload data for whoever is already logged in (from localStorage)
@@ -1362,6 +1371,59 @@ export default function App() {
         )}
       </div>
 
+      {/* ── FEATURED ROOMS ── */}
+      {mktRooms.filter(r=>r.is_featured).length > 0 && (
+        <div style={{ padding:"48px 24px 24px", maxWidth:1200, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
+            <span style={{ background:GOLD, color:BK, borderRadius:99, padding:"4px 14px", fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em" }}>⭐ Featured</span>
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:26, margin:0 }}>Handpicked Rooms</h2>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,280px),1fr))", gap:18 }}>
+            {mktRooms.filter(r=>r.is_featured).map(rm=>(
+              <MktRoomCard key={rm.id} rm={rm} onClick={async()=>{
+                const store = mktStores.find(s=>s.id===rm.store_id) || {id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
+                setMktSelStore(store);
+                await loadPublic(rm.store_id);
+                setBD(d=>({...d,roomId:rm.id}));
+                navTo("book",2);
+              }}/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── ALL ROOMS ── */}
+      <div style={{ padding:"48px 24px", maxWidth:1200, margin:"0 auto" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24, flexWrap:"wrap", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:26, margin:0 }}>All Available Rooms</h2>
+            {mktRooms.length>0 && <span style={{ background:G1, color:G6, borderRadius:99, padding:"4px 12px", fontSize:13 }}>{mktRooms.length} rooms</span>}
+          </div>
+          <button onClick={loadMarketplaceRooms}
+            style={{ background:"transparent", border:"1px solid "+G2, borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", color:G6, fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
+            🔀 Shuffle
+          </button>
+        </div>
+        {mktRoomsLoading ? (
+          <div style={{ textAlign:"center", padding:40, color:G4 }}>Loading rooms…</div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,260px),1fr))", gap:16 }}>
+            {mktRooms.map(rm=>(
+              <MktRoomCard key={rm.id+Math.random()} rm={rm} onClick={async()=>{
+                const store = mktStores.find(s=>s.id===rm.store_id) || {id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
+                setMktSelStore(store);
+                await loadPublic(rm.store_id);
+                setBD(d=>({...d,roomId:rm.id}));
+                navTo("book",2);
+              }}/>
+            ))}
+            {!mktRooms.length && !mktRoomsLoading && (
+              <div style={{ gridColumn:"1/-1", textAlign:"center", padding:40, color:G4 }}>No rooms available yet.</div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* CTA for property owners */}
       <div style={{ background:G1, borderTop:`1px solid ${G2}`, padding:"48px 32px", textAlign:"center" }}>
         <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:28, marginBottom:12 }}>Own an Property, Hotel, Lodge or BnB?</h2>
@@ -1766,6 +1828,7 @@ export default function App() {
       {id:"plans",     l:"📋 Plans"},
       {id:"payments",  l:"💰 Payments"},
       {id:"gateways",  l:"🔗 Gateways"},
+      {id:"featured",  l:"⭐ Featured Rooms"},
       {id:"comms",     l:"📣 Announcements"},
       {id:"reports",   l:"📈 Reports"},
       {id:"settings",  l:"⚙️ Settings"},
@@ -1799,6 +1862,7 @@ export default function App() {
             {sTab==="plans"    && <SuperPlans plans={plans} onRefresh={loadSuperData} api={api} pop={pop} fmt={fmt}/>}
             {sTab==="payments" && <SuperPayments stores={stores} plans={plans} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="gateways" && <SuperGateways api={api} pop={pop}/>}
+            {sTab==="featured" && <SuperFeaturedRooms api={api} pop={pop}/>}
             {sTab==="comms"    && <SuperComms stores={stores} api={api} pop={pop}/>}
             {sTab==="reports"  && <SuperReports stores={stores} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="settings" && <SuperSettings superAdmin={superAdmin} api={api} pop={pop}/>}
@@ -7587,5 +7651,147 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
         </div>
       </div>
     </>
+  );
+}
+
+/* ─── MARKETPLACE ROOM CARD ──────────────────────────────── */
+function MktRoomCard({ rm, onClick }) {
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const GOLD2="#C9A84C",OK2="#2E7D32",BK2="#111";
+  const photo = (rm.photos&&rm.photos.length) ? rm.photos[0] : null;
+  const price = Number(rm.price||0);
+  return (
+    <div onClick={onClick}
+      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 10px 32px rgba(0,0,0,.13)";}}
+      onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
+      style={{ background:WH2, borderRadius:14, overflow:"hidden", border:"1px solid "+G22, cursor:"pointer", transition:"transform .18s,box-shadow .18s", WebkitTapHighlightColor:"rgba(107,27,42,.1)", userSelect:"none", position:"relative" }}>
+      {/* Image */}
+      <div style={{ height:180, background:G12, position:"relative", overflow:"hidden" }}>
+        {photo
+          ? <img src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
+          : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>🛏️</div>
+        }
+        {/* Featured badge */}
+        {rm.is_featured && (
+          <div style={{ position:"absolute", top:10, left:10, background:GOLD2, color:BK2, borderRadius:99, padding:"3px 10px", fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:".07em" }}>⭐ Featured</div>
+        )}
+        {/* Price overlay */}
+        <div style={{ position:"absolute", bottom:10, right:10, background:"rgba(0,0,0,.7)", color:WH2, borderRadius:8, padding:"5px 10px", fontSize:13, fontWeight:700, backdropFilter:"blur(4px)" }}>
+          TZS {price.toLocaleString()}<span style={{ fontSize:10, fontWeight:400 }}>/night</span>
+        </div>
+      </div>
+      {/* Info */}
+      <div style={{ padding:"14px 16px" }}>
+        <div style={{ fontWeight:700, fontSize:15, color:G82, marginBottom:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{rm.name}</div>
+        <div style={{ fontSize:12, color:M2, fontWeight:600, marginBottom:6 }}>{rm.store_name}</div>
+        <div style={{ fontSize:12, color:G62, marginBottom:10 }}>📍 {rm.location_city||rm.location_name||"—"}</div>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+          <span style={{ background:G12, borderRadius:6, padding:"2px 8px", fontSize:11, color:G62 }}>🛏️ {rm.beds} bed{rm.beds!==1?"s":""}</span>
+          <span style={{ background:G12, borderRadius:6, padding:"2px 8px", fontSize:11, color:G62 }}>👤 {rm.max_guests} guest{rm.max_guests!==1?"s":""}</span>
+          <span style={{ background:G12, borderRadius:6, padding:"2px 8px", fontSize:11, color:G62 }}>{rm.type}</span>
+          {rm.avg_rating>0 && <span style={{ background:G12, borderRadius:6, padding:"2px 8px", fontSize:11, color:"#B76E00" }}>⭐ {Number(rm.avg_rating).toFixed(1)}</span>}
+        </div>
+        <button style={{ width:"100%", background:M2, color:WH2, border:"none", borderRadius:8, padding:"9px 0", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          Book Now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SUPER: FEATURED ROOMS MANAGER ─────────────────────── */
+function SuperFeaturedRooms({ api, pop }) {
+  const [rooms, setRooms]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const GOLD2="#C9A84C",OK2="#2E7D32",OKB2="#E8F5E9",BK2="#111";
+
+  useEffect(()=>{
+    api.getMarketplaceRooms()
+      .then(data=>setRooms(data||[]))
+      .catch(()=>setRooms([]))
+      .finally(()=>setLoading(false));
+  },[]);
+
+  const toggle = async (rm) => {
+    try {
+      const updated = await api.toggleFeaturedRoom(rm.id);
+      setRooms(rs=>rs.map(r=>r.id===rm.id?{...r,is_featured:updated.is_featured}:r));
+      pop(updated.is_featured?"⭐ Room featured on marketplace":"Room removed from featured");
+    } catch(e) { pop(e.message||"Failed","err"); }
+  };
+
+  const filtered = rooms.filter(r=>
+    !search ||
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.store_name.toLowerCase().includes(search.toLowerCase()) ||
+    (r.location_city||"").toLowerCase().includes(search.toLowerCase())
+  );
+  const featured = filtered.filter(r=>r.is_featured);
+  const others   = filtered.filter(r=>!r.is_featured);
+
+  const RoomRow = ({rm}) => (
+    <div style={{ display:"flex", alignItems:"center", gap:12, background:WH2, borderRadius:10, padding:"12px 14px", border:"1px solid "+(rm.is_featured?GOLD2:G22), marginBottom:8 }}>
+      {rm.photos&&rm.photos[0]
+        ? <img src={rm.photos[0]} alt={rm.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} onError={e=>{e.target.style.display="none";}}/>
+        : <div style={{ width:56, height:56, borderRadius:8, background:G12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛏️</div>
+      }
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontWeight:700, fontSize:14, color:G82 }}>{rm.name}</div>
+        <div style={{ fontSize:12, color:M2, fontWeight:600 }}>{rm.store_name}</div>
+        <div style={{ fontSize:12, color:G62 }}>📍 {rm.location_city||rm.location_name||"—"} · {rm.type} · TZS {Number(rm.price||0).toLocaleString()}/night</div>
+      </div>
+      <button onClick={()=>toggle(rm)}
+        style={{ flexShrink:0, background:rm.is_featured?"#FFF3E0":OKB2, color:rm.is_featured?"#B76E00":OK2, border:"1px solid "+(rm.is_featured?"#B76E00":OK2), borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+        {rm.is_featured ? "★ Unfeature" : "☆ Feature"}
+      </button>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20, flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 4px" }}>Featured Rooms</h2>
+          <div style={{ fontSize:13, color:G62 }}>Choose which rooms appear in the ⭐ Featured section on the marketplace homepage</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ background:GOLD2, color:BK2, borderRadius:99, padding:"4px 12px", fontSize:12, fontWeight:700 }}>{featured.length} featured</span>
+          <span style={{ background:G12, color:G62, borderRadius:99, padding:"4px 12px", fontSize:12 }}>{rooms.length} total rooms</span>
+        </div>
+      </div>
+
+      {/* Search */}
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by room name, store, or city…"
+        style={{ width:"100%", padding:"10px 14px", border:"1px solid "+G22, borderRadius:8, fontSize:14, fontFamily:"inherit", outline:"none", marginBottom:24, boxSizing:"border-box" }}/>
+
+      {loading ? (
+        <div style={{ textAlign:"center", padding:40, color:G62 }}>Loading rooms…</div>
+      ) : (
+        <>
+          {/* Featured rooms */}
+          {featured.length > 0 && (
+            <div style={{ marginBottom:28 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".07em", marginBottom:12 }}>⭐ Currently Featured ({featured.length})</div>
+              {featured.map(rm=><RoomRow key={rm.id} rm={rm}/>)}
+            </div>
+          )}
+
+          {/* All other rooms */}
+          <div>
+            <div style={{ fontSize:12, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".07em", marginBottom:12 }}>
+              All Rooms {search&&"(filtered)"} ({others.length})
+            </div>
+            {others.length > 0
+              ? others.map(rm=><RoomRow key={rm.id} rm={rm}/>)
+              : <div style={{ textAlign:"center", padding:32, color:G62, background:G12, borderRadius:10 }}>
+                  {search ? "No rooms match your search." : "All rooms are already featured."}
+                </div>
+            }
+          </div>
+        </>
+      )}
+    </div>
   );
 }

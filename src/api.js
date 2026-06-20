@@ -89,6 +89,8 @@ export const api = {
   deleteRoom:        id        => del(`/rooms?id=${id}`),
   checkAvailability: (rid,ci,co) => get(`/bookings?check_room=${rid}&ci=${ci}&co=${co}`),
   getBookedDates:    lid       => get(`/bookings?get_booked_dates=${lid}`),
+  getMarketplaceRooms: ()      => get('/rooms?action=marketplace_rooms'),
+  toggleFeaturedRoom:  id      => fetch('/rooms?action=toggle_featured&id='+id,{method:'PUT',headers:{'Authorization':'Bearer '+(()=>{try{const s=localStorage.getItem('bnbmis_super');return s?JSON.parse(s).token:'';}catch{return ''}})()}}).then(r=>r.json()),
 
   // ── Bookings ──
   getBookings:   (sid,lid) => get('/bookings' + (sid&&lid?`?store_id=${sid}&location_id=${lid}`:sid?`?store_id=${sid}`:lid?`?location_id=${lid}`:'')),

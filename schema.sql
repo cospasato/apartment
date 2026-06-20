@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   amenities       TEXT[]      NOT NULL DEFAULT '{}',
   photos          TEXT[]      NOT NULL DEFAULT '{}',
   video_url       TEXT,
+  is_featured     BOOLEAN     NOT NULL DEFAULT false,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
