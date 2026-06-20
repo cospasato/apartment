@@ -100,16 +100,15 @@ CREATE TABLE IF NOT EXISTS super_admins (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS locations (
-  id              TEXT        PRIMARY KEY DEFAULT 'L' || upper(substr(md5(random()::text), 1, 6)),
-  store_id        TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-  name            TEXT        NOT NULL,
-  city            TEXT        NOT NULL,
-  address         TEXT        NOT NULL DEFAULT '',
-  icon            TEXT        NOT NULL DEFAULT '🏙️',
-  description     TEXT        NOT NULL DEFAULT '',
-  featured_image  TEXT,
-  active          BOOLEAN     NOT NULL DEFAULT true,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id          TEXT        PRIMARY KEY DEFAULT 'L' || upper(substr(md5(random()::text), 1, 6)),
+  store_id    TEXT        NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,
+  city        TEXT        NOT NULL,
+  address     TEXT        NOT NULL DEFAULT '',
+  icon        TEXT        NOT NULL DEFAULT '🏙️',
+  description TEXT        NOT NULL DEFAULT '',
+  active      BOOLEAN     NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS rooms (
@@ -235,11 +234,9 @@ CREATE INDEX IF NOT EXISTS idx_stores_status      ON stores(status);
 INSERT INTO subscription_plans (id, name, price_monthly, price_yearly, max_locations, max_rooms, max_staff, features, sort_order) VALUES
   ('PLN001', 'Free Trial',    0,       0,         1,   10,  2,   ARRAY['Basic booking','Reports'],                                           0),
   ('PLN002', 'Starter',       29000,   290000,    1,   15,  3,   ARRAY['Basic booking','Reports','Customer portal'],                         1),
-  ('PLN004', 'Enterprise',    199000,  1990000,   999, 999, 999, ARRAY['Unlimited everything','Custom branding','API access','Dedicated support'], 2)
+  ('PLN003', 'Professional',  79000,   790000,    5,   50,  10,  ARRAY['Everything in Starter','Multi-location','Analytics','Priority support'], 2),
+  ('PLN004', 'Enterprise',    199000,  1990000,   999, 999, 999, ARRAY['Unlimited everything','Custom branding','API access','Dedicated support'], 3)
 ON CONFLICT (id) DO NOTHING;
-
--- Remove Professional plan if it exists (migration)
-UPDATE subscription_plans SET is_active = false WHERE id = 'PLN003';
 
 INSERT INTO platform_settings (key, value) VALUES
   ('platform_name',     'BNBMIS'),
@@ -261,18 +258,9 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;
 
 -- If existing stores have long IDs, no action needed — new stores will get short IDs
-
--- ── Remove Professional plan ──
--- Run this once to deactivate it in existing databases:
--- UPDATE subscription_plans SET is_active = false WHERE id = 'PLN003';
--- Or to delete it entirely (only if no stores are on this plan):
--- DELETE FROM subscription_plans WHERE id = 'PLN003';
 -- Store IDs are now format: ST + 4 chars, e.g. STABCD (easy to share with staff)
 
 -- ============================================================
--- MIGRATION: Add featured_image to locations
-ALTER TABLE locations ADD COLUMN IF NOT EXISTS featured_image TEXT;
-
 -- MIGRATION: Add featured_image column if not exists
 -- ============================================================
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS featured_image TEXT;

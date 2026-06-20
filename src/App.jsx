@@ -1,31 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Component } from "react";
-
-/* ─── ERROR BOUNDARY ─────────────────────────────────────── */
-class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { error: null }; }
-  static getDerivedStateFromError(e) { return { error: e }; }
-  componentDidCatch(e, info) { console.error("BNBMIS Error:", e, info); }
-  render() {
-    if (this.state.error) {
-      return (
-        <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"sans-serif" }}>
-          <div style={{ background:"#FFF", borderRadius:12, padding:28, maxWidth:420, textAlign:"center", boxShadow:"0 4px 20px rgba(0,0,0,.1)" }}>
-            <div style={{ fontSize:36, marginBottom:12 }}>⚠️</div>
-            <div style={{ fontWeight:700, fontSize:16, color:"#C62828", marginBottom:8 }}>Something went wrong</div>
-            <div style={{ fontSize:13, color:"#666", marginBottom:20, lineHeight:1.6 }}>
-              {this.state.error?.message || "An unexpected error occurred. Please try again."}
-            </div>
-            <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
-              style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
-              Reload App
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
@@ -448,21 +421,6 @@ const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
-  // Global error handler - helps debug iOS blank screen issues
-  useEffect(() => {
-    const handler = (event) => {
-      console.error("Global error:", event.error?.message || event.message);
-    };
-    const rejHandler = (event) => {
-      console.error("Unhandled promise:", event.reason);
-    };
-    window.addEventListener("error", handler);
-    window.addEventListener("unhandledrejection", rejHandler);
-    return () => {
-      window.removeEventListener("error", handler);
-      window.removeEventListener("unhandledrejection", rejHandler);
-    };
-  }, []);
   // ── SUBDOMAIN DETECTION ──
   // e.g. sunrise.bnbmis.com → slug="sunrise", admin.bnbmis.com → super admin portal
   const [subdomainStoreId, setSubdomainStoreId] = useState(null);
@@ -535,7 +493,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
+  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -545,7 +503,7 @@ export default function App() {
   const [mktLoading, setMktLoading] = useState(false);
   const [mktSelStore, setMktSelStore] = useState(null);
 
-  const storeId = (owner&&owner.store?owner.store.id:null) || null;
+  const storeId = owner?.store?.id || null;
 
   // ── ORIGINAL BNC STATE ──
   const [locs, setLocs]   = useState([]);
@@ -559,7 +517,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      try{const ow=localStorage.getItem("bnbmis_owner");if(ow){const p=JSON.parse(ow);if(p&&p.store&&p.store.id)return "owner_dash";}}catch{}
+      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -775,7 +733,7 @@ export default function App() {
           }
         };
 
-        if (navigator.serviceWorker&&navigator.serviceWorker.controller) {
+        if (navigator.serviceWorker?.controller) {
           navigator.serviceWorker.ready.then(doShow).catch(() => doShow(null));
         } else {
           doShow(null);
@@ -789,12 +747,11 @@ export default function App() {
 
   // ── Polling: check for new bookings every 15 seconds ──
   useEffect(() => {
-    const sid = (owner && owner.store && owner.store.id) ? owner.store.id : (user ? user.storeId : null);
+    const sid = owner?.store?.id || user?.storeId;
     if (!sid) return;
 
     // Auto-request permission 3 seconds after login
-    // Guard: Notification API not available on all iOS browsers
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    if (Notification.permission === "default") {
       setTimeout(() => requestNotifPermission(), 3000);
     }
 
@@ -824,7 +781,7 @@ export default function App() {
     }, 15000); // every 15 seconds
 
     return () => clearInterval(poll);
-  }, [(owner&&owner.store?owner.store.id:null), (user?user.storeId:null), sendBookingNotif]);
+  }, [owner?.store?.id, user?.storeId, sendBookingNotif]);
 
   // Unread notification count
   const unreadNotifs = notifInbox.filter(n => !n.read).length;
@@ -1054,7 +1011,7 @@ export default function App() {
   const saveRoom = async (form, isEdit, statusOverride) => {
     try {
       const amen = typeof form.amen === "string" ? form.amen.split(",").map(a=>a.trim()).filter(Boolean) : form.amen;
-      const sid = storeId || (user?user.storeId:null);
+      const sid = storeId || user?.storeId;
       const locObj = locs.find(l => l.id === form.locId);
       const payload = {
         store_id: sid, location_id: form.locId, name: form.name, type: form.type,
@@ -1081,7 +1038,7 @@ export default function App() {
   };
 
   const saveExp = async (form) => {
-    const sid = storeId || (user?user.storeId:null);
+    const sid = storeId || user?.storeId;
     try {
       const created = await api.createExpense({
         store_id: sid, location_id: form.locId, category: form.cat,
@@ -1094,7 +1051,7 @@ export default function App() {
   };
 
   const saveStaff = async (form, isEdit) => {
-    const sid = storeId || (user?user.storeId:null);
+    const sid = storeId || user?.storeId;
     try {
       const payload = { store_id: sid, name: form.name, email: form.email, phone: form.phone, role: form.role, location_id: form.locId || null };
       if (form.pin) payload.pin = form.pin;
@@ -1131,7 +1088,7 @@ export default function App() {
   };
 
   const saveLoc = async (form, isEdit) => {
-    const sid = storeId || (user?user.storeId:null);
+    const sid = storeId || user?.storeId;
     try {
       if (isEdit) {
         const updated = await api.updateLocation(form.id, { name: form.name, city: form.city, address: form.addr, icon: form.icon, description: form.desc });
@@ -1159,7 +1116,7 @@ export default function App() {
   };
 
   const createNewBooking = async (form, base, da, total) => {
-    const sid = storeId || (user?user.storeId:null);
+    const sid = storeId || user?.storeId;
     try {
       const created = await api.createBooking({
         store_id: sid,
@@ -1183,7 +1140,7 @@ export default function App() {
     const email = loginF.email.trim().toLowerCase();
     const pin   = loginF.pin.trim();
     // Priority: form field > subdomain-detected store > already-logged-in owner
-    const storeIdForLogin = loginF.storeId?.trim() || subdomainStoreId || (owner&&owner.store?owner.store.id:null);
+    const storeIdForLogin = loginF.storeId?.trim() || subdomainStoreId || owner?.store?.id;
     if (!storeIdForLogin) { setLoginErr("Please enter your Store ID. Ask your manager for it."); return; }
     if (!email)           { setLoginErr("Please enter your email address."); return; }
     if (!pin)             { setLoginErr("Please enter your PIN."); return; }
@@ -1199,10 +1156,10 @@ export default function App() {
   };
 
   // Role-based tab permissions
-  const isAdmin    = (user?user.role:null) === "Admin";
-  const isManager  = (user?user.role:null) === "Manager";
-  const isAcct     = (user?user.role:null) === "Accountant";
-  const isRecept   = (user?user.role:null) === "Receptionist";
+  const isAdmin    = user?.role === "Admin";
+  const isManager  = user?.role === "Manager";
+  const isAcct     = user?.role === "Accountant";
+  const isRecept   = user?.role === "Receptionist";
   const canDash    = isAdmin || isManager || isRecept;
   const canReports = isAdmin || isManager || isAcct;
   const canStaff   = isAdmin || isManager;
@@ -1227,11 +1184,17 @@ export default function App() {
   ];
 
   const NavBar = () => {
-    const storeName = mktSelStore?.name || (owner&&owner.store?owner.store.name:'') || user?.storeName || "BNBMIS";
+    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
-        <div style={{ color:WH, fontWeight:700, fontSize:16, fontFamily:"'Playfair Display',serif" }}>{storeName}</div>
+        <div style={{ width:36, height:36, background:M, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <span style={{ color:WH, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
+        </div>
+        <div>
+          <div style={{ color:WH, fontWeight:700, fontSize:15, fontFamily:"'Playfair Display',serif", lineHeight:1.2 }}>{storeName}</div>
+          <div style={{ color:G4, fontSize:10, letterSpacing:".12em", textTransform:"uppercase" }}>Property Management</div>
+        </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
         {view !== "book" && view !== "customer" && view !== "admin" && view !== "owner_dash" && (
@@ -1250,6 +1213,7 @@ export default function App() {
         ) : !customer && view !== "admin" && view !== "owner_dash" ? (
           <>
             <button onClick={()=>setCustModal("login")} style={{ background:"transparent", color:WH, border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>My Account</button>
+            <button onClick={()=>setModal("bnbmis_login")} style={{ background:M, color:WH, border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Login</button>
           </>
         ) : (user || owner) ? (
           <>
@@ -1258,7 +1222,7 @@ export default function App() {
                 {((user||owner)?.name||"?").split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)}
               </div>
               <span>{(user||owner)?.name}</span>
-              {user && <span style={{ color:GOLD }}>· {(user?user.role:null)}</span>}
+              {user && <span style={{ color:GOLD }}>· {user?.role}</span>}
             </button>
             <button onClick={logout} style={{ background:"transparent", color:G4, border:"1px solid rgba(255,255,255,.15)", borderRadius:8, padding:"7px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Logout</button>
           </>
@@ -1358,7 +1322,7 @@ export default function App() {
                 <div key={store.id} onClick={goStore}
                   onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(107,27,42,.14)";}}
                   onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}
-                  style={{ background:WH, border:"1px solid "+G2, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s", WebkitTapHighlightColor:"rgba(107,27,42,.1)", userSelect:"none" }}>
+                  style={{ background:WH, border:`1px solid ${G2}`, borderRadius:16, overflow:"hidden", cursor:"pointer", transition:"transform .18s,box-shadow .18s" }}>
                   {/* Featured image — top banner */}
                   <div style={{ height:180, position:"relative", background:`linear-gradient(135deg,${MD} 0%,${M} 100%)`, overflow:"hidden" }}>
                     {hasImg && (
@@ -1423,13 +1387,13 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error — store data missing","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
         onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
-      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); pop("Welcome! Your 14-day trial has started."); }}/>}
+      {modal==="register_store" && <RegisterStoreModal plans={plans} onClose={()=>setModal(null)} pop={pop} onSuccess={async(u)=>{ setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); setView("owner_dash"); setATab("locs"); pop("Welcome! Your 14-day trial has started. Let\'s set up your first location 👇", "ok"); }}/>}
       {custModal && <CustomerAuthModal mode={custModal} setMode={setCustModal} onLogin={custLogin} onRegister={custRegister} onClose={()=>{ setCustModal(null); setPendingBookLoc(null); }} pop={pop} bookingIntent={pendingBookLoc !== null}/>}
       {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       <PWAInstallBanner/>
@@ -1463,7 +1427,7 @@ export default function App() {
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 22, color: BK }}>Choose a Location</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
               {locs.map(loc => {
-
+                const avail = rooms.filter(r => r.locId === loc.id && r.status === "available").length;
                 return (
                   <div key={loc.id} onClick={() => { setBD(d => ({ ...d, locId: loc.id })); goStep(2); }}
                     style={{ background: WH, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: `2px solid ${bD.locId === loc.id ? M : G2}`, transition: "border-color .15s" }}
@@ -1482,7 +1446,7 @@ export default function App() {
                           📍 {loc.addr}
                         </a>
                       )}
-
+                      <div style={{ fontSize: 12, color: avail > 0 ? OK : ER, fontWeight: 700, marginBottom: 10 }}>{avail} room{avail !== 1 ? "s" : ""} available</div>
                       {/* Contact actions */}
                       {(loc.phone || loc.addr) && (
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }} onClick={e=>e.stopPropagation()}>
@@ -1598,10 +1562,7 @@ export default function App() {
                             : bD.roomId === rm.id
                               ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Selected</span>
                               : rm.status === "occupied"
-                                ? (bD.ci && bD.co
-                                    ? <span style={{background:OKB,color:OK,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>✓ Available for your dates</span>
-                                    : <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied — pick dates to check</span>
-                                  )
+                                ? <span style={{background:WAB,color:WA,padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700}}>🏠 Occupied Now</span>
                                 : <Badge s={rm.status}/>
                         }
                       </div>
@@ -1641,7 +1602,15 @@ export default function App() {
                       </button>
                     </div>
                   )}
-
+                  {rm.status === "occupied" && !dateTaken && !maintenance && (
+                    <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: WAB, borderRadius: 8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                      <span style={{ fontSize: 12, color: WA, fontWeight: 600 }}>🏠 Currently occupied — available for future dates</span>
+                      <button onClick={e => { e.stopPropagation(); goStep(2); }}
+                        style={{ background: WA, color: WH, border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                        📅 Pick Dates
+                      </button>
+                    </div>
+                  )}
                   {maintenance && (
                     <div style={{ margin: "0 16px 14px", padding: "10px 14px", background: ERB, borderRadius: 8, fontSize: 12, color: ER, fontWeight: 600 }}>
                       🔧 Under maintenance — not available for booking
@@ -1843,7 +1812,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
+  if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -1874,14 +1843,14 @@ export default function App() {
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
-        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={(owner&&owner.store?owner.store.slug:'')}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={(owner&&owner.store?owner.store.name:'')}/>}
+        {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
         {!loading && aTab==="staff"     && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={ownerUser} storeId={sid}/>}
         {!loading && aTab==="customers" && <CustomersTab storeId={sid} api={api} pop={pop}/>}
-        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop} storeName={(owner&&owner.store?owner.store.name:'')}/>}
+        {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={ownerUser} pop={pop} storeName={owner?.store?.name}/>}
         {!loading && aTab==="share"     && <ShareStoreTab owner={owner} storeId={sid} rooms={rooms} locs={locs} pop={pop}/>}
         {!loading && aTab==="billing"   && <OwnerBillingTab owner={owner} storeId={sid} api={api} pop={pop}/>}
         {!loading && aTab==="settings"  && <OwnerSettingsTab owner={owner} storeId={sid} rooms={rooms} api={api} pop={pop} onStoreUpdate={async(d)=>{ await api.updateStore(sid,d); pop("Store updated!"); }}/>}
@@ -1890,11 +1859,10 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
-      <ErrorBoundary>
-        <>
-          {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
-          <MobilePortal
-          storeName={(owner&&owner.store&&owner.store.name?owner.store.name:"My Store")} role="Store Owner"
+      <>
+        {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
+        <MobilePortal
+          storeName={owner.store.name} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -1904,20 +1872,18 @@ export default function App() {
         >
           {content}
         </MobilePortal>
-          {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
-        </>
-      </ErrorBoundary>
+        {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
+      </>
     );
 
     /* ── DESKTOP LAYOUT ── */
     return (
-      <ErrorBoundary>
       <div style={{ display:"flex", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{(owner&&owner.store&&owner.store.name?owner.store.name:"My Store")}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -1960,7 +1926,6 @@ export default function App() {
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
         {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000, boxShadow:"0 8px 24px rgba(0,0,0,.2)" }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
       </div>
-      </ErrorBoundary>
     );
   }
 
@@ -1976,17 +1941,17 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={(user?user.role:null)}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
-      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={(owner&&owner.store?owner.store.slug:'')||(stores.find(s=>s.id===(user?user.storeId:null))?.slug)||subdomainSlug}/>}
-      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={(user?user.storeId:null)} storeName={stores.find(s=>s.id===(user?user.storeId:null))?.name}/>}
+      {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
-      {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={(user?user.storeId:null)} api={api}/>}
+      {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
-      {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={(user?user.storeId:null)}/>}
-      {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={(user?user.storeId:null)} api={api} pop={pop}/>}
-      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop} storeName={stores.find(s=>s.id===(user?user.storeId:null))?.name}/>}
-      {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={(user?user.storeId:null)} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===(user?user.storeId:null))?.slug)||subdomainSlug}/>}
+      {!loading && aTab==="staff"     && canStaff   && <StaffTab staff={staff} saveStaff={saveStaff} toggleStaff={toggleStaff} deleteStaff={deleteStaff} locs={locs} pop={pop} currentUser={user} storeId={user?.storeId}/>}
+      {!loading && aTab==="customers" && canCustomers && <CustomersTab storeId={user?.storeId} api={api} pop={pop}/>}
+      {!loading && aTab==="receipts"  && <ReceiptsTab books={books} rooms={rooms} locs={locs} user={user} pop={pop} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
+      {!loading && aTab==="share"     && <ShareStoreTab owner={null} storeId={user?.storeId} rooms={rooms} locs={locs} pop={pop} storeSlug={(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="profile"   && <ProfileTab user={user} updateProfile={updateProfile}/>}
     </>
   );
@@ -1996,7 +1961,7 @@ export default function App() {
   if (isMobileAdmin) return (
     <>
       <MobilePortal
-        storeName={user?.name||"Staff"} role={(user?user.role:null)||"Staff"}
+        storeName={user?.name||"Staff"} role={user?.role||"Staff"}
         tabs={staffTabs} activeTab={aTab} setTab={setATab}
         onNewBooking={()=>setModal("newBook")}
         onLogout={logout}
@@ -2104,9 +2069,44 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
 
 function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
+  const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
+  const isNewOwner = locs.length === 0 && userRole === "Admin";
   return (
     <div>
       <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
+      {/* ── SETUP GUIDE: shown to new owners with no locations ── */}
+      {isNewOwner && (
+        <div style={{ background:"linear-gradient(135deg,#FFF8F0 0%,#FFF3E0 100%)", border:"2px solid "+GOLD2, borderRadius:16, padding:24, marginBottom:24, position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", right:-20, top:-20, width:120, height:120, borderRadius:"50%", background:"rgba(201,168,76,.1)", pointerEvents:"none" }}/>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+            <div style={{ fontSize:38, flexShrink:0 }}>🏨</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:M2, marginBottom:6 }}>Welcome to BNBMIS! Let's get you set up.</div>
+              <div style={{ fontSize:13, color:"#555", marginBottom:16, lineHeight:1.7 }}>Your account is ready. Follow these steps to start accepting bookings:</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:18 }}>
+                {[
+                  { num:1, text:"Create your first Location — a branch or building where your rooms are", tab:"locs", btn:"Add Location →", active:true },
+                  { num:2, text:"Add Rooms to that location with prices and photos", tab:"rooms", btn:"Add Rooms →", active:false },
+                  { num:3, text:"You're live on the marketplace — guests can now book!", tab:null, btn:null, active:false },
+                ].map(s => (
+                  <div key={s.num} style={{ display:"flex", alignItems:"center", gap:10, background:WH2, borderRadius:10, padding:"11px 14px", border:"1px solid "+G22 }}>
+                    <div style={{ width:28, height:28, borderRadius:"50%", background:s.active?M2:"#E0E0E0", color:WH2, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, flexShrink:0 }}>
+                      {s.num}
+                    </div>
+                    <div style={{ flex:1, fontSize:13, color:"#333" }}>{s.text}</div>
+                    {s.btn && <button onClick={()=>setATab(s.tab)}
+                      style={{ background:s.active?M2:"#F0F0F0", color:s.active?WH2:"#999", border:"none", borderRadius:7, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>{s.btn}</button>}
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setATab("locs")}
+                style={{ background:M2, color:WH2, border:"none", borderRadius:10, padding:"11px 24px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Playfair Display',serif" }}>
+                🏙️ Create My First Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Receptionist sees minimal KPIs only */}
       {isReceptDash ? (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
@@ -2609,7 +2609,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
             </div>
           )}
           {/* Modify booking — Admin/Manager only */}
-          {["confirmed","pending","checkedIn"].includes(selB.status) && ((user?user.role:null)==="Admin"||(user?user.role:null)==="Manager"||!user) && modifyBooking && (
+          {["confirmed","pending","checkedIn"].includes(selB.status) && (user?.role==="Admin"||user?.role==="Manager"||!user) && modifyBooking && (
             <div style={{ marginTop:14 }}>
               <button onClick={() => { setEditBook(selB); setSel(null); }}
                 style={{ width:"100%", background:"#E3F2FD", color:"#1565C0", border:"1px solid #1565C0", borderRadius:8, padding:"10px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
@@ -3077,7 +3077,7 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
       </Card>
       {modal && (
         <Modal title="Add Expense" onClose={() => setModal(false)}>
-          {(user?user.role:null) === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
+          {user?.role === "Admin" && <Sel label="Location" value={form.locId} onChange={e => setForm(f => ({ ...f, locId: e.target.value }))}>{locs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</Sel>}
           <Sel label="Category" value={form.cat} onChange={e => setForm(f => ({ ...f, cat: e.target.value }))}>{["Utilities", "Maintenance", "Supplies", "Staff", "Marketing", "Rent", "Other"].map(c => <option key={c}>{c}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Electricity bill" />
           <Inp label="Amount (TZS)" type="number" value={form.amt} onChange={e => setForm(f => ({ ...f, amt: e.target.value }))} />
@@ -3527,51 +3527,45 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Locations</h2>
-        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "", featured_image: "" }); setModal(true); }}>+ Add Location</Btn>
+        <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "" }); setModal(true); }}>+ Add Location</Btn>
       </div>
+      {locs.length === 0 && (
+        <div style={{ textAlign:"center", padding:"50px 20px", background:"#FFF", borderRadius:16, border:"2px dashed #E8E8E8", marginBottom:20 }}>
+          <div style={{ fontSize:52, marginBottom:12 }}>📍</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#6B1B2A", marginBottom:8 }}>No locations yet</div>
+          <div style={{ fontSize:14, color:"#888", marginBottom:20, maxWidth:360, margin:"0 auto 20px" }}>
+            A location is a branch or building where your rooms are. Start by creating your first one — you can add multiple locations later.
+          </div>
+          <Btn onClick={() => { setForm({ id: null, name: "", country: "", city: "", addr: "", phone: "", icon: "🏙️", desc: "" }); setModal(true); }}>
+            🏙️ Create First Location
+          </Btn>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
         {locs.map(loc => {
           const lr = rooms.filter(r => r.locId === loc.id);
           const lb = books.filter(b => b.locId === loc.id);
           const rev = lb.reduce((s, b) => s + b.paid, 0);
           return (
-            <div key={loc.id} style={{ background:WH, borderRadius:14, overflow:"hidden", border:"1px solid "+G2, boxShadow:"0 1px 6px rgba(0,0,0,.06)" }}>
-              {/* Featured image */}
-              {loc.featured_image ? (
-                <div style={{ height:160, overflow:"hidden", position:"relative" }}>
-                  <img src={loc.featured_image} alt={loc.name}
-                    style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
-                    onError={e=>{e.target.parentNode.style.display="none";}}/>
-                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,.45) 0%,transparent 55%)" }}/>
-                  <div style={{ position:"absolute", bottom:10, left:14, color:"#FFF", fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700, textShadow:"0 1px 4px rgba(0,0,0,.5)" }}>{loc.name}</div>
+            <Card key={loc.id}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 26 }}>{loc.icon}</span>
+                  <div><div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>{loc.name}</div><div style={{ fontSize: 12, color: G6 }}>{loc.city}</div></div>
                 </div>
-              ) : (
-                <div style={{ height:70, background:"linear-gradient(135deg,"+M+" 0%,#4A1019 100%)", display:"flex", alignItems:"center", padding:"0 16px", gap:10 }}>
-                  <span style={{ fontSize:24 }}>{loc.icon}</span>
-                  <div style={{ color:"#FFF", fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700 }}>{loc.name}</div>
-                </div>
-              )}
-              <div style={{ padding:14 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-                  {loc.featured_image
-                    ? <div style={{ fontSize:12, color:G6 }}>{loc.city}{loc.addr?" · "+loc.addr+"":""}</div>
-                    : <div style={{ fontSize:12, color:G6 }}>{loc.city}</div>
-                  }
-                  <div style={{ display:"flex", gap:5 }}>
-                    <button onClick={()=>{ setForm({...loc, country:loc.country||"", featured_image:loc.featured_image||""}); setModal(true); }}
-                      style={{ background:"none", border:"1px solid "+G2, borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", color:G6, fontFamily:"inherit" }}>Edit</button>
-                    <button onClick={()=>deleteLoc(loc.id, loc.name)}
-                      style={{ background:"none", border:"1px solid "+ER, borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", color:ER, fontFamily:"inherit" }}>Delete</button>
-                  </div>
-                </div>
-                {loc.desc && <div style={{ fontSize:12, color:G6, marginBottom:10, fontStyle:"italic", lineHeight:1.5 }}>{loc.desc}</div>}
-                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
-                  <span style={{ background:G1, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{lr.length} rooms</span>
-                  <span style={{ background:MF, color:M, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{lb.length} bookings</span>
-                  <span style={{ background:OKB, color:OK, padding:"3px 10px", borderRadius:8, fontSize:12 }}>{fmt(rev)}</span>
-                </div>
+                <div style={{ display:"flex", gap:5 }}>
+                <button onClick={() => { setForm({ ...loc, country: loc.country || "" }); setModal(true); }} style={{ background: "none", border: `1px solid ${G2}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: G6, fontFamily: "inherit" }}>Edit</button>
+                <button onClick={() => deleteLoc(loc.id, loc.name)} style={{ background: "none", border: `1px solid ${ER}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: ER, fontFamily: "inherit" }}>Delete</button>
               </div>
-            </div>
+              </div>
+              <div style={{ fontSize: 12, color: G6, marginBottom: 8 }}>{loc.addr}</div>
+              <div style={{ fontSize: 12, color: G6, marginBottom: 12, fontStyle: "italic" }}>{loc.desc}</div>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                <span style={{ background: G1, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lr.length} rooms</span>
+                <span style={{ background: MF, color: M, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{lb.length} bookings</span>
+                <span style={{ background: OKB, color: OK, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{fmt(rev)}</span>
+              </div>
+            </Card>
           );
         })}
       </div>
@@ -3598,20 +3592,6 @@ function LocsTab({ locs, saveLoc, deleteLoc, rooms, books, pop }) {
           <Inp label="Address" value={form.addr} onChange={e => setForm(f => ({ ...f, addr: e.target.value }))} placeholder="e.g. Masaki Peninsula, Plot 12" />
           <Sel label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}>{["🏙️", "🌿", "🏛️", "🏖️", "🏔️", "🌊", "🌴", "🏡"].map(i => <option key={i} value={i}>{i}</option>)}</Sel>
           <Inp label="Description" value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="Short description…" />
-          {/* Featured image upload */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:G8, marginBottom:6, textTransform:"uppercase", letterSpacing:".05em" }}>Featured Photo (optional)</label>
-            {form.featured_image ? (
-              <div style={{ position:"relative", borderRadius:10, overflow:"hidden", marginBottom:8, height:140 }}>
-                <img src={form.featured_image} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
-                  onError={e=>{e.target.style.display="none";}}/>
-                <button onClick={()=>setForm(f=>({...f,featured_image:""}))}
-                  style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.55)", border:"none", borderRadius:"50%", width:26, height:26, color:"#FFF", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
-              </div>
-            ) : null}
-            <Inp label="" value={form.featured_image||""} onChange={e=>setForm(f=>({...f,featured_image:e.target.value}))} placeholder="Paste image URL (https://...)" />
-            <div style={{ fontSize:11, color:G4, marginTop:4 }}>Paste a direct image URL (jpg, png, webp). You can upload to imgbb.com or similar for free.</div>
-          </div>
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <Btn v="ghost" onClick={() => setModal(false)} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
             <Btn onClick={save} disabled={!form.name || !form.city || form.city === "__other__"} style={{ flex: 1, justifyContent: "center" }}>Save Location</Btn>
@@ -3833,7 +3813,7 @@ function ProfileTab({ user, updateProfile }) {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 17, fontFamily: "'Playfair Display',serif" }}>{user?.name}</div>
-          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{(user?user.role:null)}</div>
+          <div style={{ fontSize: 13, color: M, fontWeight: 700, marginTop: 2 }}>{user?.role}</div>
           <div style={{ fontSize: 12, color: G6, marginTop: 2 }}>{user?.email}</div>
         </div>
       </Card>
@@ -4540,7 +4520,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
             </button>
           </div>
 
-          {["pending","confirmed"].includes(selB.status) && ((user?user.role:null) === "Admin" || (user?user.role:null) === "Manager") && (
+          {["pending","confirmed"].includes(selB.status) && (user?.role === "Admin" || user?.role === "Manager") && (
             <div style={{ paddingTop:10 }}>
               <button onClick={() => { onCancel(selB.id); setSel(null); }}
                 style={{ width:"100%", padding:"12px", border:`2px solid ${ER}`, borderRadius:9,
@@ -4889,101 +4869,6 @@ function SuperDash({ stores, platStats, plans, setSTab, fmt, fmtDate }) {
           <KPI2 label="Total Bookings" value={platStats?.bookings?.total||0} icon="📅"/>
         </div>
       )}
-      {/* ── EXPIRING SOON ── */}
-      {(() => {
-        const now  = new Date();
-        const week = new Date(Date.now() + 7*86400000);
-        const expiring = stores.filter(s => {
-          const exp = s.current_period_end || s.trial_ends;
-          if (!exp) return false;
-          const d = new Date(exp);
-          return d >= now && d <= week;
-        }).sort((a,b) => new Date(a.current_period_end||a.trial_ends) - new Date(b.current_period_end||b.trial_ends));
-
-        const expired = stores.filter(s => {
-          const exp = s.current_period_end || s.trial_ends;
-          if (!exp) return false;
-          return new Date(exp) < now;
-        });
-
-        if (expiring.length === 0 && expired.length === 0) return null;
-        return (
-          <div style={{ background:"#FFF", border:"2px solid #B76E00", borderRadius:12, padding:20, marginBottom:20 }}>
-            <SecTitle>⚠️ Subscription Alerts</SecTitle>
-            {expiring.length > 0 && (
-              <>
-                <div style={{ fontSize:12, fontWeight:700, color:"#B76E00", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
-                  Expiring Within 7 Days ({expiring.length})
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:expired.length>0?18:0 }}>
-                  {expiring.map((s,i) => {
-                    const exp = s.current_period_end || s.trial_ends;
-                    const daysLeft = Math.ceil((new Date(exp)-now)/86400000);
-                    return (
-                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#FFF3E0", borderRadius:8, padding:"10px 14px", gap:12 }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontWeight:700, fontSize:13 }}>{s.name}</div>
-                          <div style={{ fontSize:11, color:"#666", marginTop:1 }}>{s.owner_email||s.owner_name||"—"} · {s.plan_name||"Trial"}</div>
-                        </div>
-                        <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#B76E00" }}>
-                            {String(exp).split("T")[0]}
-                          </div>
-                          <div style={{ fontSize:11, color:"#B76E00", fontWeight:600 }}>
-                            {daysLeft === 0 ? "Expires today!" : daysLeft === 1 ? "1 day left" : daysLeft+" days left"}
-                          </div>
-                        </div>
-                        <button onClick={()=>setSTab("billing")}
-                          style={{ background:"#B76E00", color:"#FFF", border:"none", borderRadius:7, padding:"6px 12px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
-                          Renew
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            {expired.length > 0 && (
-              <>
-                <div style={{ fontSize:12, fontWeight:700, color:"#C62828", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>
-                  Already Expired ({expired.length})
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {expired.slice(0,5).map((s,i) => {
-                    const exp = s.current_period_end || s.trial_ends;
-                    const daysAgo = Math.ceil((now-new Date(exp))/86400000);
-                    return (
-                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#FFEBEE", borderRadius:8, padding:"10px 14px", gap:12 }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontWeight:700, fontSize:13 }}>{s.name}</div>
-                          <div style={{ fontSize:11, color:"#666", marginTop:1 }}>{s.owner_email||s.owner_name||"—"} · {s.plan_name||"Trial"}</div>
-                        </div>
-                        <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#C62828" }}>
-                            {String(exp).split("T")[0]}
-                          </div>
-                          <div style={{ fontSize:11, color:"#C62828", fontWeight:600 }}>
-                            Expired {daysAgo} day{daysAgo!==1?"s":""} ago
-                          </div>
-                        </div>
-                        <span style={{ background:"#FFCDD2", color:"#C62828", borderRadius:99, fontSize:10, fontWeight:700, padding:"3px 8px", flexShrink:0 }}>
-                          EXPIRED
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {expired.length > 5 && (
-                    <div style={{ fontSize:12, color:"#C62828", textAlign:"center", padding:"4px 0" }}>
-                      +{expired.length-5} more expired
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })()}
-
       <div style={{ background:"#FFF", border:"1px solid #E8E8E8", borderRadius:12, padding:20, marginBottom:20 }}>
         <SecTitle>Recent Stores</SecTitle>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
@@ -6384,8 +6269,8 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
   const [selRoomId, setSelRoomId] = useState("");
   const [copied, setCopied]   = useState(false);
 
-  const slug    = slugProp || (owner&&owner.store?owner.store.slug:'') || "";
-  const storeName = (owner&&owner.store?owner.store.name:'') || "Our Store";
+  const slug    = slugProp || owner?.store?.slug || "";
+  const storeName = owner?.store?.name || "Our Store";
   const storeImg  = owner?.store?.featured_image || "";
   const baseUrl   = slug ? "https://" + slug + ".bnbmis.com" : "https://bnbmis.com";
   const selRoom   = rooms.find(r => r.id === selRoomId);
@@ -7649,33 +7534,14 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
 
           {/* Owner info (read-only) */}
           <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner & Subscription</div>
+            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
               <div><span style={{ color:G62 }}>Name: </span><strong>{store.owner_name||"—"}</strong></div>
               <div><span style={{ color:G62 }}>Email: </span><strong>{store.owner_email||"—"}</strong></div>
               <div><span style={{ color:G62 }}>Rooms: </span><strong>{store.room_count||0}</strong></div>
-              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
+              <div><span style={{ color:G62 }}>Bookings: </span><strong>{store.booking_count||0}</strong></div>
               <div><span style={{ color:G62 }}>Revenue: </span><strong style={{ color:OK2 }}>TZS {Number(store.total_revenue||0).toLocaleString()}</strong></div>
-              <div>
-                <span style={{ color:G62 }}>Plan Expires: </span>
-                {(store.current_period_end || store.trial_ends) ? (
-                  (() => {
-                    const exp = store.current_period_end || store.trial_ends;
-                    const expDate = new Date(exp);
-                    const now = new Date();
-                    const soon = new Date(Date.now() + 7*86400000);
-                    const expired = expDate < now;
-                    const expiringSoon = !expired && expDate < soon;
-                    return (
-                      <strong style={{ color: expired?ER2 : expiringSoon?WA2 : OK2 }}>
-                        {String(exp).split("T")[0]}
-                        {expired && <span style={{ marginLeft:5, background:ERB2, color:ER2, borderRadius:99, fontSize:10, fontWeight:700, padding:"1px 6px" }}>EXPIRED</span>}
-                        {expiringSoon && <span style={{ marginLeft:5, background:WAB2, color:WA2, borderRadius:99, fontSize:10, fontWeight:700, padding:"1px 6px" }}>EXPIRING SOON</span>}
-                      </strong>
-                    );
-                  })()
-                ) : <strong style={{ color:G62 }}>—</strong>}
-              </div>
+              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
             </div>
           </div>
 
