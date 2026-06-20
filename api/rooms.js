@@ -12,20 +12,17 @@ module.exports = async function handler(req, res) {
   try {
     // ── PUBLIC: All marketplace rooms (for landing page) ──
     if (req.method === 'GET' && action === 'marketplace_rooms') {
+      // Fast query: no RANDOM() (done client-side), no heavy review aggregation
       const rows = await sql`
         SELECT r.id, r.name, r.type, r.beds, r.max_guests, r.price_per_night AS price,
-               r.photos, r.amenities, r.status, r.is_featured,
+               r.photos, r.amenities, r.status, r.is_featured, r.description,
                l.name AS location_name, l.city AS location_city,
-               s.id AS store_id, s.name AS store_name, s.slug AS store_slug,
-               COALESCE(AVG(rev.rating),0)::numeric(3,1) AS avg_rating,
-               COUNT(DISTINCT rev.id)::int AS review_count
+               s.id AS store_id, s.name AS store_name, s.slug AS store_slug
         FROM rooms r
         JOIN locations l ON l.id = r.location_id AND l.active = true
         JOIN stores s ON s.id = r.store_id AND s.status IN ('active','trial')
-        LEFT JOIN reviews rev ON rev.store_id = s.id
         WHERE r.status != 'maintenance' AND array_length(r.photos, 1) > 0
-        GROUP BY r.id, l.name, l.city, s.id, s.name, s.slug
-        ORDER BY r.is_featured DESC, RANDOM()
+        ORDER BY r.is_featured DESC, r.created_at DESC
       `;
       return res.status(200).json(rows);
     }

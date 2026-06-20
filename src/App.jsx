@@ -501,6 +501,7 @@ export default function App() {
   const [mktCity, setMktCity]       = useState("");
   const [mktStores, setMktStores]   = useState([]);
   const [mktRooms,  setMktRooms]    = useState([]);
+  const [mktPreviewRoom, setMktPreviewRoom] = useState(null); // room being previewed
   const [mktRoomsLoading, setMktRoomsLoading] = useState(false);
   const [mktLoading, setMktLoading] = useState(false);
   const [mktSelStore, setMktSelStore] = useState(null);
@@ -854,10 +855,19 @@ export default function App() {
     setMktLoading(false);
   };
 
-  const loadMarketplaceRooms = async () => {
+  const loadMarketplaceRooms = async (shuffle=true) => {
     setMktRoomsLoading(true);
-    try { const data = await api.getMarketplaceRooms(); setMktRooms(data || []); }
-    catch { setMktRooms([]); }
+    try {
+      const data = await api.getMarketplaceRooms();
+      const rooms = data || [];
+      // Featured stay at top; shuffle the rest client-side
+      const featured = rooms.filter(r=>r.is_featured);
+      const others   = rooms.filter(r=>!r.is_featured);
+      if (shuffle) {
+        for (let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
+      }
+      setMktRooms([...featured, ...others]);
+    } catch { setMktRooms([]); }
     setMktRoomsLoading(false);
   };
 
@@ -1380,13 +1390,7 @@ export default function App() {
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,280px),1fr))", gap:18 }}>
             {mktRooms.filter(r=>r.is_featured).map(rm=>(
-              <MktRoomCard key={rm.id} rm={rm} onClick={async()=>{
-                const store = mktStores.find(s=>s.id===rm.store_id) || {id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
-                setMktSelStore(store);
-                await loadPublic(rm.store_id);
-                setBD(d=>({...d,roomId:rm.id}));
-                navTo("book",2);
-              }}/>
+              <MktRoomCard key={rm.id} rm={rm} onClick={()=>setMktPreviewRoom(rm)}/>
             ))}
           </div>
         </div>
@@ -1399,7 +1403,12 @@ export default function App() {
             <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:26, margin:0 }}>All Available Rooms</h2>
             {mktRooms.length>0 && <span style={{ background:G1, color:G6, borderRadius:99, padding:"4px 12px", fontSize:13 }}>{mktRooms.length} rooms</span>}
           </div>
-          <button onClick={loadMarketplaceRooms}
+          <button onClick={()=>{
+            const featured = mktRooms.filter(r=>r.is_featured);
+            const others = mktRooms.filter(r=>!r.is_featured);
+            for(let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
+            setMktRooms([...featured,...others]);
+          }}
             style={{ background:"transparent", border:"1px solid "+G2, borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer", color:G6, fontFamily:"inherit", display:"flex", alignItems:"center", gap:6 }}>
             🔀 Shuffle
           </button>
@@ -1409,13 +1418,7 @@ export default function App() {
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(100%,260px),1fr))", gap:16 }}>
             {mktRooms.map(rm=>(
-              <MktRoomCard key={rm.id+Math.random()} rm={rm} onClick={async()=>{
-                const store = mktStores.find(s=>s.id===rm.store_id) || {id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
-                setMktSelStore(store);
-                await loadPublic(rm.store_id);
-                setBD(d=>({...d,roomId:rm.id}));
-                navTo("book",2);
-              }}/>
+              <MktRoomCard key={rm.id} rm={rm} onClick={()=>setMktPreviewRoom(rm)}/>
             ))}
             {!mktRooms.length && !mktRoomsLoading && (
               <div style={{ gridColumn:"1/-1", textAlign:"center", padding:40, color:G4 }}>No rooms available yet.</div>
@@ -1423,6 +1426,22 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* ── ROOM PREVIEW MODAL ── */}
+      {mktPreviewRoom && (
+        <MktRoomPreview
+          rm={mktPreviewRoom}
+          onClose={()=>setMktPreviewRoom(null)}
+          onBook={async(rm)=>{
+            const store={id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
+            setMktSelStore(store);
+            await loadPublic(rm.store_id);
+            setBD(d=>({...d,roomId:rm.id}));
+            setMktPreviewRoom(null);
+            navTo("book",2);
+          }}
+        />
+      )}
 
       {/* CTA for property owners */}
       <div style={{ background:G1, borderTop:`1px solid ${G2}`, padding:"48px 32px", textAlign:"center" }}>
@@ -7802,6 +7821,140 @@ function SuperFeaturedRooms({ api, pop }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ─── MARKETPLACE ROOM PREVIEW ───────────────────────────── */
+function MktRoomPreview({ rm, onClose, onBook }) {
+  const M2="#6B1B2A",G22="#E8E8E8",G62="#666",G82="#333",WH2="#FFF",G12="#F5F5F5";
+  const GOLD2="#C9A84C",OK2="#2E7D32",BK2="#111",WA2="#B76E00",WAB2="#FFF3E0";
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const photos = rm.photos||[];
+
+  // Close on backdrop click
+  const onBackdrop = e => { if(e.target===e.currentTarget) onClose(); };
+
+  // Amenities display
+  const amenities = Array.isArray(rm.amenities)
+    ? rm.amenities
+    : typeof rm.amenities==="string" ? rm.amenities.split(",").map(a=>a.trim()).filter(Boolean) : [];
+
+  return (
+    <div onClick={onBackdrop} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:9990, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"0" }}>
+      <div style={{ background:WH2, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:640, maxHeight:"92vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch" }}>
+
+        {/* Close button */}
+        <button onClick={onClose}
+          style={{ position:"sticky", top:12, left:"calc(100% - 52px)", zIndex:10, background:"rgba(0,0,0,.55)", border:"none", color:WH2, width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", marginLeft:"auto", marginRight:12, marginBottom:-48, flexShrink:0 }}>
+          ×
+        </button>
+
+        {/* Photo gallery */}
+        {photos.length > 0 ? (
+          <div style={{ position:"relative", height:280, background:BK2, borderRadius:"20px 20px 0 0", overflow:"hidden", flexShrink:0 }}>
+            <img src={photos[photoIdx]} alt={rm.name}
+              style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+              onError={e=>{e.target.style.display="none";}}/>
+            {photos.length > 1 && (
+              <>
+                <button onClick={()=>setPhotoIdx(i=>(i-1+photos.length)%photos.length)}
+                  style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", background:"rgba(0,0,0,.5)", border:"none", color:WH2, width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+                <button onClick={()=>setPhotoIdx(i=>(i+1)%photos.length)}
+                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"rgba(0,0,0,.5)", border:"none", color:WH2, width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
+                <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5 }}>
+                  {photos.map((_,i)=>(
+                    <div key={i} onClick={()=>setPhotoIdx(i)} style={{ width:i===photoIdx?20:7, height:7, borderRadius:99, background:i===photoIdx?WH2:"rgba(255,255,255,.5)", cursor:"pointer", transition:"width .2s" }}/>
+                  ))}
+                </div>
+              </>
+            )}
+            {/* Photo count */}
+            <div style={{ position:"absolute", bottom:12, right:12, background:"rgba(0,0,0,.6)", color:WH2, borderRadius:99, padding:"2px 10px", fontSize:11, fontWeight:700 }}>
+              {photoIdx+1}/{photos.length}
+            </div>
+            {/* Featured badge */}
+            {rm.is_featured && (
+              <div style={{ position:"absolute", top:14, left:14, background:GOLD2, color:BK2, borderRadius:99, padding:"3px 10px", fontSize:10, fontWeight:700, textTransform:"uppercase" }}>⭐ Featured</div>
+            )}
+          </div>
+        ) : (
+          <div style={{ height:160, background:G12, borderRadius:"20px 20px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>🛏️</div>
+        )}
+
+        {/* Thumbnail strip */}
+        {photos.length > 1 && (
+          <div style={{ display:"flex", gap:8, padding:"10px 16px", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+            {photos.map((ph,i)=>(
+              <img key={i} src={ph} alt="" onClick={()=>setPhotoIdx(i)}
+                style={{ width:64, height:48, objectFit:"cover", borderRadius:8, flexShrink:0, cursor:"pointer", border:"2px solid "+(i===photoIdx?M2:"transparent"), opacity:i===photoIdx?1:.7, transition:"all .15s" }}
+                onError={e=>{e.target.style.display="none";}}/>
+            ))}
+          </div>
+        )}
+
+        {/* Details */}
+        <div style={{ padding:"20px 20px 100px" }}>
+          {/* Header */}
+          <div style={{ marginBottom:16 }}>
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:G82, margin:"0 0 4px" }}>{rm.name}</h2>
+            <div style={{ fontSize:13, color:M2, fontWeight:700, marginBottom:6 }}>{rm.store_name}</div>
+            <div style={{ fontSize:13, color:G62 }}>📍 {rm.location_city||rm.location_name||"—"}</div>
+          </div>
+
+          {/* Price */}
+          <div style={{ background:"linear-gradient(135deg,"+M2+" 0%,#4A1019 100%)", borderRadius:12, padding:"16px 20px", marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <div style={{ color:"rgba(255,255,255,.7)", fontSize:11, textTransform:"uppercase", letterSpacing:".07em", marginBottom:4 }}>Price per night</div>
+              <div style={{ color:WH2, fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700 }}>TZS {Number(rm.price||0).toLocaleString()}</div>
+            </div>
+            <div style={{ color:"rgba(255,255,255,.6)", fontSize:13, textAlign:"right" }}>
+              <div>🛏️ {rm.beds} bed{rm.beds!==1?"s":""}</div>
+              <div>👤 {rm.max_guests} guest{rm.max_guests!==1?"s":""}</div>
+              <div>{rm.type}</div>
+            </div>
+          </div>
+
+          {/* Description */}
+          {rm.description && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>About this room</div>
+              <p style={{ fontSize:14, color:G82, lineHeight:1.7, margin:0 }}>{rm.description}</p>
+            </div>
+          )}
+
+          {/* Amenities */}
+          {amenities.length > 0 && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:10 }}>Amenities</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {amenities.map((a,i)=>(
+                  <span key={i} style={{ background:G12, borderRadius:20, padding:"5px 12px", fontSize:13, color:G82 }}>✓ {a}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Occupied notice */}
+          {rm.status==="occupied" && (
+            <div style={{ background:WAB2, borderRadius:10, padding:"12px 14px", marginBottom:16, fontSize:13, color:WA2, fontWeight:600 }}>
+              🏠 Currently occupied — you can book for future dates
+            </div>
+          )}
+        </div>
+
+        {/* Sticky Book button */}
+        <div style={{ position:"sticky", bottom:0, left:0, right:0, background:WH2, borderTop:"1px solid "+G22, padding:"14px 20px", display:"flex", gap:10 }}>
+          <button onClick={onClose}
+            style={{ flex:1, padding:"13px", borderRadius:10, border:"1px solid "+G22, background:"transparent", color:G62, fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
+            ← Back
+          </button>
+          <button onClick={()=>onBook(rm)}
+            style={{ flex:2, padding:"13px", borderRadius:10, border:"none", background:M2, color:WH2, fontWeight:700, fontSize:15, cursor:"pointer", fontFamily:"'Playfair Display',serif" }}>
+            Book This Room →
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
