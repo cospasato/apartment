@@ -1437,10 +1437,22 @@ export default function App() {
           onBook={async(rm)=>{
             const store={id:rm.store_id,name:rm.store_name,slug:rm.store_slug};
             setMktSelStore(store);
+            // loadPublic populates locs and rooms for this store
             await loadPublic(rm.store_id);
-            setBD(d=>({...d,roomId:rm.id}));
+            // Find the location for this room from the freshly loaded data
+            // location_id comes from the room object in the public rooms list
+            // We fetch locations from the store — pick the one matching the room's location
+            let locId = "";
+            try {
+              const storeRooms = await api.getRooms(rm.store_id);
+              const match = storeRooms.find(r=>r.id===rm.id);
+              locId = match ? (match.location_id||match.locId||"") : "";
+            } catch {}
+            setBD(d=>({...d, roomId:rm.id, locId}));
             setMktPreviewRoom(null);
-            navTo("book",2);
+            // Skip to step 3 (room confirmation) since room is already chosen
+            // Step 2 = dates, step 3 = rooms — go to dates first so user picks CI/CO
+            navTo("book", locId ? 2 : 1);
           }}
         />
       )}
@@ -1600,8 +1612,28 @@ export default function App() {
         {/* Step 3 — SELECT ROOM (new order, dates already chosen) */}
         {bStep === 3 && (
           <div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 4, color: BK }}>Choose a Room</h2>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 4, color: BK }}>
+              {bD.roomId ? "Confirm Your Room" : "Choose a Room"}
+            </h2>
             <p style={{ color: G6, marginBottom: 4, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            {/* Pre-selected room banner */}
+            {bD.roomId && rooms.find(r=>r.id===bD.roomId) && (() => {
+              const pr = rooms.find(r=>r.id===bD.roomId);
+              return (
+                <div style={{ background:"#E8F5E9", border:"2px solid #2E7D32", borderRadius:12, padding:"14px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+                  {pr.photos&&pr.photos[0] && <img src={pr.photos[0]} alt={pr.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }}/>}
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#2E7D32", textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>✓ Room Selected</div>
+                    <div style={{ fontWeight:700, fontSize:15, color:"#333" }}>{pr.name}</div>
+                    <div style={{ fontSize:12, color:"#666" }}>{pr.type} · {pr.beds} bed{pr.beds!==1?"s":""} · TZS {Number(pr.price||0).toLocaleString()}/night</div>
+                  </div>
+                  <button onClick={()=>setBD(d=>({...d,roomId:""}))}
+                    style={{ background:"transparent", border:"1px solid #ccc", borderRadius:6, padding:"4px 10px", fontSize:11, color:"#888", cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+                    Change
+                  </button>
+                </div>
+              );
+            })()}
             {bD.ci && bD.co && (
               <div style={{ background: MF, borderRadius: 8, padding: "9px 14px", marginBottom: 18, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ fontSize: 13, color: M, fontWeight: 700 }}>📅 {bD.ci} → {bD.co} · {bD.nights} night{bD.nights>1?"s":""}</span>
@@ -1796,7 +1828,7 @@ export default function App() {
           onSelect={() => {
             setBD(d => ({ ...d, roomId: roomDetail }));
             setRoomDetail(null);
-            if (bD.ci && bD.co) goStep(4); else goStep(2);
+            if (bD.ci && bD.co) { if (bD.roomId) goStep(4); else goStep(3); } else goStep(2);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           onChangeDates={() => {
