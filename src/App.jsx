@@ -2198,6 +2198,32 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
+
+  // ── Date helpers ──
+  const today = new Date().toISOString().split("T")[0];
+  const now   = new Date();
+  const curMonth = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+
+  // ── TODAY stats ──
+  const todayBooks   = books.filter(b => b.created && b.created.split("T")[0] === today && b.status !== "cancelled");
+  const todayIncome  = todayBooks.reduce((s,b) => s + (b.paid||0), 0);
+  const todayExps    = exps.filter(e => e.date && e.date.split("T")[0] === today);
+  const todayExpAmt  = todayExps.reduce((s,e) => s + (e.amt||0), 0);
+  const todayNet     = todayIncome - todayExpAmt;
+  const todayCheckIn = books.filter(b => b.ci === today).length;
+  const todayCheckOut= books.filter(b => b.co === today && b.status === "checkedIn").length;
+
+  // ── THIS MONTH stats ──
+  const monthBooks   = books.filter(b => b.created && b.created.slice(0,7) === curMonth && b.status !== "cancelled");
+  const monthIncome  = monthBooks.reduce((s,b) => s + (b.paid||0), 0);
+  const monthExps    = exps.filter(e => e.date && e.date.slice(0,7) === curMonth);
+  const monthExpAmt  = monthExps.reduce((s,e) => s + (e.amt||0), 0);
+  const monthNet     = monthIncome - monthExpAmt;
+  const monthBookCnt = monthBooks.length;
+  const monthPending = monthBooks.reduce((s,b) => s + ((b.total||0)-(b.paid||0)), 0);
+
+  const monthName = now.toLocaleString("default", { month: "long" }) + " " + now.getFullYear();
+
   return (
     <div>
       <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
@@ -2234,6 +2260,74 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
           </div>
         </div>
       )}
+      {/* ── TODAY ── */}
+      {!isReceptDash && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📅 Today</div>
+            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>{today}</div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+            {/* Today income */}
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #2E7D32" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Income</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(todayIncome)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayBooks.length} booking{todayBooks.length!==1?"s":""}</div>
+            </div>
+            {/* Today expenses */}
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #C62828" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Expenses</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(todayExpAmt)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayExps.length} expense{todayExps.length!==1?"s":""}</div>
+            </div>
+            {/* Today net */}
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+(todayNet>=0?"#1565C0":"#B76E00") }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Net</div>
+              <div style={{ fontSize:20, fontWeight:700, color:todayNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(todayNet)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayNet>=0?"Profit":"Loss"} today</div>
+            </div>
+            {/* Check-ins */}
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+M2 }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Check-ins Today</div>
+              <div style={{ fontSize:20, fontWeight:700, color:M2, fontFamily:"'Playfair Display',serif" }}>{todayCheckIn}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayCheckOut} checkout{todayCheckOut!==1?"s":""} today</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── THIS MONTH ── */}
+      {!isReceptDash && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📆 {monthName}</div>
+            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>This Month</div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #2E7D32" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Income</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(monthIncome)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthBookCnt} booking{monthBookCnt!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #C62828" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Expenses</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(monthExpAmt)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthExps.length} expense{monthExps.length!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+(monthNet>=0?"#1565C0":"#B76E00") }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Net</div>
+              <div style={{ fontSize:20, fontWeight:700, color:monthNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthNet)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthNet>=0?"Profit":"Loss"} this month</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #B76E00" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Unpaid Balance</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthPending)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>Outstanding this month</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Receptionist sees minimal KPIs only */}
       {isReceptDash ? (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
