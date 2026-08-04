@@ -3128,6 +3128,32 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const totPend = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
   const totDisc = books.reduce((s,b)=>s+(b.base-b.total),0);
 
+  // ── Date helpers ──
+  const today2   = new Date().toISOString().split("T")[0];
+  const now2     = new Date();
+  const curMonth2= now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
+  const monthName2 = now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
+
+  // ── Daily payment stats ──
+  const todayPaidBooks = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
+  const todayCollected = todayPaidBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const todayOutstanding = todayPaidBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+  const todayTransactions= todayPaidBooks.length;
+
+  // ── Monthly payment stats ──
+  const monthPaidBooks  = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth2&&b.status!=="cancelled");
+  const monthCollected  = monthPaidBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const monthOutstanding= monthPaidBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+  const monthTransactions= monthPaidBooks.length;
+  const monthDisc       = monthPaidBooks.reduce((s,b)=>s+((b.base||0)-(b.total||0)),0);
+
+  // ── Active room payment status for TODAY ──
+  // Rooms with active booking (checkedIn) that are fully paid vs outstanding
+  const activeBooks = books.filter(b=>b.status==="checkedIn");
+  const roomsFullyPaid   = activeBooks.filter(b=>(b.paid||0)>=(b.total||0)&&(b.total||0)>0).length;
+  const roomsOutstanding = activeBooks.filter(b=>(b.paid||0)<(b.total||0)).length;
+  const roomsCheckingInToday = books.filter(b=>b.ci===today2&&["confirmed","pending"].includes(b.status)).length;
+
   const openRecord = (id) => {
     const b = books.find(b=>b.id===id);
     setSel(id); setAmt("");
@@ -3169,11 +3195,66 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
     <div>
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 18px"}}>Payments</h2>
       {!hideFinance && (
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
-          <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅"/>
-          <KPI label="Outstanding"     value={fmt(totPend)} color={ER} icon="⚠️"/>
-          <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️"/>
-          <KPI label="Total Bookings"  value={books.length} icon="📋"/>
+        <div>
+          {/* ── TODAY'S PAYMENTS ── */}
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📅 Today's Payments</div>
+              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>{today2}</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Collected Today</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(todayCollected)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{todayTransactions} transaction{todayTransactions!==1?"s":""}</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Outstanding Today</div>
+                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(todayOutstanding)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms Fully Paid</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{roomsFullyPaid}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>active stays settled</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms with Balance</div>
+                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{roomsOutstanding}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{roomsCheckingInToday} checking in today</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── MONTHLY PAYMENTS ── */}
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📆 {monthName2}</div>
+              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>This Month</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Collected</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(monthCollected)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{monthTransactions} booking{monthTransactions!==1?"s":""}</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Outstanding</div>
+                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(monthOutstanding)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+IN}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Total Collected</div>
+                <div style={{fontSize:20,fontWeight:700,color:IN,fontFamily:"'Playfair Display',serif"}}>{fmt(totColl)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>all time</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Discounts This Month</div>
+                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{fmt(monthDisc)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>given to guests</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
