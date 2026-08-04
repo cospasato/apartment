@@ -2338,12 +2338,8 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
-          <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
-          <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
           <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={rooms.filter(r => r.status === "occupied").length + "/" + rooms.length + " rooms"} />
-          <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
           <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
-          <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
         </div>
       )}
       {/* ── ROOMS STATUS — shown to all ── */}
