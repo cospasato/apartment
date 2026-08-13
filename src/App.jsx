@@ -2474,6 +2474,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const [coModal, setCoModal] = useState(null); // booking id
   // extend form
   const [extNights, setExtNights] = useState(1);
+  const [booksPage, setBooksPage] = useState(30);
 
   const todayDate = td();
 
