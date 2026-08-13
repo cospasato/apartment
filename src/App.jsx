@@ -6929,37 +6929,37 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
 @media print{.no-print{display:none!important}}
 </style></head><body><div class="page">
 <div class="header">
-  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||"Property"}</div></div>
+  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||'Property'}</div></div>
   <div><div class="doc-h1">Full Stay Receipt</div><div class="doc-ref">Ref: ${b.id}</div><div class="doc-ref">Date: ${today}</div></div>
 </div>
 <div class="guest-box">
   <h3>Guest Information</h3>
-  <p><strong>${b.gName||"—"}</strong><br/>
-  ${b.gPhone?"📞 "+b.gPhone+"<br/>":""}${b.gEmail?"✉ "+b.gEmail+"<br/>":""}${b.gNat?"🌍 "+b.gNat:""}</p>
+  <p><strong>${b.gName||'—'}</strong><br/>
+  ${b.gPhone?'📞 '+b.gPhone+'<br/>':''}${b.gEmail?'✉ '+b.gEmail+'<br/>':''}${b.gNat?'🌍 '+b.gNat:''}</p>
 </div>
 <table>
   <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
   <tbody>
     <tr>
-      <td><strong>${rm?rm.name:"—"}</strong><br/><span style="font-size:11px;color:#888">${rm?rm.type:""} · ${loc?loc.name:""}</span></td>
-      <td>${b.ci||"—"}</td><td>${b.co||"—"}</td>
+      <td><strong>${rm?rm.name:'—'}</strong><br/><span style="font-size:11px;color:#888">${rm?rm.type:''} · ${loc?loc.name:''}</span></td>
+      <td>${b.ci||'—'}</td><td>${b.co||'—'}</td>
       <td style="text-align:center">${b.nights||1}</td>
       <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
       <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
     </tr>
-    ${(b.disc||0)>0?"<tr><td colspan='5' style='color:#B76E00;font-size:12px'>Discount applied</td><td class='right' style='color:#B76E00'>- TZS "+Number((b.base||0)-(b.total||0)).toLocaleString()+"</td></tr>":""}
+    ${(b.disc||0)>0?'<tr><td colspan='5' style='color:#B76E00;font-size:12px'>Discount applied</td><td class='right' style='color:#B76E00'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
   </tbody>
 </table>
 <div class="totals">
   <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
   <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
-  <div class="row big"><span>${bal>0?"Balance Due":"Total Paid"}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
+  <div class="row big"><span>${bal>0?'Balance Due':'Total Paid'}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
 </div>
-<div class="status ${bal>0?"balance":"paid"}">
-  ${bal>0?"⚠️ Balance Remaining: TZS "+Number(bal).toLocaleString():"✅ Fully Paid — Thank You!"}
+<div class="status ${bal>0?'balance':'paid'}">
+  ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
 </div>
-${b.notes?"<div style='margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px'><strong>Notes:</strong> "+b.notes+"</div>":""}
-<div class="footer">Thank you for your stay at <strong>${storeName||"our property"}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
+${b.notes?'<div style='margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px'><strong>Notes:</strong> '+b.notes+'</div>':''}
+<div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
 <br/>
 <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
 <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
