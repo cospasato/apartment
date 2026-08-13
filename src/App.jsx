@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import React from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 export class ErrorBoundary extends React.Component {
   constructor(props){super(props);this.state={err:null};}
   static getDerivedStateFromError(e){return {err:e};}
@@ -5896,7 +5895,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       top: 0, left: 0, right: 0, bottom: 0,
     }}>
       {/* ── TOP BAR ── */}
-      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:"max(env(safe-area-inset-top), 14px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
+      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:14, paddingBottom:10, flexShrink:0, zIndex:300 }}>
         {/* Left: hamburger + title */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setDrawerOpen(true)}
@@ -5928,7 +5927,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
           <div style={{ position:"fixed", top:0, left:0, bottom:0, width:280, background:"#1a1a1a", zIndex:500, display:"flex", flexDirection:"column", animation:"slideIn .22s ease" }}>
             <style>{`@keyframes slideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}`}</style>
             {/* Drawer header */}
-            <div style={{ background:BG, padding:"max(env(safe-area-inset-top),20px) 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ background:BG, padding:"20px 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div>
                 <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:"#C9A84C" }}>{storeName}</div>
                 <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>{role}</div>
@@ -5948,7 +5947,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
               ))}
             </div>
             {/* Drawer footer */}
-            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,.08)", paddingBottom:"max(env(safe-area-inset-bottom),12px)" }}>
+            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,.08)", paddingBottom:12 }}>
               <button onClick={onLogout}
                 style={{ width:"100%", padding:"11px", borderRadius:8, border:"1px solid rgba(255,255,255,.15)", background:"transparent", color:"rgba(255,255,255,.6)", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                 Sign Out
@@ -5964,7 +5963,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       </div>
 
       {/* ── BOTTOM NAV (4 tabs + menu) ── */}
-      <div style={{ flexShrink:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"max(env(safe-area-inset-bottom), 4px)" }}>
+      <div style={{ flexShrink:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:4 }}>
         {bottomTabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
@@ -7065,7 +7064,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         display:"flex", flexDirection:"column",
       }}>
         {/* Header */}
-        <div style={{ background:M2, color:WH2, padding:"16px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:"max(env(safe-area-inset-top),16px)", flexShrink:0 }}>
+        <div style={{ background:M2, color:WH2, padding:"16px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:16, flexShrink:0 }}>
           <div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>🔔 Notifications</div>
             <div style={{ fontSize:11, opacity:.7, marginTop:2 }}>{notifs.length} total · {notifs.filter(n=>!n.read).length} unread</div>
@@ -7122,7 +7121,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         </div>
 
         {/* Footer tip */}
-        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"max(12px,env(safe-area-inset-bottom))" }}>
+        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"8px" }}>
           <div style={{ fontSize:11, color:G62, lineHeight:1.7 }}>
             💡 Notifications work even when this tab is in the background. Make sure notifications are <strong>allowed</strong> in your browser settings for the best experience.
           </div>
