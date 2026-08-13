@@ -1,4 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import React from "react";
+export class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={err:null};}
+  static getDerivedStateFromError(e){return {err:e};}
+  componentDidCatch(e){console.error("BNBMIS:",e.message);}
+  render(){
+    if(this.state.err)return(
+      <div style={{minHeight:"100vh",background:"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"Arial,sans-serif"}}>
+        <div style={{background:"#fff",borderRadius:12,padding:32,maxWidth:360,textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.1)"}}>
+          <div style={{fontSize:36,marginBottom:10}}>⚠️</div>
+          <div style={{fontWeight:700,fontSize:16,color:"#6B1B2A",marginBottom:8}}>Something went wrong</div>
+          <div style={{fontSize:13,color:"#666",marginBottom:20}}>Please reload the app.</div>
+          <button onClick={()=>{this.setState({err:null});window.location.reload();}}
+            style={{background:"#6B1B2A",color:"#fff",border:"none",borderRadius:8,padding:"11px 26px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+            🔄 Reload
+          </button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { api } from "./api";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
@@ -493,7 +515,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -520,7 +542,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
+      try{var _o=localStorage.getItem("bnbmis_owner");if(_o){var _p=JSON.parse(_o);if(_p&&_p.store&&_p.store.id)return "owner_dash";}}catch(e){}
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -1486,8 +1508,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
@@ -1939,7 +1961,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner) {
+  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
