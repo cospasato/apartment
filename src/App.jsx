@@ -2205,8 +2205,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole });
-) {
+const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
@@ -2376,7 +2375,7 @@ const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-const BooksTab = React.memo(BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
+const BooksTab = React.memo(function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -2802,7 +2801,7 @@ const BooksTab = React.memo(BooksTab({ books, rooms, locs, updBook, recPay, dele
 
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-const RoomsTab = React.memo(RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
+const RoomsTab = React.memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -3040,7 +3039,7 @@ const RoomsTab = React.memo(RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, s
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-const PaysTab = React.memo(PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+const PaysTab = React.memo(function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
