@@ -1975,7 +1975,7 @@ export default function App() {
       <>
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -2075,7 +2075,7 @@ export default function App() {
     <>
       {loading && <Spinner/>}
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
-      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
@@ -2204,6 +2204,30 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
+
+  const today     = new Date().toISOString().split("T")[0];
+  const now       = new Date();
+  const curMonth  = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+  const monthName = now.toLocaleString("default",{month:"long"}) + " " + now.getFullYear();
+
+  // Today
+  const todayBooks    = books.filter(b=>b.created&&b.created.split("T")[0]===today&&b.status!=="cancelled");
+  const todayIncome   = todayBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const todayExps     = exps.filter(e=>e.date&&e.date.split("T")[0]===today);
+  const todayExpAmt   = todayExps.reduce((s,e)=>s+(e.amt||0),0);
+  const todayNet      = todayIncome - todayExpAmt;
+  const todayCheckIn  = books.filter(b=>b.ci===today).length;
+  const todayCheckOut = books.filter(b=>b.co===today&&b.status==="checkedIn").length;
+
+  // This month
+  const monthBooks    = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth&&b.status!=="cancelled");
+  const monthIncome   = monthBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const monthExps     = exps.filter(e=>e.date&&e.date.slice(0,7)===curMonth);
+  const monthExpAmt   = monthExps.reduce((s,e)=>s+(e.amt||0),0);
+  const monthNet      = monthIncome - monthExpAmt;
+  const monthBookCnt  = monthBooks.length;
+  const monthPending  = monthBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+
   return (
     <div>
       <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
@@ -2240,22 +2264,85 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
           </div>
         </div>
       )}
-      {/* Receptionist sees minimal KPIs only */}
-      {isReceptDash ? (
+      {/* Receptionist minimal KPIs */}
+      {isReceptDash && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
-          <KPI label="Active Guests" value={books.filter(b=>b.status==="checkedIn").length} icon="🔑" color={M} sub="Checked in now"/>
-          <KPI label="Pending" value={books.filter(b=>b.status==="pending").length} icon="⏳" color={WA} sub="Need confirmation"/>
-          <KPI label="Available Rooms" value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={"of " + rooms.length + " total"}/>
-          <KPI label="Checking Out Today" value={books.filter(b=>b.status==="checkedIn"&&b.co===new Date().toISOString().split("T")[0]).length} icon="📅" color={IN}/>
+          <KPI label="Active Guests"      value={books.filter(b=>b.status==="checkedIn").length} icon="🔑" color={M} sub="Checked in now"/>
+          <KPI label="Pending"            value={books.filter(b=>b.status==="pending").length} icon="⏳" color={WA} sub="Need confirmation"/>
+          <KPI label="Available Rooms"    value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={"of "+rooms.length+" total"}/>
+          <KPI label="Checking Out Today" value={books.filter(b=>b.status==="checkedIn"&&b.co===today).length} icon="📅" color={IN}/>
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
-          <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
-          <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
-          <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={rooms.filter(r => r.status === "occupied").length + "/" + rooms.length + " rooms"} />
-          <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
-          <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
-          <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
+      )}
+
+      {/* Owner/Admin — occupancy strip */}
+      {!isReceptDash && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))", gap:13, marginBottom:22 }}>
+          <KPI label="Occupancy"    value={occPct+"%"} icon="🛏️" sub={rooms.filter(r=>r.status==="occupied").length+"/"+rooms.length+" rooms"}/>
+          <KPI label="Active Stays" value={books.filter(b=>["confirmed","checkedIn"].includes(b.status)).length} icon="📋"/>
+        </div>
+      )}
+
+      {/* ── TODAY ── */}
+      {!isReceptDash && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📅 Today</div>
+            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>{today}</div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10 }}>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #2E7D32" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Income</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(todayIncome)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayBooks.length} booking{todayBooks.length!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #C62828" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Expenses</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(todayExpAmt)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayExps.length} expense{todayExps.length!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+(todayNet>=0?"#1565C0":"#B76E00") }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Net</div>
+              <div style={{ fontSize:20, fontWeight:700, color:todayNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(todayNet)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayNet>=0?"Profit":"Loss"} today</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+M2 }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Check-ins Today</div>
+              <div style={{ fontSize:20, fontWeight:700, color:M2, fontFamily:"'Playfair Display',serif" }}>{todayCheckIn}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayCheckOut} checkout{todayCheckOut!==1?"s":""} today</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── THIS MONTH ── */}
+      {!isReceptDash && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📆 {monthName}</div>
+            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>This Month</div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10 }}>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #2E7D32" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Income</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(monthIncome)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthBookCnt} booking{monthBookCnt!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #C62828" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Expenses</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(monthExpAmt)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthExps.length} expense{monthExps.length!==1?"s":""}</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+(monthNet>=0?"#1565C0":"#B76E00") }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Net</div>
+              <div style={{ fontSize:20, fontWeight:700, color:monthNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthNet)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthNet>=0?"Profit":"Loss"} this month</div>
+            </div>
+            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #B76E00" }}>
+              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Unpaid Balance</div>
+              <div style={{ fontSize:20, fontWeight:700, color:"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthPending)}</div>
+              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>Outstanding this month</div>
+            </div>
+          </div>
         </div>
       )}
       {/* ── ROOMS STATUS — shown to all ── */}
@@ -2370,7 +2457,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -3045,6 +3132,26 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const totPend = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
   const totDisc = books.reduce((s,b)=>s+(b.base-b.total),0);
 
+  const today2    = new Date().toISOString().split("T")[0];
+  const now2      = new Date();
+  const curMonth2 = now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
+  const monthName2= now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
+
+  const todayPBooks    = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
+  const todayCollected = todayPBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const todayOutstanding = todayPBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+
+  const monthPBooks     = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth2&&b.status!=="cancelled");
+  const monthCollected  = monthPBooks.reduce((s,b)=>s+(b.paid||0),0);
+  const monthOutstanding= monthPBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+  const monthBookCnt2   = monthPBooks.length;
+  const monthDisc       = monthPBooks.reduce((s,b)=>s+((b.base||0)-(b.total||0)),0);
+
+  const activeBooks      = books.filter(b=>b.status==="checkedIn");
+  const roomsFullyPaid   = activeBooks.filter(b=>(b.paid||0)>=(b.total||0)&&(b.total||0)>0).length;
+  const roomsOutstanding = activeBooks.filter(b=>(b.paid||0)<(b.total||0)).length;
+  const roomsCheckingIn  = books.filter(b=>b.ci===today2&&["confirmed","pending"].includes(b.status)).length;
+
   const openRecord = (id) => {
     const b = books.find(b=>b.id===id);
     setSel(id); setAmt("");
@@ -3086,11 +3193,63 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
     <div>
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 18px"}}>Payments</h2>
       {!hideFinance && (
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
-          <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅"/>
-          <KPI label="Outstanding"     value={fmt(totPend)} color={ER} icon="⚠️"/>
-          <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️"/>
-          <KPI label="Total Bookings"  value={books.length} icon="📋"/>
+        <div>
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📅 Today's Payments</div>
+              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>{today2}</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Collected Today</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(todayCollected)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{todayPBooks.length} transaction{todayPBooks.length!==1?"s":""}</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Outstanding Today</div>
+                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(todayOutstanding)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms Fully Paid</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{roomsFullyPaid}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>active stays settled</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms with Balance</div>
+                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{roomsOutstanding}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{roomsCheckingIn} checking in today</div>
+              </div>
+            </div>
+          </div>
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📆 {monthName2}</div>
+              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>This Month</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Collected</div>
+                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(monthCollected)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>{monthBookCnt2} booking{monthBookCnt2!==1?"s":""}</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Outstanding</div>
+                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(monthOutstanding)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+IN}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Total Collected</div>
+                <div style={{fontSize:20,fontWeight:700,color:IN,fontFamily:"'Playfair Display',serif"}}>{fmt(totColl)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>all time</div>
+              </div>
+              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
+                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Discounts This Month</div>
+                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{fmt(monthDisc)}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:3}}>given to guests</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -6707,7 +6866,80 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  };
+  }
+
+  const printFullStayReceipt = (b) => {
+    const rm  = rooms.find(r => r.id === b.roomId);
+    const loc = locs.find(l => l.id === b.locId);
+    const bal = (b.total||0) - (b.paid||0);
+    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    const w = window.open("", "_blank", "width=650,height=900");
+    if (!w) { alert("Please allow popups to print."); return; }
+    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF}
+.page{max-width:580px;margin:0 auto;padding:36px 40px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #6B1B2A}
+.logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;line-height:1}
+.logo-sub{font-size:11px;color:#999;margin-top:3px}
+.doc-type h1{font-size:22px;font-weight:900;color:#6B1B2A;text-transform:uppercase;text-align:right}
+.doc-type .ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
+.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:14px 18px;margin-bottom:18px;border-radius:0 8px 8px 0}
+.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-weight:700}
+.guest-box p{font-size:14px;color:#111;line-height:1.9}
+table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px}
+th{background:#6B1B2A;color:#FFF;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
+td{padding:9px 12px;border-bottom:1px solid #F0F0F0}
+.right{text-align:right}
+.total-section{background:#6B1B2A;color:#FFF;border-radius:10px;padding:16px 20px;margin-bottom:10px}
+.total-section .row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
+.total-section .row.big{font-size:19px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:10px;margin-top:6px}
+.status-box{border-radius:8px;padding:12px 18px;margin-bottom:18px;text-align:center;font-weight:700;font-size:15px}
+.paid{background:#E8F5E9;color:#2E7D32}.balance{background:#FFEBEE;color:#C62828}
+.footer{margin-top:24px;text-align:center;font-size:11px;color:#999;line-height:2;border-top:1px solid #EEE;padding-top:14px}
+@media print{.no-print{display:none!important}}
+</style></head><body><div class="page">
+<div class="header">
+  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||"Property"}</div></div>
+  <div class="doc-type"><h1>Full Stay Receipt</h1><div class="ref">Ref: ${b.id}</div><div class="ref">Date: ${today}</div></div>
+</div>
+<div class="guest-box">
+  <h3>Guest Information</h3>
+  <p><strong>${b.gName||"—"}</strong><br/>
+  ${b.gPhone?"📞 "+b.gPhone+"<br/>":""}
+  ${b.gEmail?"✉ "+b.gEmail+"<br/>":""}
+  ${b.gNat?"🌍 "+b.gNat:""}</p>
+</div>
+<table>
+  <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>${rm?.name||"—"}</strong><br/><span style="font-size:11px;color:#888">${rm?.type||""} · ${loc?.name||""}</span></td>
+      <td>${b.ci||"—"}</td><td>${b.co||"—"}</td>
+      <td style="text-align:center">${b.nights||1}</td>
+      <td>TZS ${Number(rm?.price||0).toLocaleString()}</td>
+      <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
+    </tr>
+    ${(b.disc||0)>0?`<tr><td colspan="5" style="color:#B76E00;font-size:12px">Discount applied</td><td class="right" style="color:#B76E00">- TZS ${Number((b.base||0)-(b.total||0)).toLocaleString()}</td></tr>`:""}
+  </tbody>
+</table>
+<div class="total-section">
+  <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
+  <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
+  <div class="row big"><span>${bal>0?"Balance Due":"Total Paid"}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
+</div>
+<div class="status-box ${bal>0?"balance":"paid"}">
+  ${bal>0?"⚠️ Balance Remaining: TZS "+Number(bal).toLocaleString():"✅ Fully Paid — Thank You!"}
+</div>
+${b.notes?`<div style="margin-bottom:18px;font-size:13px;color:#555;background:#F9F9F9;border-radius:8px;padding:12px 14px"><strong>Notes:</strong> ${b.notes}</div>`:""}
+<div class="footer">Thank you for your stay at <strong>${storeName||"our property"}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
+<br/>
+<button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print Receipt</button>
+<button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+</div></body></html>`);
+    w.document.close();
+  };;
 
   return (
     <div>
@@ -6749,7 +6981,11 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
                   {bal>0 ? "Balance: TZS "+Number(bal).toLocaleString() : "✓ Fully paid"}
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+              <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+                <button onClick={()=>printFullStayReceipt(b)}
+                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid #2E7D32", background:"#E8F5E9", color:"#2E7D32", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  🏨 Full Stay
+                </button>
                 <button onClick={()=>printReceipt(b, false)}
                   style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🧾 Receipt
