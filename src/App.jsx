@@ -2881,6 +2881,15 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           <div style={{ marginTop: 12 }}><Badge s={selB.status} /></div>
         </Modal>
       )}
+      {/* Load More bookings */}
+      {filtered_all.length > booksPage && (
+        <div style={{ textAlign:"center", padding:"16px 0" }}>
+          <button onClick={()=>setBooksPage(p=>p+30)}
+            style={{ background:"#F5F5F5", border:"1px solid #E0E0E0", borderRadius:8, padding:"10px 24px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", color:"#333" }}>
+            Load More ({filtered_all.length - booksPage} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -3116,15 +3125,6 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
             <Btn onClick={() => { const r = rooms.find(r => r.id === photoModal); if (r) { openEdit(r); setPhotoModal(null); } }} style={{ flex: 1, justifyContent: "center" }}>Edit Photos & Video</Btn>
           </div>
         </Modal>
-      )}
-      {/* Load More bookings */}
-      {filtered_all.length > booksPage && (
-        <div style={{ textAlign:"center", padding:"16px 0" }}>
-          <button onClick={()=>setBooksPage(p=>p+30)}
-            style={{ background:"#F5F5F5", border:"1px solid #E0E0E0", borderRadius:8, padding:"10px 24px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", color:"#333" }}>
-            Load More ({filtered_all.length - booksPage} remaining)
-          </button>
-        </div>
       )}
     </div>
   );
