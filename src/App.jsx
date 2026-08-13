@@ -2545,8 +2545,8 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       <div class="section-title">Customer Information</div>
       <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||"—"}</span></div>
       <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||"—"}</span></div>
-      ${b.gEmail?`<div class="row"><span class="lbl">Email</span><span class="val">${b.gEmail}</span></div>`:""}
-      ${b.gNat?`<div class="row"><span class="lbl">Nationality</span><span class="val">${b.gNat}</span></div>`:""}
+      ${b.gEmail?"<div class=\"row\"><span class=\"lbl\">Email</span><span class=\"val\">"+b.gEmail+"</span></div>":""}
+      ${b.gNat?"<div class=\"row\"><span class=\"lbl\">Nationality</span><span class=\"val\">"+b.gNat+"</span></div>":""}
     </div>
     <div class="section">
       <div class="section-title">Booking Details</div>
@@ -2560,7 +2560,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       <div class="section-title">Payment Summary</div>
       <div class="row"><span class="lbl">Room Rate</span><span class="val">TZS ${Number(rm?.price||0).toLocaleString()}/night</span></div>
       <div class="row"><span class="lbl">Base Amount</span><span class="val">TZS ${Number(b.base||0).toLocaleString()}</span></div>
-      ${(b.disc&&b.disc>0)?`<div class="row"><span class="lbl">Discount</span><span class="val" style="color:#2E7D32">-${b.discT==="pct"?b.disc+"%":"TZS "+Number(b.disc).toLocaleString()}</span></div>`:""}
+      ${(b.disc&&b.disc>0)?"<div class=\"row\"><span class=\"lbl\">Discount</span><span class=\"val\" style=\"color:#2E7D32\">-"+(b.discT==="pct"?b.disc+"%":"TZS "+Number(b.disc).toLocaleString())+"</span></div>":""}
     </div>
     <div class="total-box">
       <div class="row" style="border:none;padding:0"><span class="lbl">Total Amount</span><span class="val">TZS ${Number(b.total||0).toLocaleString()}</span></div>
