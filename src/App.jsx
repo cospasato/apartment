@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
-/* ── tiny debounce for search inputs ── */
-function useDebounce(value, delay=250) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
+function useDebounce(value, delay) {
+  const [d, setD] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setD(value), delay||250); return () => clearTimeout(t); }, [value, delay]);
+  return d;
 }
 import { api } from "./api";
 
@@ -866,7 +862,6 @@ export default function App() {
   };
 
   const loadMarketplaceRooms = async (shuffle=true) => {
-    if (!shuffle && mktRooms.length > 0) return; // use cached data if already loaded
     setMktRoomsLoading(true);
     try {
       const data = await api.getMarketplaceRooms();
@@ -1675,7 +1670,7 @@ export default function App() {
                   {rm.photos && rm.photos.length > 0 && (
                     <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
                       onClick={e => { e.stopPropagation(); setRoomDetail(rm.id); }}>
-                      <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(50%)" : "none" }} />
+                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(50%)" : "none" }} />
                       <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: WH, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, display:"flex", alignItems:"center", gap:5 }}>
                         🔍 View {rm.photos.length > 1 ? rm.photos.length + " photos" : "photo"}{rm.video ? " · 🎬" : ""}
                       </div>
@@ -2205,7 +2200,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
@@ -2375,7 +2370,7 @@ const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-const BooksTab = React.memo(function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -2797,11 +2792,10 @@ const BooksTab = React.memo(function BooksTab({ books, rooms, locs, updBook, rec
       )}
     </div>
   );
-});
-
+}
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-const RoomsTab = React.memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
+function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2865,7 +2859,7 @@ const RoomsTab = React.memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoo
                   {rm.photos && rm.photos.length > 0 ? (
                     <div style={{ position: "relative", paddingTop: "66%", cursor: "pointer", background: G1 }}
                       onClick={() => { setPhotoModal(rm.id); setPhotoIdx(0); }}>
-                      <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       {rm.photos.length > 1 && (
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>
                           +{rm.photos.length - 1} more
@@ -3034,12 +3028,11 @@ const RoomsTab = React.memo(function RoomsTab({ rooms, locs, saveRoom, deleteRoo
       )}
     </div>
   );
-});
-
+}
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-const PaysTab = React.memo(function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
@@ -3191,8 +3184,7 @@ const PaysTab = React.memo(function PaysTab({ books, rooms, recPay, payMethods, 
       )}
     </div>
   );
-});
-
+}
 
 function ExpsTab({ exps, locs, user, saveExp, pop }) {
   const [modal, setModal] = useState(false);
@@ -6488,7 +6480,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
                   {/* Room thumbnail */}
                   <div style={{ height:80, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
                     {rm.photos?.[0]
-                      ? <img loading="lazy" src={rm.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                      ? <img src={rm.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                       : <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", fontSize:28 }}>🛏️</div>
                     }
                     {isSelected && <div style={{ position:"absolute", top:6, right:6, background:M2, color:WH2, borderRadius:"50%", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12 }}>✓</div>}
@@ -7756,7 +7748,7 @@ function MktRoomCard({ rm, onClick }) {
       {/* Image */}
       <div style={{ height:180, background:G12, position:"relative", overflow:"hidden" }}>
         {photo
-          ? <img loading="lazy" src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
+          ? <img src={photo} loading="lazy" alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
           : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>🛏️</div>
         }
         {/* Featured badge */}
@@ -7822,7 +7814,7 @@ function SuperFeaturedRooms({ api, pop }) {
   const RoomRow = ({rm}) => (
     <div style={{ display:"flex", alignItems:"center", gap:12, background:WH2, borderRadius:10, padding:"12px 14px", border:"1px solid "+(rm.is_featured?GOLD2:G22), marginBottom:8 }}>
       {rm.photos&&rm.photos[0]
-        ? <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} onError={e=>{e.target.style.display="none";}}/>
+        ? <img src={rm.photos[0]} alt={rm.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} onError={e=>{e.target.style.display="none";}}/>
         : <div style={{ width:56, height:56, borderRadius:8, background:G12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛏️</div>
       }
       <div style={{ flex:1, minWidth:0 }}>
