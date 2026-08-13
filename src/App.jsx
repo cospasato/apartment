@@ -6958,7 +6958,7 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
 <div class="status ${bal>0?'balance':'paid'}">
   ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
 </div>
-${b.notes?'<div style='margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px'><strong>Notes:</strong> '+b.notes+'</div>':''}
+${b.notes?"<div style=\"margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\"><strong>Notes:</strong> "+b.notes+"</div>":""}
 <div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
 <br/>
 <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
