@@ -681,16 +681,16 @@ export default function App() {
 
   // ── Request OS notification permission ──
   const requestNotifPermission = async () => {
-    if (!("Notification" in window)) {
+    if (typeof Notification === "undefined") {
       pop("Your browser does not support notifications", "err");
       return "denied";
     }
-    if (Notification.permission === "granted") {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       playNotifSound();
       pop("🔔 Notifications are already enabled!", "ok");
       return "granted";
     }
-    const perm = await Notification.requestPermission();
+    const perm = await (typeof Notification !== "undefined" ? Notification.requestPermission() : Promise.resolve("denied"));
     if (perm === "granted") {
       playNotifSound();
       pop("🔔 Notifications enabled! You'll hear a sound and see a popup for every new booking.", "ok");
@@ -752,12 +752,10 @@ export default function App() {
         const doShow = (reg) => {
           if (reg) {
             reg.showNotification(title, opts).catch(() => {
-              const n = new Notification(title, opts);
-              n.onclick = () => { window.focus(); n.close(); };
+              if (typeof Notification !== "undefined") { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; }
             });
           } else {
-            const n = new Notification(title, opts);
-            n.onclick = () => { window.focus(); n.close(); };
+            if (typeof Notification !== "undefined") { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; }
           }
         };
 
@@ -779,7 +777,7 @@ export default function App() {
     if (!sid) return;
 
     // Auto-request permission 3 seconds after login
-    if (Notification.permission === "default") {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
       setTimeout(() => requestNotifPermission(), 3000);
     }
 
@@ -1227,7 +1225,7 @@ export default function App() {
     ...(canReports ? [{ id:"reports",label:"Reports",icon:"📈" }] : []),
     ...(canLocs    ? [{ id:"locs",label:"Locations",icon:"📍" }] : []),
     ...(canStaff   ? [{ id:"staff",label:"Staff",icon:"👥" }] : []),
-    ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"🧑‍🤝‍🧑" }] : []),
+    ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"👥" }] : []),
     { id:"receipts",label:"Receipts",icon:"🧾" },
     { id:"share",   label:"Share",   icon:"📤" },
     { id:"profile", label:"My Profile",icon:"👤" },
@@ -1975,7 +1973,7 @@ export default function App() {
       {id:"reports",   icon:"📈", l:"Reports"},
       {id:"locs",      icon:"📍", l:"Locations"},
       {id:"staff",     icon:"👥", l:"Staff"},
-      {id:"customers", icon:"🧑‍🤝‍🧑", l:"Customers"},
+      {id:"customers", icon:"👥", l:"Customers"},
       {id:"receipts",  icon:"🧾", l:"Receipts"},
       {id:"share",     icon:"📤", l:"Share Store"},
       {id:"billing",   icon:"💰", l:"Billing"},
