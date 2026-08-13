@@ -1969,7 +1969,7 @@ export default function App() {
       <>
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -2069,7 +2069,7 @@ export default function App() {
     <>
       {loading && <Spinner/>}
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
-      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
@@ -2454,7 +2454,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
@@ -6871,7 +6871,111 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  };
+  }
+
+  const printFullStayReceipt = (b) => {
+    const rm  = rooms.find(r => r.id === b.roomId);
+    const loc = locs.find(l => l.id === b.locId);
+    const bal = (b.total||0) - (b.paid||0);
+    const nights = b.nights || 1;
+    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    const w = window.open("", "_blank", "width=650,height=900");
+    if (!w) { alert("Please allow popups to print receipts."); return; }
+    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt – ${b.id}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF}
+  .page{max-width:580px;margin:0 auto;padding:36px 40px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #6B1B2A}
+  .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
+  .logo-sub{font-size:11px;color:#999;margin-top:3px}
+  .doc-type h1{font-size:22px;font-weight:900;color:#6B1B2A;text-transform:uppercase;letter-spacing:.05em;text-align:right}
+  .doc-type .ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
+  .guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:18px}
+  .guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-weight:700}
+  .guest-box p{font-size:14px;color:#111;line-height:1.9}
+  table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px}
+  th{background:#6B1B2A;color:#FFF;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
+  td{padding:9px 12px;border-bottom:1px solid #F0F0F0}
+  .right{text-align:right}
+  .total-section{background:#6B1B2A;color:#FFF;border-radius:10px;padding:16px 20px;margin-bottom:10px}
+  .total-section .row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
+  .total-section .row.big{font-size:19px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:10px;margin-top:6px}
+  .status-box{border-radius:8px;padding:12px 18px;margin-bottom:18px;text-align:center;font-weight:700;font-size:15px}
+  .paid{background:#E8F5E9;color:#2E7D32}
+  .balance{background:#FFEBEE;color:#C62828}
+  .payments-section h3{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-weight:700}
+  .pay-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F5F5F5;font-size:13px}
+  .footer{margin-top:24px;text-align:center;font-size:11px;color:#999;line-height:2;border-top:1px solid #EEE;padding-top:14px}
+  @media print{.no-print{display:none!important}body{padding:0}}
+</style>
+</head><body><div class="page">
+  <div class="header">
+    <div>
+      <div class="logo">BNBMIS</div>
+      <div class="logo-sub">${storeName||"Property Name"}</div>
+    </div>
+    <div class="doc-type">
+      <h1>Full Stay Receipt</h1>
+      <div class="ref">Ref: ${b.id}</div>
+      <div class="ref">Printed: ${today}</div>
+    </div>
+  </div>
+
+  <div class="guest-box">
+    <h3>Guest Information</h3>
+    <p>
+      <strong>${b.gName||"—"}</strong><br/>
+      ${b.gPhone ? "📞 "+b.gPhone+"<br/>" : ""}
+      ${b.gEmail ? "✉ "+b.gEmail+"<br/>" : ""}
+      ${b.gNat ? "🌍 "+b.gNat : ""}
+    </p>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>${rm?.name||"—"}</strong><br/><span style="font-size:11px;color:#888">${rm?.type||""} · ${loc?.name||""}</span></td>
+        <td>${b.ci||"—"}</td>
+        <td>${b.co||"—"}</td>
+        <td style="text-align:center">${nights}</td>
+        <td>TZS ${Number(rm?.price||0).toLocaleString()}</td>
+        <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
+      </tr>
+      ${(b.disc||0)>0 ? `<tr>
+        <td colspan="5" style="color:#B76E00;font-size:12px">Discount applied (${b.discT==="pct"?b.disc+"%":"fixed"})</td>
+        <td class="right" style="color:#B76E00">- TZS ${Number((b.base||0)-(b.total||0)).toLocaleString()}</td>
+      </tr>` : ""}
+    </tbody>
+  </table>
+
+  <div class="total-section">
+    <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
+    <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
+    <div class="row big"><span>${bal>0?"Balance Due":"Total Paid"}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
+  </div>
+
+  <div class="status-box ${bal>0?"balance":"paid"}">
+    ${bal>0 ? "⚠️ Balance Remaining: TZS "+Number(bal).toLocaleString() : "✅ Fully Paid — Thank You!"}
+  </div>
+
+  ${b.notes ? `<div style="margin-bottom:18px;font-size:13px;color:#555;background:#F9F9F9;border-radius:8px;padding:12px 14px"><strong>Notes:</strong> ${b.notes}</div>` : ""}
+
+  <div class="footer">
+    Thank you for your stay at <strong>${storeName||"our property"}</strong>.<br/>
+    We hope to welcome you again soon.<br/>
+    Powered by BNBMIS · www.bnbmis.com
+  </div>
+
+  <br/>
+  <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print Receipt</button>
+  <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+</div></body></html>`);
+    w.document.close();
+  };;
 
   return (
     <div>
@@ -6913,7 +7017,11 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
                   {bal>0 ? "Balance: TZS "+Number(bal).toLocaleString() : "✓ Fully paid"}
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+              <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+                <button onClick={()=>printFullStayReceipt(b)}
+                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid #2E7D32", background:"#E8F5E9", color:"#2E7D32", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  🏨 Full Stay
+                </button>
                 <button onClick={()=>printReceipt(b, false)}
                   style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🧾 Receipt
