@@ -119,6 +119,10 @@ function PWAInstallBanner() {
 }
 
 /* ─── BRAND ─────────────────────────────────────────────── */
+/* Safe month name - toLocaleString with options crashes old mobile browsers */
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const safeMonthName = (d) => MONTHS[d.getMonth()] + " " + d.getFullYear();
+
 const M = "#6B1B2A", MD = "#4A1019", ML = "#8B2D3E", MF = "#F9F0F2";
 const BK = "#111", WH = "#FFF", G1 = "#F5F5F5", G2 = "#E8E8E8";
 const G4 = "#AAAAAA", G6 = "#666", G8 = "#333", GOLD = "#C9A84C";
@@ -1297,7 +1301,7 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "land") return (
     <div style={{ minHeight:"100vh", background:WH, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <nav style={{ background:BK, height:62, display:"flex", alignItems:"center", padding:"0 24px", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ width:40, height:40, background:M, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -1882,7 +1886,7 @@ export default function App() {
   // ── CUSTOMER PORTAL ──
   if (view === "customer" && customer) return (
     <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <NavBar/>
       <div style={{ background: WH, borderBottom: `1px solid ${G2}`, display: "flex", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
@@ -1919,7 +1923,7 @@ export default function App() {
     ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+        
         <div style={{ width:220, background:MD, color:WH, display:"flex", flexDirection:"column", flexShrink:0 }}>
           <div style={{ padding:"22px 20px 16px" }}>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:GOLD }}>BNBMIS</div>
@@ -2010,7 +2014,7 @@ export default function App() {
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store.name} role="Store Owner"
+          storeName={owner&&owner.store?owner.store.name:""} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -2027,11 +2031,11 @@ export default function App() {
     /* ── DESKTOP LAYOUT ── */
     return (
       <div style={{ display:"flex", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+        
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner&&owner.store?owner.store.name:""}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -2126,7 +2130,7 @@ export default function App() {
   /* ── STAFF DESKTOP LAYOUT ── */
   return (
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <NavBar/>
       <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
         {ATABS.map(t=>(
@@ -2243,7 +2247,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const monthBookCnt = monthBooks.length;
   const monthPending = monthBooks.reduce((s,b) => s + ((b.total||0)-(b.paid||0)), 0);
 
-  const monthName = now.toLocaleString("default", { month: "long" }) + " " + now.getFullYear();
+  const monthName = safeMonthName(now);
 
   return (
     <div>
@@ -3153,7 +3157,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const today2   = new Date().toISOString().split("T")[0];
   const now2     = new Date();
   const curMonth2= now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
-  const monthName2 = now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
+  const monthName2 = safeMonthName(now2);
 
   // ── Daily payment stats ──
   const todayPaidBooks = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
