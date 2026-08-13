@@ -1,24 +1,20 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, Component } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import React from "react";
 
-/* ─── GLOBAL ERROR BOUNDARY ──────────────────────────────── */
-export class ErrorBoundary extends Component {
+/* ─── ERROR BOUNDARY ─────────────────────────────────────── */
+export class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(e) { return { err: e }; }
-  componentDidCatch(e, info) {
-    console.error("BNBMIS crash:", e.message, info.componentStack);
-  }
+  componentDidCatch(e, info) { console.error("BNBMIS:", e.message); }
   render() {
     if (this.state.err) {
       return (
         <div style={{minHeight:"100vh",background:"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"Arial,sans-serif"}}>
-          <div style={{background:"#fff",borderRadius:12,padding:32,maxWidth:400,textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.1)"}}>
+          <div style={{background:"#fff",borderRadius:12,padding:32,maxWidth:380,textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.1)"}}>
             <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
             <div style={{fontWeight:700,fontSize:17,color:"#6B1B2A",marginBottom:8}}>Something went wrong</div>
-            <div style={{fontSize:13,color:"#666",marginBottom:24,lineHeight:1.6}}>
-              The app ran into a problem. Please tap below to reload.
-            </div>
-            <button
-              onClick={()=>{this.setState({err:null});window.location.reload();}}
+            <div style={{fontSize:13,color:"#666",marginBottom:24,lineHeight:1.6}}>Please tap below to reload the app.</div>
+            <button onClick={()=>{this.setState({err:null});window.location.reload();}}
               style={{background:"#6B1B2A",color:"#fff",border:"none",borderRadius:8,padding:"12px 28px",fontSize:15,fontWeight:700,cursor:"pointer"}}>
               🔄 Reload App
             </button>
@@ -28,12 +24,6 @@ export class ErrorBoundary extends Component {
     }
     return this.props.children;
   }
-}
-
-function useDebounce(value, delay) {
-  const [d, setD] = useState(value);
-  useEffect(() => { const t = setTimeout(() => setD(value), delay||250); return () => clearTimeout(t); }, [value, delay]);
-  return d;
 }
 import { api } from "./api";
 
@@ -457,14 +447,6 @@ const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
-  // Log any uncaught errors to help debug blank screens
-  useEffect(() => {
-    const onErr = (e) => console.error("[BNBMIS]", e.error?.message || e.message);
-    const onRej = (e) => console.error("[BNBMIS promise]", e.reason);
-    window.addEventListener("error", onErr);
-    window.addEventListener("unhandledrejection", onRej);
-    return () => { window.removeEventListener("error", onErr); window.removeEventListener("unhandledrejection", onRej); };
-  }, []);
   // ── SUBDOMAIN DETECTION ──
   // e.g. sunrise.bnbmis.com → slug="sunrise", admin.bnbmis.com → super admin portal
   const [subdomainStoreId, setSubdomainStoreId] = useState(null);
@@ -537,7 +519,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
+  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -564,7 +546,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      try{const _ow=localStorage.getItem("bnbmis_owner");if(_ow){const _p=JSON.parse(_ow);if(_p&&_p.store&&_p.store.id)return "owner_dash";}}catch{}
+      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -927,10 +909,8 @@ export default function App() {
     if (view === "land" && !subdomainStoreId) { loadMarketplace(); loadMarketplaceRooms(); }
   }, [view]);
 
-  // On app start: reload data for whoever is already logged in (from localStorage)
+  // On app start: reload data (super and customer don't have view effects)
   useEffect(() => {
-    if (user)       { loadAll(user, user.storeId); }
-    if (owner)      { loadAll(null, owner.store?.id); }
     if (superAdmin) { loadSuperData(); }
     if (customer)   { loadCustBooks(customer.id); }
   }, []);
@@ -1530,8 +1510,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login failed","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login failed","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch{} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
@@ -1983,7 +1963,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
+  if (view === "owner_dash" && owner) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -2012,8 +1992,8 @@ export default function App() {
     const content = (
       <>
         {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin" isLoading={loading}/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -2030,11 +2010,10 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
-      <ErrorBoundary>
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store&&owner.store.name} role="Store Owner"
+          storeName={owner.store.name} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -2046,7 +2025,6 @@ export default function App() {
         </MobilePortal>
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       </>
-      </ErrorBoundary>
     );
 
     /* ── DESKTOP LAYOUT ── */
@@ -2056,7 +2034,7 @@ export default function App() {
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store&&owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -2104,18 +2082,18 @@ export default function App() {
 
   /* ── ADMIN DASHBOARD ── */
   if (view === "admin" && user) {
-  const totRev = useMemo(()=>books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0),[books]);
-  const totExp = useMemo(()=>exps.reduce((s,e)=>s+e.amt,0),[exps]);
-  const netPro = useMemo(()=>totRev-totExp,[totRev,totExp]);
-  const pending = useMemo(()=>books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0),[books]);
-  const occPct = useMemo(()=>rooms.length?Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100):0,[rooms]);
+  const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
+  const totExp = exps.reduce((s,e)=>s+e.amt,0);
+  const netPro = totRev - totExp;
+  const pending = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
+  const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
   const isMobileAdmin = window.innerWidth < 768;
 
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role} isLoading={loading}/>}
-      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
@@ -2240,50 +2218,36 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole, isLoading }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
-  // Only show new user guide if: no locations, admin role, not loading, AND store was just created (within 5 mins)
-  const storeAgeMs = (() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s) return 99999999; const p=JSON.parse(s); const t=p&&p.store&&p.store.created_at?new Date(p.store.created_at):null; return t?Date.now()-t.getTime():99999999; } catch{return 99999999;} })();
-  const isNewOwner = locs.length === 0 && userRole === "Admin" && !isLoading && storeAgeMs < 5*60*1000;
+  const isNewOwner = locs.length === 0 && userRole === "Admin";
 
   const today     = new Date().toISOString().split("T")[0];
   const now       = new Date();
   const curMonth  = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
   const monthName = now.toLocaleString("default",{month:"long"}) + " " + now.getFullYear();
 
-  // Today
-  const todayBooks    = books.filter(b=>b.created&&b.created.split("T")[0]===today&&b.status!=="cancelled");
-  const todayIncome   = todayBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const todayExps     = exps.filter(e=>e.date&&e.date.split("T")[0]===today);
-  const todayExpAmt   = todayExps.reduce((s,e)=>s+(e.amt||0),0);
-  const todayNet      = todayIncome - todayExpAmt;
-  const todayCheckIn  = books.filter(b=>b.ci===today).length;
-  const todayCheckOut = books.filter(b=>b.co===today&&b.status==="checkedIn").length;
+  const todayBooks   = books.filter(function(b){return b.created&&b.created.split("T")[0]===today&&b.status!=="cancelled";});
+  const todayIncome  = todayBooks.reduce(function(s,b){return s+(b.paid||0);},0);
+  const todayExps    = exps.filter(function(e){return e.date&&e.date.split("T")[0]===today;});
+  const todayExpAmt  = todayExps.reduce(function(s,e){return s+(e.amt||0);},0);
+  const todayNet     = todayIncome - todayExpAmt;
+  const todayCI      = books.filter(function(b){return b.ci===today;}).length;
+  const todayCO      = books.filter(function(b){return b.co===today&&b.status==="checkedIn";}).length;
 
-  // This month
-  const monthBooks    = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth&&b.status!=="cancelled");
-  const monthIncome   = monthBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const monthExps     = exps.filter(e=>e.date&&e.date.slice(0,7)===curMonth);
-  const monthExpAmt   = monthExps.reduce((s,e)=>s+(e.amt||0),0);
-  const monthNet      = monthIncome - monthExpAmt;
-  const monthBookCnt  = monthBooks.length;
-  const monthPending  = monthBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
+  const monthBooks   = books.filter(function(b){return b.created&&b.created.slice(0,7)===curMonth&&b.status!=="cancelled";});
+  const monthIncome  = monthBooks.reduce(function(s,b){return s+(b.paid||0);},0);
+  const monthExps    = exps.filter(function(e){return e.date&&e.date.slice(0,7)===curMonth;});
+  const monthExpAmt  = monthExps.reduce(function(s,e){return s+(e.amt||0);},0);
+  const monthNet     = monthIncome - monthExpAmt;
+  const monthPending = monthBooks.reduce(function(s,b){return s+((b.total||0)-(b.paid||0));},0);
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:0 }}>Dashboard</h2>
-        {isLoading && <span style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"4px 12px" }}>⏳ Loading data…</span>}
-      </div>
+      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
       {/* ── SETUP GUIDE: shown to new owners with no locations ── */}
-      {isLoading && (
-        <div style={{textAlign:"center",padding:"40px 20px",color:"#888",fontSize:14}}>
-          <div style={{marginBottom:8,fontSize:24}}>⏳</div>
-          Loading your dashboard...
-        </div>
-      )}
-      {!isLoading && isNewOwner && (
+      {isNewOwner && (
         <div style={{ background:"linear-gradient(135deg,#FFF8F0 0%,#FFF3E0 100%)", border:"2px solid "+GOLD2, borderRadius:16, padding:24, marginBottom:24, position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", right:-20, top:-20, width:120, height:120, borderRadius:"50%", background:"rgba(201,168,76,.1)", pointerEvents:"none" }}/>
           <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
@@ -2315,83 +2279,83 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
           </div>
         </div>
       )}
-      {/* Receptionist minimal KPIs */}
+      {/* Receptionist KPIs */}
       {isReceptDash && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
-          <KPI label="Active Guests"      value={books.filter(b=>b.status==="checkedIn").length} icon="🔑" color={M} sub="Checked in now"/>
-          <KPI label="Pending"            value={books.filter(b=>b.status==="pending").length} icon="⏳" color={WA} sub="Need confirmation"/>
-          <KPI label="Available Rooms"    value={rooms.filter(r=>r.status==="available").length} icon="🛏️" color={OK} sub={"of "+rooms.length+" total"}/>
-          <KPI label="Checking Out Today" value={books.filter(b=>b.status==="checkedIn"&&b.co===today).length} icon="📅" color={IN}/>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))", gap:12, marginBottom:20 }}>
+          <KPI label="Active Guests"   value={books.filter(function(b){return b.status==="checkedIn";}).length} icon="🔑" color={M} sub="Checked in now"/>
+          <KPI label="Pending"         value={books.filter(function(b){return b.status==="pending";}).length} icon="⏳" color={WA} sub="Need confirmation"/>
+          <KPI label="Available Rooms" value={rooms.filter(function(r){return r.status==="available";}).length} icon="🛏️" color={OK} sub={"of "+rooms.length+" total"}/>
+          <KPI label="Check-outs"      value={todayCO} icon="📅" color={IN} sub="Today"/>
         </div>
       )}
 
-      {/* Owner/Admin — occupancy strip */}
+      {/* Owner/Admin: Occupancy strip */}
       {!isReceptDash && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))", gap:13, marginBottom:22 }}>
-          <KPI label="Occupancy"    value={occPct+"%"} icon="🛏️" sub={rooms.filter(r=>r.status==="occupied").length+"/"+rooms.length+" rooms"}/>
-          <KPI label="Active Stays" value={books.filter(b=>["confirmed","checkedIn"].includes(b.status)).length} icon="📋"/>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))", gap:12, marginBottom:20 }}>
+          <KPI label="Occupancy"    value={occPct+"%"} icon="🛏️" sub={rooms.filter(function(r){return r.status==="occupied";}).length+"/"+rooms.length+" rooms"}/>
+          <KPI label="Active Stays" value={books.filter(function(b){return b.status==="confirmed"||b.status==="checkedIn";}).length} icon="📋"/>
         </div>
       )}
 
-      {/* ── TODAY ── */}
+      {/* TODAY */}
       {!isReceptDash && (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📅 Today</div>
-            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>{today}</div>
+        <div style={{marginBottom:18}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M2}}>📅 Today</span>
+            <span style={{fontSize:11,color:"#888",background:"#F5F5F5",borderRadius:99,padding:"2px 9px"}}>{today}</span>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10 }}>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #2E7D32" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Income</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(todayIncome)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayBooks.length} booking{todayBooks.length!==1?"s":""}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:10}}>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid #2E7D32"}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Today Income</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#2E7D32",fontFamily:"'Playfair Display',serif"}}>{fmt(todayIncome)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{todayBooks.length} booking{todayBooks.length!==1?"s":""}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #C62828" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Expenses</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(todayExpAmt)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayExps.length} expense{todayExps.length!==1?"s":""}</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid #C62828"}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Today Expenses</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#C62828",fontFamily:"'Playfair Display',serif"}}>{fmt(todayExpAmt)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{todayExps.length} item{todayExps.length!==1?"s":""}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+(todayNet>=0?"#1565C0":"#B76E00") }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Net</div>
-              <div style={{ fontSize:20, fontWeight:700, color:todayNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(todayNet)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayNet>=0?"Profit":"Loss"} today</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid "+(todayNet>=0?"#1565C0":"#B76E00")}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Today Net</div>
+              <div style={{fontSize:19,fontWeight:700,color:todayNet>=0?"#1565C0":"#B76E00",fontFamily:"'Playfair Display',serif"}}>{fmt(todayNet)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{todayNet>=0?"profit":"loss"}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+M2 }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Check-ins Today</div>
-              <div style={{ fontSize:20, fontWeight:700, color:M2, fontFamily:"'Playfair Display',serif" }}>{todayCheckIn}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayCheckOut} checkout{todayCheckOut!==1?"s":""} today</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid "+M2}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Check-ins</div>
+              <div style={{fontSize:19,fontWeight:700,color:M2,fontFamily:"'Playfair Display',serif"}}>{todayCI}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{todayCO} checkout{todayCO!==1?"s":""} today</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── THIS MONTH ── */}
+      {/* THIS MONTH */}
       {!isReceptDash && (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📆 {monthName}</div>
-            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>This Month</div>
+        <div style={{marginBottom:18}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M2}}>📆 {monthName}</span>
+            <span style={{fontSize:11,color:"#888",background:"#F5F5F5",borderRadius:99,padding:"2px 9px"}}>This Month</span>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10 }}>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #2E7D32" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Income</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(monthIncome)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthBookCnt} booking{monthBookCnt!==1?"s":""}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:10}}>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid #2E7D32"}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Monthly Income</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#2E7D32",fontFamily:"'Playfair Display',serif"}}>{fmt(monthIncome)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{monthBooks.length} booking{monthBooks.length!==1?"s":""}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #C62828" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Expenses</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(monthExpAmt)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthExps.length} expense{monthExps.length!==1?"s":""}</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid #C62828"}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Monthly Expenses</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#C62828",fontFamily:"'Playfair Display',serif"}}>{fmt(monthExpAmt)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{monthExps.length} item{monthExps.length!==1?"s":""}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid "+(monthNet>=0?"#1565C0":"#B76E00") }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Net</div>
-              <div style={{ fontSize:20, fontWeight:700, color:monthNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthNet)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthNet>=0?"Profit":"Loss"} this month</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid "+(monthNet>=0?"#1565C0":"#B76E00")}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Monthly Net</div>
+              <div style={{fontSize:19,fontWeight:700,color:monthNet>=0?"#1565C0":"#B76E00",fontFamily:"'Playfair Display',serif"}}>{fmt(monthNet)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{monthNet>=0?"profit":"loss"}</div>
             </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid "+G22, borderLeft:"4px solid #B76E00" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Unpaid Balance</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthPending)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>Outstanding this month</div>
+            <div style={{background:WH2,borderRadius:12,padding:"13px 15px",border:"1px solid "+G22,borderLeft:"4px solid #B76E00"}}>
+              <div style={{fontSize:11,color:"#666",fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Unpaid Balance</div>
+              <div style={{fontSize:19,fontWeight:700,color:"#B76E00",fontFamily:"'Playfair Display',serif"}}>{fmt(monthPending)}</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>outstanding</div>
             </div>
           </div>
         </div>
@@ -2508,11 +2472,10 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 200);
   const [locFilter, setLocFilter]   = useState("");   // filter by location
   const [roomFilter, setRoomFilter] = useState("");   // filter by room
   const [editBook, setEditBook]     = useState(null); // booking being modified
@@ -2523,23 +2486,21 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const [coModal, setCoModal] = useState(null); // booking id
   // extend form
   const [extNights, setExtNights] = useState(1);
-  const [booksPage, setBooksPage] = useState(30);
 
   const todayDate = td();
 
   // "active" = all except checkedOut and cancelled
-  const filtered_all = books
+  const filtered = books
     .filter(b => {
       const statusOk = filter === "all" ? true
         : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
         : b.status === filter;
       const locOk  = !locFilter  || b.locId  === locFilter;
       const roomOk = !roomFilter || b.roomId === roomFilter;
-      const searchOk = !debouncedSearch || b.gName.toLowerCase().includes(debouncedSearch.toLowerCase()) || b.id.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
       return statusOk && locOk && roomOk && searchOk;
     })
     .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
-  const filtered = filtered_all.slice(0, booksPage);
 
   const selB = books.find(b => b.id === sel);
   const selR = rooms.find(r => r.id === selB?.roomId);
@@ -2930,15 +2891,6 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           <div style={{ marginTop: 12 }}><Badge s={selB.status} /></div>
         </Modal>
       )}
-      {/* Load More bookings */}
-      {filtered_all.length > booksPage && (
-        <div style={{ textAlign:"center", padding:"16px 0" }}>
-          <button onClick={()=>setBooksPage(p=>p+30)}
-            style={{ background:"#F5F5F5", border:"1px solid #E0E0E0", borderRadius:8, padding:"10px 24px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", color:"#333" }}>
-            Load More ({filtered_all.length - booksPage} remaining)
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -3180,6 +3132,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 }
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
+/* ─── PAYMENTS TAB ───────────────────────────────────────── */
 function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
@@ -3192,26 +3145,6 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const totColl = books.reduce((s,b)=>s+b.paid,0);
   const totPend = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
   const totDisc = books.reduce((s,b)=>s+(b.base-b.total),0);
-
-  const today2    = new Date().toISOString().split("T")[0];
-  const now2      = new Date();
-  const curMonth2 = now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
-  const monthName2= now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
-
-  const todayPBooks    = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
-  const todayCollected = todayPBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const todayOutstanding = todayPBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
-
-  const monthPBooks     = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth2&&b.status!=="cancelled");
-  const monthCollected  = monthPBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const monthOutstanding= monthPBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
-  const monthBookCnt2   = monthPBooks.length;
-  const monthDisc       = monthPBooks.reduce((s,b)=>s+((b.base||0)-(b.total||0)),0);
-
-  const activeBooks      = books.filter(b=>b.status==="checkedIn");
-  const roomsFullyPaid   = activeBooks.filter(b=>(b.paid||0)>=(b.total||0)&&(b.total||0)>0).length;
-  const roomsOutstanding = activeBooks.filter(b=>(b.paid||0)<(b.total||0)).length;
-  const roomsCheckingIn  = books.filter(b=>b.ci===today2&&["confirmed","pending"].includes(b.status)).length;
 
   const openRecord = (id) => {
     const b = books.find(b=>b.id===id);
@@ -3255,62 +3188,86 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 18px"}}>Payments</h2>
       {!hideFinance && (
         <div>
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📅 Today's Payments</div>
-              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>{today2}</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Collected Today</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(todayCollected)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{todayPBooks.length} transaction{todayPBooks.length!==1?"s":""}</div>
+          {/* TODAY */}
+          {(function(){
+            var td2 = new Date().toISOString().split("T")[0];
+            var todayB = books.filter(function(b){return b.created&&b.created.split("T")[0]===td2&&b.status!=="cancelled";});
+            var tColl = todayB.reduce(function(s,b){return s+(b.paid||0);},0);
+            var tOut  = todayB.reduce(function(s,b){return s+((b.total||0)-(b.paid||0));},0);
+            var active = books.filter(function(b){return b.status==="checkedIn";});
+            var rPaid  = active.filter(function(b){return (b.paid||0)>=(b.total||1);}).length;
+            var rBal   = active.filter(function(b){return (b.paid||0)<(b.total||0);}).length;
+            return (
+              <div style={{marginBottom:18}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📅 Today's Payments</span>
+                  <span style={{fontSize:11,color:"#888",background:G1,borderRadius:99,padding:"2px 9px"}}>{td2}</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:10}}>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+OK}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Collected Today</div>
+                    <div style={{fontSize:19,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(tColl)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>{todayB.length} transaction{todayB.length!==1?"s":""}</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+ER}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Outstanding Today</div>
+                    <div style={{fontSize:19,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(tOut)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>unpaid balance</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+OK}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Rooms Fully Paid</div>
+                    <div style={{fontSize:19,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{rPaid}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>active stays</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+WA}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Rooms with Balance</div>
+                    <div style={{fontSize:19,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{rBal}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>outstanding</div>
+                  </div>
+                </div>
               </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Outstanding Today</div>
-                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(todayOutstanding)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
+            );
+          })()}
+          {/* THIS MONTH */}
+          {(function(){
+            var now2 = new Date();
+            var cm2  = now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
+            var mn2  = now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
+            var mB   = books.filter(function(b){return b.created&&b.created.slice(0,7)===cm2&&b.status!=="cancelled";});
+            var mColl= mB.reduce(function(s,b){return s+(b.paid||0);},0);
+            var mOut = mB.reduce(function(s,b){return s+((b.total||0)-(b.paid||0));},0);
+            var mDisc= mB.reduce(function(s,b){return s+((b.base||0)-(b.total||0));},0);
+            return (
+              <div style={{marginBottom:18}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📆 {mn2}</span>
+                  <span style={{fontSize:11,color:"#888",background:G1,borderRadius:99,padding:"2px 9px"}}>This Month</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:10}}>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+OK}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Monthly Collected</div>
+                    <div style={{fontSize:19,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(mColl)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>{mB.length} booking{mB.length!==1?"s":""}</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+ER}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Monthly Outstanding</div>
+                    <div style={{fontSize:19,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(mOut)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>unpaid balance</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+IN}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Total Collected</div>
+                    <div style={{fontSize:19,fontWeight:700,color:IN,fontFamily:"'Playfair Display',serif"}}>{fmt(totColl)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>all time</div>
+                  </div>
+                  <div style={{background:WH,borderRadius:12,padding:"13px 15px",border:"1px solid "+G2,borderLeft:"4px solid "+WA}}>
+                    <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Discounts This Month</div>
+                    <div style={{fontSize:19,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{fmt(mDisc)}</div>
+                    <div style={{fontSize:11,color:"#999",marginTop:2}}>given to guests</div>
+                  </div>
+                </div>
               </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms Fully Paid</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{roomsFullyPaid}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>active stays settled</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms with Balance</div>
-                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{roomsOutstanding}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{roomsCheckingIn} checking in today</div>
-              </div>
-            </div>
-          </div>
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📆 {monthName2}</div>
-              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>This Month</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Collected</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(monthCollected)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{monthBookCnt2} booking{monthBookCnt2!==1?"s":""}</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Outstanding</div>
-                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(monthOutstanding)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+IN}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Total Collected</div>
-                <div style={{fontSize:20,fontWeight:700,color:IN,fontFamily:"'Playfair Display',serif"}}>{fmt(totColl)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>all time</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Discounts This Month</div>
-                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{fmt(monthDisc)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>given to guests</div>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
 
@@ -6927,80 +6884,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  }
-
-  const printFullStayReceipt = (b) => {
-    const rm  = rooms.find(r => r.id === b.roomId);
-    const loc = locs.find(l => l.id === b.locId);
-    const bal = (b.total||0) - (b.paid||0);
-    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-    const w = window.open("", "_blank", "width=650,height=900");
-    if (!w) { alert("Please allow popups to print."); return; }
-    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF}
-.page{max-width:580px;margin:0 auto;padding:36px 40px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #6B1B2A}
-.logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;line-height:1}
-.logo-sub{font-size:11px;color:#999;margin-top:3px}
-.doc-type h1{font-size:22px;font-weight:900;color:#6B1B2A;text-transform:uppercase;text-align:right}
-.doc-type .ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
-.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:14px 18px;margin-bottom:18px;border-radius:0 8px 8px 0}
-.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-weight:700}
-.guest-box p{font-size:14px;color:#111;line-height:1.9}
-table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px}
-th{background:#6B1B2A;color:#FFF;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
-td{padding:9px 12px;border-bottom:1px solid #F0F0F0}
-.right{text-align:right}
-.total-section{background:#6B1B2A;color:#FFF;border-radius:10px;padding:16px 20px;margin-bottom:10px}
-.total-section .row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
-.total-section .row.big{font-size:19px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:10px;margin-top:6px}
-.status-box{border-radius:8px;padding:12px 18px;margin-bottom:18px;text-align:center;font-weight:700;font-size:15px}
-.paid{background:#E8F5E9;color:#2E7D32}.balance{background:#FFEBEE;color:#C62828}
-.footer{margin-top:24px;text-align:center;font-size:11px;color:#999;line-height:2;border-top:1px solid #EEE;padding-top:14px}
-@media print{.no-print{display:none!important}}
-</style></head><body><div class="page">
-<div class="header">
-  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||"Property"}</div></div>
-  <div class="doc-type"><h1>Full Stay Receipt</h1><div class="ref">Ref: ${b.id}</div><div class="ref">Date: ${today}</div></div>
-</div>
-<div class="guest-box">
-  <h3>Guest Information</h3>
-  <p><strong>${b.gName||"—"}</strong><br/>
-  ${b.gPhone?"📞 "+b.gPhone+"<br/>":""}
-  ${b.gEmail?"✉ "+b.gEmail+"<br/>":""}
-  ${b.gNat?"🌍 "+b.gNat:""}</p>
-</div>
-<table>
-  <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
-  <tbody>
-    <tr>
-      <td><strong>${rm?.name||"—"}</strong><br/><span style="font-size:11px;color:#888">${rm?.type||""} · ${loc?.name||""}</span></td>
-      <td>${b.ci||"—"}</td><td>${b.co||"—"}</td>
-      <td style="text-align:center">${b.nights||1}</td>
-      <td>TZS ${Number(rm?.price||0).toLocaleString()}</td>
-      <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
-    </tr>
-    ${(b.disc||0)>0?`<tr><td colspan="5" style="color:#B76E00;font-size:12px">Discount applied</td><td class="right" style="color:#B76E00">- TZS ${Number((b.base||0)-(b.total||0)).toLocaleString()}</td></tr>`:""}
-  </tbody>
-</table>
-<div class="total-section">
-  <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
-  <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
-  <div class="row big"><span>${bal>0?"Balance Due":"Total Paid"}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
-</div>
-<div class="status-box ${bal>0?"balance":"paid"}">
-  ${bal>0?"⚠️ Balance Remaining: TZS "+Number(bal).toLocaleString():"✅ Fully Paid — Thank You!"}
-</div>
-${b.notes?`<div style="margin-bottom:18px;font-size:13px;color:#555;background:#F9F9F9;border-radius:8px;padding:12px 14px"><strong>Notes:</strong> ${b.notes}</div>`:""}
-<div class="footer">Thank you for your stay at <strong>${storeName||"our property"}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
-<br/>
-<button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print Receipt</button>
-<button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
-</div></body></html>`);
-    w.document.close();
-  };;
+  };
 
   return (
     <div>
@@ -7042,11 +6926,7 @@ ${b.notes?`<div style="margin-bottom:18px;font-size:13px;color:#555;background:#
                   {bal>0 ? "Balance: TZS "+Number(bal).toLocaleString() : "✓ Fully paid"}
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
-                <button onClick={()=>printFullStayReceipt(b)}
-                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid #2E7D32", background:"#E8F5E9", color:"#2E7D32", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                  🏨 Full Stay
-                </button>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                 <button onClick={()=>printReceipt(b, false)}
                   style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🧾 Receipt
@@ -8045,7 +7925,7 @@ function MktRoomCard({ rm, onClick }) {
       {/* Image */}
       <div style={{ height:180, background:G12, position:"relative", overflow:"hidden" }}>
         {photo
-          ? <img src={photo} loading="lazy" alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
+          ? <img src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
           : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>🛏️</div>
         }
         {/* Featured badge */}
