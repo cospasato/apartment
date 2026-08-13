@@ -6894,7 +6894,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  }
+  };
 
   const printFullStayReceipt = (b) => {
     const rm  = rooms.find(r => r.id === b.roomId);
@@ -6965,7 +6965,7 @@ ${b.notes?"<div style='margin-bottom:16px;font-size:13px;color:#555;background:#
 <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
 </div></body></html>`);
     w.document.close();
-  };;
+  };
 
   return (
     <div>
