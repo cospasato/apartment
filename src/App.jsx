@@ -6947,7 +6947,7 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
       <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
       <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
     </tr>
-    ${(b.disc||0)>0?'<tr><td colspan='5' style='color:#B76E00;font-size:12px'>Discount applied</td><td class='right' style='color:#B76E00'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
+    ${(b.disc||0)>0?"<tr><td colspan=\"5\" style=\"color:#B76E00;font-size:12px\">Discount applied</td><td class=\"right\" style=\"color:#B76E00\">- TZS "+Number((b.base||0)-(b.total||0)).toLocaleString()+"</td></tr>":""}
   </tbody>
 </table>
 <div class="totals">
