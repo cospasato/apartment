@@ -12,11 +12,12 @@ export default defineConfig({
     },
   },
   build: {
-    // Generate source maps for debugging
     sourcemap: false,
+    // Transpile for Android Chrome 80+, iOS Safari 13+
+    // Without this, optional chaining (?.) crashes older Android browsers
+    target: ['chrome80', 'safari13', 'firefox78', 'edge88'],
     rollupOptions: {
       output: {
-        // Split chunks for better caching
         manualChunks: {
           react: ['react', 'react-dom'],
         }
