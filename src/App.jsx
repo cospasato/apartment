@@ -1,4 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+
+/* ── tiny debounce for search inputs ── */
+function useDebounce(value, delay=250) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 import { api } from "./api";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
@@ -856,6 +866,7 @@ export default function App() {
   };
 
   const loadMarketplaceRooms = async (shuffle=true) => {
+    if (!shuffle && mktRooms.length > 0) return; // use cached data if already loaded
     setMktRoomsLoading(true);
     try {
       const data = await api.getMarketplaceRooms();
@@ -1664,7 +1675,7 @@ export default function App() {
                   {rm.photos && rm.photos.length > 0 && (
                     <div style={{ position: "relative", paddingTop: "50%", cursor: "pointer" }}
                       onClick={e => { e.stopPropagation(); setRoomDetail(rm.id); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(50%)" : "none" }} />
+                      <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", filter: maintenance ? "grayscale(50%)" : "none" }} />
                       <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", color: WH, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, display:"flex", alignItems:"center", gap:5 }}>
                         🔍 View {rm.photos.length > 1 ? rm.photos.length + " photos" : "photo"}{rm.video ? " · 🎬" : ""}
                       </div>
@@ -1969,7 +1980,7 @@ export default function App() {
       <>
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -2058,18 +2069,18 @@ export default function App() {
 
   /* ── ADMIN DASHBOARD ── */
   if (view === "admin" && user) {
-  const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
-  const totExp = exps.reduce((s,e)=>s+e.amt,0);
-  const netPro = totRev - totExp;
-  const pending = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
-  const occPct = rooms.length ? Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100) : 0;
+  const totRev = useMemo(()=>books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0),[books]);
+  const totExp = useMemo(()=>exps.reduce((s,e)=>s+e.amt,0),[exps]);
+  const netPro = useMemo(()=>totRev-totExp,[totRev,totExp]);
+  const pending = useMemo(()=>books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0),[books]);
+  const occPct = useMemo(()=>rooms.length?Math.round(rooms.filter(r=>r.status==="occupied").length/rooms.length*100):0,[rooms]);
   const isMobileAdmin = window.innerWidth < 768;
 
   const adminContent = (
     <>
       {loading && <Spinner/>}
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
-      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
+      {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
@@ -2194,36 +2205,11 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+const DashTab = React.memo(function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole });
+) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
-
-  // ── Date helpers ──
-  const today = new Date().toISOString().split("T")[0];
-  const now   = new Date();
-  const curMonth = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
-
-  // ── TODAY stats ──
-  const todayBooks   = books.filter(b => b.created && b.created.split("T")[0] === today && b.status !== "cancelled");
-  const todayIncome  = todayBooks.reduce((s,b) => s + (b.paid||0), 0);
-  const todayExps    = exps.filter(e => e.date && e.date.split("T")[0] === today);
-  const todayExpAmt  = todayExps.reduce((s,e) => s + (e.amt||0), 0);
-  const todayNet     = todayIncome - todayExpAmt;
-  const todayCheckIn = books.filter(b => b.ci === today).length;
-  const todayCheckOut= books.filter(b => b.co === today && b.status === "checkedIn").length;
-
-  // ── THIS MONTH stats ──
-  const monthBooks   = books.filter(b => b.created && b.created.slice(0,7) === curMonth && b.status !== "cancelled");
-  const monthIncome  = monthBooks.reduce((s,b) => s + (b.paid||0), 0);
-  const monthExps    = exps.filter(e => e.date && e.date.slice(0,7) === curMonth);
-  const monthExpAmt  = monthExps.reduce((s,e) => s + (e.amt||0), 0);
-  const monthNet     = monthIncome - monthExpAmt;
-  const monthBookCnt = monthBooks.length;
-  const monthPending = monthBooks.reduce((s,b) => s + ((b.total||0)-(b.paid||0)), 0);
-
-  const monthName = now.toLocaleString("default", { month: "long" }) + " " + now.getFullYear();
-
   return (
     <div>
       <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
@@ -2260,74 +2246,6 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
           </div>
         </div>
       )}
-      {/* ── TODAY ── */}
-      {!isReceptDash && (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📅 Today</div>
-            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>{today}</div>
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
-            {/* Today income */}
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #2E7D32" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Income</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(todayIncome)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayBooks.length} booking{todayBooks.length!==1?"s":""}</div>
-            </div>
-            {/* Today expenses */}
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #C62828" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Expenses</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(todayExpAmt)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayExps.length} expense{todayExps.length!==1?"s":""}</div>
-            </div>
-            {/* Today net */}
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+(todayNet>=0?"#1565C0":"#B76E00") }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Today's Net</div>
-              <div style={{ fontSize:20, fontWeight:700, color:todayNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(todayNet)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayNet>=0?"Profit":"Loss"} today</div>
-            </div>
-            {/* Check-ins */}
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+M2 }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Check-ins Today</div>
-              <div style={{ fontSize:20, fontWeight:700, color:M2, fontFamily:"'Playfair Display',serif" }}>{todayCheckIn}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{todayCheckOut} checkout{todayCheckOut!==1?"s":""} today</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── THIS MONTH ── */}
-      {!isReceptDash && (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📆 {monthName}</div>
-            <div style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"2px 10px" }}>This Month</div>
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #2E7D32" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Income</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#2E7D32", fontFamily:"'Playfair Display',serif" }}>{fmt(monthIncome)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthBookCnt} booking{monthBookCnt!==1?"s":""}</div>
-            </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #C62828" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Expenses</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#C62828", fontFamily:"'Playfair Display',serif" }}>{fmt(monthExpAmt)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthExps.length} expense{monthExps.length!==1?"s":""}</div>
-            </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid "+(monthNet>=0?"#1565C0":"#B76E00") }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Monthly Net</div>
-              <div style={{ fontSize:20, fontWeight:700, color:monthNet>=0?"#1565C0":"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthNet)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>{monthNet>=0?"Profit":"Loss"} this month</div>
-            </div>
-            <div style={{ background:WH2, borderRadius:12, padding:"14px 16px", border:"1px solid #E8E8E8", borderLeft:"4px solid #B76E00" }}>
-              <div style={{ fontSize:11, color:"#666", fontWeight:700, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Unpaid Balance</div>
-              <div style={{ fontSize:20, fontWeight:700, color:"#B76E00", fontFamily:"'Playfair Display',serif" }}>{fmt(monthPending)}</div>
-              <div style={{ fontSize:11, color:"#999", marginTop:3 }}>Outstanding this month</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Receptionist sees minimal KPIs only */}
       {isReceptDash ? (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:13, marginBottom:22 }}>
@@ -2338,8 +2256,12 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(175px,1fr))", gap: 13, marginBottom: 22 }}>
+          <KPI label="Total Revenue" value={fmt(totRev)} icon="💰" color={M} />
+          <KPI label="Net Profit" value={fmt(netPro)} icon="📈" color={netPro >= 0 ? OK : ER} sub={netPro >= 0 ? "Profitable" : "Loss"} />
           <KPI label="Occupancy" value={occPct + "%"} icon="🛏️" sub={rooms.filter(r => r.status === "occupied").length + "/" + rooms.length + " rooms"} />
+          <KPI label="Outstanding" value={fmt(pending)} icon="⏳" color={WA} sub="Pending payments" />
           <KPI label="Active Stays" value={books.filter(b => ["confirmed", "checkedIn"].includes(b.status)).length} icon="📋" />
+          <KPI label="Total Expenses" value={fmt(totExp)} icon="📤" color={ER} />
         </div>
       )}
       {/* ── ROOMS STATUS — shown to all ── */}
@@ -2454,10 +2376,11 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
+const BooksTab = React.memo(BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates }) {
   // deleteBooking is null for non-admin roles
   const [filter, setFilter] = useState("active");  // default: hide checkedOut
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 200);
   const [locFilter, setLocFilter]   = useState("");   // filter by location
   const [roomFilter, setRoomFilter] = useState("");   // filter by room
   const [editBook, setEditBook]     = useState(null); // booking being modified
@@ -2479,7 +2402,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
         : b.status === filter;
       const locOk  = !locFilter  || b.locId  === locFilter;
       const roomOk = !roomFilter || b.roomId === roomFilter;
-      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
+      const searchOk = !debouncedSearch || b.gName.toLowerCase().includes(debouncedSearch.toLowerCase()) || b.id.toLowerCase().includes(debouncedSearch.toLowerCase());
       return statusOk && locOk && roomOk && searchOk;
     })
     .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
@@ -2875,10 +2798,11 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       )}
     </div>
   );
-}
+});
+
 
 /* ─── ROOMS TAB ──────────────────────────────────────────── */
-function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
+const RoomsTab = React.memo(RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
   const [modal, setModal] = useState(null);
   const [photoModal, setPhotoModal] = useState(null); // roomId being viewed
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -2942,7 +2866,7 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
                   {rm.photos && rm.photos.length > 0 ? (
                     <div style={{ position: "relative", paddingTop: "66%", cursor: "pointer", background: G1 }}
                       onClick={() => { setPhotoModal(rm.id); setPhotoIdx(0); }}>
-                      <img src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       {rm.photos.length > 1 && (
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.55)", color: WH, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>
                           +{rm.photos.length - 1} more
@@ -3111,11 +3035,12 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
       )}
     </div>
   );
-}
+});
+
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+const PaysTab = React.memo(PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
@@ -3127,32 +3052,6 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const totColl = books.reduce((s,b)=>s+b.paid,0);
   const totPend = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+(b.total-b.paid),0);
   const totDisc = books.reduce((s,b)=>s+(b.base-b.total),0);
-
-  // ── Date helpers ──
-  const today2   = new Date().toISOString().split("T")[0];
-  const now2     = new Date();
-  const curMonth2= now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
-  const monthName2 = now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
-
-  // ── Daily payment stats ──
-  const todayPaidBooks = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
-  const todayCollected = todayPaidBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const todayOutstanding = todayPaidBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
-  const todayTransactions= todayPaidBooks.length;
-
-  // ── Monthly payment stats ──
-  const monthPaidBooks  = books.filter(b=>b.created&&b.created.slice(0,7)===curMonth2&&b.status!=="cancelled");
-  const monthCollected  = monthPaidBooks.reduce((s,b)=>s+(b.paid||0),0);
-  const monthOutstanding= monthPaidBooks.reduce((s,b)=>s+((b.total||0)-(b.paid||0)),0);
-  const monthTransactions= monthPaidBooks.length;
-  const monthDisc       = monthPaidBooks.reduce((s,b)=>s+((b.base||0)-(b.total||0)),0);
-
-  // ── Active room payment status for TODAY ──
-  // Rooms with active booking (checkedIn) that are fully paid vs outstanding
-  const activeBooks = books.filter(b=>b.status==="checkedIn");
-  const roomsFullyPaid   = activeBooks.filter(b=>(b.paid||0)>=(b.total||0)&&(b.total||0)>0).length;
-  const roomsOutstanding = activeBooks.filter(b=>(b.paid||0)<(b.total||0)).length;
-  const roomsCheckingInToday = books.filter(b=>b.ci===today2&&["confirmed","pending"].includes(b.status)).length;
 
   const openRecord = (id) => {
     const b = books.find(b=>b.id===id);
@@ -3195,66 +3094,11 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
     <div>
       <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 18px"}}>Payments</h2>
       {!hideFinance && (
-        <div>
-          {/* ── TODAY'S PAYMENTS ── */}
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📅 Today's Payments</div>
-              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>{today2}</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Collected Today</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(todayCollected)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{todayTransactions} transaction{todayTransactions!==1?"s":""}</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Outstanding Today</div>
-                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(todayOutstanding)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms Fully Paid</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{roomsFullyPaid}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>active stays settled</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Rooms with Balance</div>
-                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{roomsOutstanding}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{roomsCheckingInToday} checking in today</div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── MONTHLY PAYMENTS ── */}
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📆 {monthName2}</div>
-              <div style={{fontSize:12,color:"#888",background:G1,borderRadius:99,padding:"2px 10px"}}>This Month</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+OK}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Collected</div>
-                <div style={{fontSize:20,fontWeight:700,color:OK,fontFamily:"'Playfair Display',serif"}}>{fmt(monthCollected)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>{monthTransactions} booking{monthTransactions!==1?"s":""}</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+ER}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Monthly Outstanding</div>
-                <div style={{fontSize:20,fontWeight:700,color:ER,fontFamily:"'Playfair Display',serif"}}>{fmt(monthOutstanding)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>unpaid balance</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+IN}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Total Collected</div>
-                <div style={{fontSize:20,fontWeight:700,color:IN,fontFamily:"'Playfair Display',serif"}}>{fmt(totColl)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>all time</div>
-              </div>
-              <div style={{background:WH,borderRadius:12,padding:"14px 16px",border:`1px solid ${G2}`,borderLeft:"4px solid "+WA}}>
-                <div style={{fontSize:11,color:G6,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Discounts This Month</div>
-                <div style={{fontSize:20,fontWeight:700,color:WA,fontFamily:"'Playfair Display',serif"}}>{fmt(monthDisc)}</div>
-                <div style={{fontSize:11,color:"#999",marginTop:3}}>given to guests</div>
-              </div>
-            </div>
-          </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:13,marginBottom:20}}>
+          <KPI label="Total Collected" value={fmt(totColl)} color={OK} icon="✅"/>
+          <KPI label="Outstanding"     value={fmt(totPend)} color={ER} icon="⚠️"/>
+          <KPI label="Discounts Given" value={fmt(totDisc)} color={WA} icon="🏷️"/>
+          <KPI label="Total Bookings"  value={books.length} icon="📋"/>
         </div>
       )}
 
@@ -3348,7 +3192,8 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
       )}
     </div>
   );
-}
+});
+
 
 function ExpsTab({ exps, locs, user, saveExp, pop }) {
   const [modal, setModal] = useState(false);
@@ -6644,7 +6489,7 @@ function ShareStoreTab({ owner, storeId, rooms, locs, pop, storeSlug: slugProp }
                   {/* Room thumbnail */}
                   <div style={{ height:80, background:"linear-gradient(135deg,#4A1019,#6B1B2A)", position:"relative", overflow:"hidden" }}>
                     {rm.photos?.[0]
-                      ? <img src={rm.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                      ? <img loading="lazy" src={rm.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                       : <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", fontSize:28 }}>🛏️</div>
                     }
                     {isSelected && <div style={{ position:"absolute", top:6, right:6, background:M2, color:WH2, borderRadius:"50%", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12 }}>✓</div>}
@@ -6871,111 +6716,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  }
-
-  const printFullStayReceipt = (b) => {
-    const rm  = rooms.find(r => r.id === b.roomId);
-    const loc = locs.find(l => l.id === b.locId);
-    const bal = (b.total||0) - (b.paid||0);
-    const nights = b.nights || 1;
-    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-    const w = window.open("", "_blank", "width=650,height=900");
-    if (!w) { alert("Please allow popups to print receipts."); return; }
-    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt – ${b.id}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF}
-  .page{max-width:580px;margin:0 auto;padding:36px 40px}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #6B1B2A}
-  .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
-  .logo-sub{font-size:11px;color:#999;margin-top:3px}
-  .doc-type h1{font-size:22px;font-weight:900;color:#6B1B2A;text-transform:uppercase;letter-spacing:.05em;text-align:right}
-  .doc-type .ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
-  .guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:18px}
-  .guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-weight:700}
-  .guest-box p{font-size:14px;color:#111;line-height:1.9}
-  table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px}
-  th{background:#6B1B2A;color:#FFF;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
-  td{padding:9px 12px;border-bottom:1px solid #F0F0F0}
-  .right{text-align:right}
-  .total-section{background:#6B1B2A;color:#FFF;border-radius:10px;padding:16px 20px;margin-bottom:10px}
-  .total-section .row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
-  .total-section .row.big{font-size:19px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:10px;margin-top:6px}
-  .status-box{border-radius:8px;padding:12px 18px;margin-bottom:18px;text-align:center;font-weight:700;font-size:15px}
-  .paid{background:#E8F5E9;color:#2E7D32}
-  .balance{background:#FFEBEE;color:#C62828}
-  .payments-section h3{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-weight:700}
-  .pay-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F5F5F5;font-size:13px}
-  .footer{margin-top:24px;text-align:center;font-size:11px;color:#999;line-height:2;border-top:1px solid #EEE;padding-top:14px}
-  @media print{.no-print{display:none!important}body{padding:0}}
-</style>
-</head><body><div class="page">
-  <div class="header">
-    <div>
-      <div class="logo">BNBMIS</div>
-      <div class="logo-sub">${storeName||"Property Name"}</div>
-    </div>
-    <div class="doc-type">
-      <h1>Full Stay Receipt</h1>
-      <div class="ref">Ref: ${b.id}</div>
-      <div class="ref">Printed: ${today}</div>
-    </div>
-  </div>
-
-  <div class="guest-box">
-    <h3>Guest Information</h3>
-    <p>
-      <strong>${b.gName||"—"}</strong><br/>
-      ${b.gPhone ? "📞 "+b.gPhone+"<br/>" : ""}
-      ${b.gEmail ? "✉ "+b.gEmail+"<br/>" : ""}
-      ${b.gNat ? "🌍 "+b.gNat : ""}
-    </p>
-  </div>
-
-  <table>
-    <thead><tr>
-      <th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th>
-    </tr></thead>
-    <tbody>
-      <tr>
-        <td><strong>${rm?.name||"—"}</strong><br/><span style="font-size:11px;color:#888">${rm?.type||""} · ${loc?.name||""}</span></td>
-        <td>${b.ci||"—"}</td>
-        <td>${b.co||"—"}</td>
-        <td style="text-align:center">${nights}</td>
-        <td>TZS ${Number(rm?.price||0).toLocaleString()}</td>
-        <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
-      </tr>
-      ${(b.disc||0)>0 ? `<tr>
-        <td colspan="5" style="color:#B76E00;font-size:12px">Discount applied (${b.discT==="pct"?b.disc+"%":"fixed"})</td>
-        <td class="right" style="color:#B76E00">- TZS ${Number((b.base||0)-(b.total||0)).toLocaleString()}</td>
-      </tr>` : ""}
-    </tbody>
-  </table>
-
-  <div class="total-section">
-    <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
-    <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
-    <div class="row big"><span>${bal>0?"Balance Due":"Total Paid"}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
-  </div>
-
-  <div class="status-box ${bal>0?"balance":"paid"}">
-    ${bal>0 ? "⚠️ Balance Remaining: TZS "+Number(bal).toLocaleString() : "✅ Fully Paid — Thank You!"}
-  </div>
-
-  ${b.notes ? `<div style="margin-bottom:18px;font-size:13px;color:#555;background:#F9F9F9;border-radius:8px;padding:12px 14px"><strong>Notes:</strong> ${b.notes}</div>` : ""}
-
-  <div class="footer">
-    Thank you for your stay at <strong>${storeName||"our property"}</strong>.<br/>
-    We hope to welcome you again soon.<br/>
-    Powered by BNBMIS · www.bnbmis.com
-  </div>
-
-  <br/>
-  <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print Receipt</button>
-  <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
-</div></body></html>`);
-    w.document.close();
-  };;
+  };
 
   return (
     <div>
@@ -7017,11 +6758,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
                   {bal>0 ? "Balance: TZS "+Number(bal).toLocaleString() : "✓ Fully paid"}
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
-                <button onClick={()=>printFullStayReceipt(b)}
-                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid #2E7D32", background:"#E8F5E9", color:"#2E7D32", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                  🏨 Full Stay
-                </button>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                 <button onClick={()=>printReceipt(b, false)}
                   style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${IN}`, background:INB, color:IN, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🧾 Receipt
@@ -8020,7 +7757,7 @@ function MktRoomCard({ rm, onClick }) {
       {/* Image */}
       <div style={{ height:180, background:G12, position:"relative", overflow:"hidden" }}>
         {photo
-          ? <img src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
+          ? <img loading="lazy" src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} onError={e=>{e.target.style.display="none";}}/>
           : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>🛏️</div>
         }
         {/* Featured badge */}
@@ -8086,7 +7823,7 @@ function SuperFeaturedRooms({ api, pop }) {
   const RoomRow = ({rm}) => (
     <div style={{ display:"flex", alignItems:"center", gap:12, background:WH2, borderRadius:10, padding:"12px 14px", border:"1px solid "+(rm.is_featured?GOLD2:G22), marginBottom:8 }}>
       {rm.photos&&rm.photos[0]
-        ? <img src={rm.photos[0]} alt={rm.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} onError={e=>{e.target.style.display="none";}}/>
+        ? <img loading="lazy" src={rm.photos[0]} alt={rm.name} style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} onError={e=>{e.target.style.display="none";}}/>
         : <div style={{ width:56, height:56, borderRadius:8, background:G12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🛏️</div>
       }
       <div style={{ flex:1, minWidth:0 }}>
