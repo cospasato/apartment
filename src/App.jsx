@@ -2478,7 +2478,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const todayDate = td();
 
   // "active" = all except checkedOut and cancelled
-  const filtered = books
+  const filtered_all = books
     .filter(b => {
       const statusOk = filter === "all" ? true
         : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
