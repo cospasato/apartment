@@ -499,7 +499,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -526,7 +526,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
+      try{const _ow=localStorage.getItem("bnbmis_owner");if(_ow){const _p=JSON.parse(_ow);if(_p&&_p.store&&_p.store.id)return "owner_dash";}}catch{}
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -1492,8 +1492,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login failed","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch{} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login failed","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch{} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
@@ -1945,7 +1945,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner) {
+  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -1995,7 +1995,7 @@ export default function App() {
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store.name} role="Store Owner"
+          storeName={owner.store&&owner.store.name} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -2016,7 +2016,7 @@ export default function App() {
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store&&owner.store.name}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -2230,7 +2230,9 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 
   return (
     <div>
-      <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: "0 0 18px" }}>Dashboard</h2>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:0 }}>Dashboard</h2>
+      </div>
       {/* ── SETUP GUIDE: shown to new owners with no locations ── */}
       {isNewOwner && (
         <div style={{ background:"linear-gradient(135deg,#FFF8F0 0%,#FFF3E0 100%)", border:"2px solid "+GOLD2, borderRadius:16, padding:24, marginBottom:24, position:"relative", overflow:"hidden" }}>
@@ -2487,6 +2489,7 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       return statusOk && locOk && roomOk && searchOk;
     })
     .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
+  const filtered = filtered_all.slice(0, booksPage);
 
   const selB = books.find(b => b.id === sel);
   const selR = rooms.find(r => r.id === selB?.roomId);
@@ -3113,11 +3116,19 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
           </div>
         </Modal>
       )}
+      {/* Load More bookings */}
+      {filtered_all.length > booksPage && (
+        <div style={{ textAlign:"center", padding:"16px 0" }}>
+          <button onClick={()=>setBooksPage(p=>p+30)}
+            style={{ background:"#F5F5F5", border:"1px solid #E0E0E0", borderRadius:8, padding:"10px 24px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", color:"#333" }}>
+            Load More ({filtered_all.length - booksPage} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
