@@ -10,6 +10,9 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    // Transpile for Android Chrome 80+ and iOS Safari 13+
+    // This converts ?. ?? etc to compatible syntax for older devices
+    target: ['chrome80', 'safari13', 'firefox78', 'edge88'],
     rollupOptions: {
       output: {
         manualChunks: {

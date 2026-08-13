@@ -1,4 +1,34 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, Component } from "react";
+
+/* ─── GLOBAL ERROR BOUNDARY ──────────────────────────────── */
+export class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(e) { return { err: e }; }
+  componentDidCatch(e, info) {
+    console.error("BNBMIS crash:", e.message, info.componentStack);
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{minHeight:"100vh",background:"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"Arial,sans-serif"}}>
+          <div style={{background:"#fff",borderRadius:12,padding:32,maxWidth:400,textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.1)"}}>
+            <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
+            <div style={{fontWeight:700,fontSize:17,color:"#6B1B2A",marginBottom:8}}>Something went wrong</div>
+            <div style={{fontSize:13,color:"#666",marginBottom:24,lineHeight:1.6}}>
+              The app ran into a problem. Please tap below to reload.
+            </div>
+            <button
+              onClick={()=>{this.setState({err:null});window.location.reload();}}
+              style={{background:"#6B1B2A",color:"#fff",border:"none",borderRadius:8,padding:"12px 28px",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+              🔄 Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function useDebounce(value, delay) {
   const [d, setD] = useState(value);
@@ -427,6 +457,14 @@ const ALL_COUNTRIES = Object.keys(COUNTRY_CITIES).sort();
 
 /* ─── MAIN APP ───────────────────────────────────────────── */
 export default function App() {
+  // Log any uncaught errors to help debug blank screens
+  useEffect(() => {
+    const onErr = (e) => console.error("[BNBMIS]", e.error?.message || e.message);
+    const onRej = (e) => console.error("[BNBMIS promise]", e.reason);
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onRej);
+    return () => { window.removeEventListener("error", onErr); window.removeEventListener("unhandledrejection", onRej); };
+  }, []);
   // ── SUBDOMAIN DETECTION ──
   // e.g. sunrise.bnbmis.com → slug="sunrise", admin.bnbmis.com → super admin portal
   const [subdomainStoreId, setSubdomainStoreId] = useState(null);
@@ -1992,6 +2030,7 @@ export default function App() {
 
     /* ── MOBILE LAYOUT ── */
     if (isMobile) return (
+      <ErrorBoundary>
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
@@ -2007,6 +2046,7 @@ export default function App() {
         </MobilePortal>
         {modal==="newBook" && <NewBookModal rooms={rooms} locs={locs} user={ownerUser} onClose={()=>setModal(null)} onSave={createNewBooking} payMethods={payMethods} bookedDatesMap={bookedDates}/>}
       </>
+      </ErrorBoundary>
     );
 
     /* ── DESKTOP LAYOUT ── */
