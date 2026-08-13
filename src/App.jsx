@@ -2012,7 +2012,7 @@ export default function App() {
     const content = (
       <>
         {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin" isLoading={loading}/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
@@ -2114,7 +2114,7 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role} isLoading={loading}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
@@ -2240,10 +2240,12 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole, isLoading }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
-  const isNewOwner = locs.length === 0 && userRole === "Admin";
+  // Only show new user guide if: no locations, admin role, not loading, AND store was just created (within 5 mins)
+  const storeAgeMs = (() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s) return 99999999; const p=JSON.parse(s); const t=p&&p.store&&p.store.created_at?new Date(p.store.created_at):null; return t?Date.now()-t.getTime():99999999; } catch{return 99999999;} })();
+  const isNewOwner = locs.length === 0 && userRole === "Admin" && !isLoading && storeAgeMs < 5*60*1000;
 
   const today     = new Date().toISOString().split("T")[0];
   const now       = new Date();
@@ -2272,9 +2274,16 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
     <div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
         <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:0 }}>Dashboard</h2>
+        {isLoading && <span style={{ fontSize:12, color:"#888", background:"#F5F5F5", borderRadius:99, padding:"4px 12px" }}>⏳ Loading data…</span>}
       </div>
       {/* ── SETUP GUIDE: shown to new owners with no locations ── */}
-      {isNewOwner && (
+      {isLoading && (
+        <div style={{textAlign:"center",padding:"40px 20px",color:"#888",fontSize:14}}>
+          <div style={{marginBottom:8,fontSize:24}}>⏳</div>
+          Loading your dashboard...
+        </div>
+      )}
+      {!isLoading && isNewOwner && (
         <div style={{ background:"linear-gradient(135deg,#FFF8F0 0%,#FFF3E0 100%)", border:"2px solid "+GOLD2, borderRadius:16, padding:24, marginBottom:24, position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", right:-20, top:-20, width:120, height:120, borderRadius:"50%", background:"rgba(201,168,76,.1)", pointerEvents:"none" }}/>
           <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
