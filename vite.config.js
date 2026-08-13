@@ -5,15 +5,21 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': { target: 'http://localhost:3001', changeOrigin: true },
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   build: {
+    // Generate source maps for debugging
     sourcemap: false,
-    target: ['chrome80', 'safari13', 'firefox78', 'edge88'],
     rollupOptions: {
       output: {
-        manualChunks: { 'react-vendor': ['react', 'react-dom'] }
+        // Split chunks for better caching
+        manualChunks: {
+          react: ['react', 'react-dom'],
+        }
       }
     }
   }
