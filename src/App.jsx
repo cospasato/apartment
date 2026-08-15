@@ -1995,7 +1995,7 @@ export default function App() {
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
@@ -2095,7 +2095,7 @@ export default function App() {
       {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
-      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
       {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
@@ -3175,13 +3175,16 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
   const [method, setMethod] = useState("");
   const [newPM, setNewPM]   = useState(false);
   const [newPMName, setNewPMName] = useState("");
+
+  const [payFilter, setPayFilter] = useState("today");
+  const [locPayPeriod, setLocPayPeriod] = useState("today");
 
   const selB = books.find(b => b.id === sel);
   const totColl = books.reduce((s,b)=>s+b.paid,0);
@@ -3362,8 +3365,113 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
             🖨 Print Report
           </button>}
         </div>
+        {/* ── BY LOCATION ── */}
+        {locs.length > 0 && (
+          <div style={{marginBottom:22}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📍 Revenue by Location</span>
+              <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid "+G2}}>
+                {["today","month","all"].map(function(t){
+                  return (
+                    <button key={t} onClick={function(){setLocPayPeriod(t);}}
+                      style={{padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"none",
+                        background:locPayPeriod===t?M:WH,color:locPayPeriod===t?WH:"#666"}}>
+                      {t==="today"?"Today":t==="month"?monthName2:"All Time"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+              {locs.map(function(loc){
+                var lb = books.filter(function(b){
+                  if(b.locId!==loc.id||b.status==="cancelled")return false;
+                  if(locPayPeriod==="today")return b.created&&b.created.split("T")[0]===today2;
+                  if(locPayPeriod==="month")return b.created&&b.created.slice(0,7)===curMonth2;
+                  return true;
+                });
+                var le = exps.filter(function(e){
+                  if(e.locId!==loc.id)return false;
+                  if(locPayPeriod==="today")return e.date&&e.date.split("T")[0]===today2;
+                  if(locPayPeriod==="month")return e.date&&e.date.slice(0,7)===curMonth2;
+                  return true;
+                });
+                var lrev = lb.reduce(function(s,b){return s+(b.paid||0);},0);
+                var lexp = le.reduce(function(s,e){return s+(e.amt||0);},0);
+                var lnet = lrev - lexp;
+                return (
+                  <div key={loc.id} style={{background:WH,borderRadius:12,padding:"14px 16px",border:"1px solid "+G2}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <span style={{fontSize:20}}>{loc.icon}</span>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13}}>{loc.name}</div>
+                        <div style={{fontSize:11,color:G6}}>{loc.city}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
+                        <div style={{fontSize:10,color:G6}}>Revenue</div>
+                        <div style={{fontSize:13,fontWeight:700,color:OK}}>{fmt(lrev)}</div>
+                      </div>
+                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
+                        <div style={{fontSize:10,color:G6}}>Expenses</div>
+                        <div style={{fontSize:13,fontWeight:700,color:ER}}>{fmt(lexp)}</div>
+                      </div>
+                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
+                        <div style={{fontSize:10,color:G6}}>Net</div>
+                        <div style={{fontSize:13,fontWeight:700,color:lnet>=0?"#1565C0":"#B76E00"}}>{fmt(lnet)}</div>
+                      </div>
+                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
+                        <div style={{fontSize:10,color:G6}}>Bookings</div>
+                        <div style={{fontSize:13,fontWeight:700,color:M}}>{lb.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAYMENTS LIST WITH DATE FILTER ── */}
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>💳 Payments List</span>
+            <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid "+G2}}>
+              {[
+                {k:"today",l:"Today"},
+                {k:"yesterday",l:"Yesterday"},
+                {k:"week",l:"This Week"},
+                {k:"month",l:"This Month"},
+                {k:"all",l:"All"},
+              ].map(function(f){
+                return (
+                  <button key={f.k} onClick={function(){setPayFilter(f.k);}}
+                    style={{padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"none",
+                      background:payFilter===f.k?M:WH,color:payFilter===f.k?WH:"#666"}}>
+                    {f.l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
         <Tbl hdr={["Date","Guest","Room","Total","Paid","Balance","Method","Action"]}
-          rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).map(b=>{
+          rows={(function(){
+            var now3=new Date(); var d=now3.getDay();
+            var weekStart=new Date(now3); weekStart.setDate(now3.getDate()-(d===0?6:d-1));
+            var weekStr=weekStart.toISOString().split("T")[0];
+            var yest=new Date(now3); yest.setDate(now3.getDate()-1);
+            var yesterdayStr=yest.toISOString().split("T")[0];
+            return books.filter(function(b){
+              var bd=b.created?b.created.split("T")[0]:"";
+              if(payFilter==="today")     return bd===today2;
+              if(payFilter==="yesterday") return bd===yesterdayStr;
+              if(payFilter==="week")      return bd>=weekStr;
+              if(payFilter==="month")     return b.created&&b.created.slice(0,7)===curMonth2;
+              return true;
+            }).sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
+          })().map(b=>{
             const bal=b.total-b.paid;
             const rm=rooms.find(r=>r.id===b.roomId);
             return [
