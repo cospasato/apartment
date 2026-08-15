@@ -2510,43 +2510,11 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
-  // deleteBooking is null for non-admin roles
-  const [filter, setFilter] = useState("active");  // default: hide checkedOut
-  const [search, setSearch] = useState("");
-  const [locFilter, setLocFilter]   = useState("");   // filter by location
-  const [roomFilter, setRoomFilter] = useState("");   // filter by room
-  const [editBook, setEditBook]     = useState(null); // booking being modified
-  const [sel, setSel] = useState(null);
-  const [payAmt, setPayAmt] = useState("");
-  const [payMethod, setPayMethod] = useState("");
-  // checkout / extend modal
-  const [coModal, setCoModal] = useState(null); // booking id
-  // extend form
-  const [extNights, setExtNights] = useState(1);
-
-  const todayDate = td();
-
-  // "active" = all except checkedOut and cancelled
-  const filtered = books
-    .filter(b => {
-      const statusOk = filter === "all" ? true
-        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
-        : b.status === filter;
-      const locOk  = !locFilter  || b.locId  === locFilter;
-      const roomOk = !roomFilter || b.roomId === roomFilter;
-      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
-      return statusOk && locOk && roomOk && searchOk;
-    })
-    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
-
-  const selB = books.find(b => b.id === sel);
-  const selR = rooms.find(r => r.id === selB?.roomId);
-
-  const printPaymentReceipt = (b, rm, isInvoice=false) => {
+function printPaymentReceipt(b, rm, storeName, isInvoice) {
     if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
     const w = window.open("", "_blank", "width=600,height=800");
+    if(!b) return;
     const bal = (b.total||0) - (b.paid||0);
     w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
       *{box-sizing:border-box}
@@ -2718,7 +2686,8 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           rows={filtered.map(b => {
             const rm  = rooms.find(r => r.id === b.roomId);
             const loc = locs.find(l => l.id === b.locId);
-            const bal = b.total - b.paid;
+            if(!b) return;
+    const bal = b.total - b.paid;
             const isDueToday = b.status === "checkedIn" && b.co === todayDate;
             return [
               <span style={{ color: M, fontWeight: 700, fontSize: 12, cursor: "pointer" }} onClick={() => setSel(b.id)}>{b.id}</span>,
@@ -2892,10 +2861,10 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           )}
           {/* Print actions — always shown */}
           <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
-            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, storeName, false)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               🧾 Print Receipt
             </button>
-            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, storeName, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               📄 Print Invoice
             </button>
           </div>
@@ -3178,6 +3147,111 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const [method, setMethod] = useState("");
   const [newPM, setNewPM]   = useState(false);
   const [newPMName, setNewPMName] = useState("");
+
+function printFullStayReceipt(b, rooms, locs, storeName) {
+    const rm  = rooms.find(r => r.id === b.roomId);
+    const loc = locs.find(l => l.id === b.locId);
+    const bal = (b.total||0) - (b.paid||0);
+    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    const w = window.open("","_blank","width=650,height=900");
+    if (!w) { pop("Please allow popups to print receipts","err"); return; }
+    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff}
+.page{max-width:580px;margin:0 auto;padding:36px 40px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #6B1B2A;margin-bottom:22px}
+.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;line-height:1}
+.logo-sub{font-size:11px;color:#999;margin-top:3px}
+.doc-h1{font-size:20px;font-weight:900;color:#6B1B2A;text-align:right;text-transform:uppercase}
+.doc-ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
+.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:12px 16px;margin-bottom:18px;border-radius:0 8px 8px 0}
+.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;font-weight:700}
+.guest-box p{font-size:14px;line-height:1.9}
+table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px}
+th{background:#6B1B2A;color:#fff;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
+td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
+.right{text-align:right}
+.totals{background:#6B1B2A;color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:10px}
+.totals .row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px}
+.totals .row.big{font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;margin-top:7px}
+.status{border-radius:8px;padding:11px 16px;margin-bottom:18px;text-align:center;font-weight:700;font-size:14px}
+.paid{background:#E8F5E9;color:#2E7D32}.balance{background:#FFEBEE;color:#C62828}
+.footer{margin-top:22px;text-align:center;font-size:11px;color:#999;line-height:1.9;border-top:1px solid #eee;padding-top:14px}
+@media print{.no-print{display:none!important}}
+</style></head><body><div class="page">
+<div class="header">
+  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||'Property'}</div></div>
+  <div><div class="doc-h1">Full Stay Receipt</div><div class="doc-ref">Ref: ${b.id}</div><div class="doc-ref">Date: ${today}</div></div>
+</div>
+<div class="guest-box">
+  <h3>Guest Information</h3>
+  <p><strong>${b.gName||'—'}</strong><br/>
+  ${b.gPhone?'📞 '+b.gPhone+'<br/>':''}${b.gEmail?'✉ '+b.gEmail+'<br/>':''}${b.gNat?'🌍 '+b.gNat:''}</p>
+</div>
+<table>
+  <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>${rm?rm.name:'—'}</strong><br/><span style="font-size:11px;color:#888">${rm?rm.type:''} · ${loc?loc.name:''}</span></td>
+      <td>${b.ci||'—'}</td><td>${b.co||'—'}</td>
+      <td style="text-align:center">${b.nights||1}</td>
+      <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
+      <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
+    </tr>
+    ${(b.disc||0)>0?'<tr><td colspan=\'5\' style=\'color:#B76E00;font-size:12px\'>Discount applied</td><td class=\'right\' style=\'color:#B76E00\'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
+  </tbody>
+</table>
+<div class="totals">
+  <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
+  <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
+  <div class="row big"><span>${bal>0?'Balance Due':'Total Paid'}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
+</div>
+<div class="status ${bal>0?'balance':'paid'}">
+  ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
+</div>
+${b.notes?'<div style=\'margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\'><strong>Notes:</strong> '+b.notes+'</div>':''}
+<div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
+<br/>
+<button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
+<button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
+</div></body></html>`);
+    w.document.close();
+  }
+
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
+  // deleteBooking is null for non-admin roles
+  const [filter, setFilter] = useState("active");  // default: hide checkedOut
+  const [search, setSearch] = useState("");
+  const [locFilter, setLocFilter]   = useState("");   // filter by location
+  const [roomFilter, setRoomFilter] = useState("");   // filter by room
+  const [editBook, setEditBook]     = useState(null); // booking being modified
+  const [sel, setSel] = useState(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payMethod, setPayMethod] = useState("");
+  // checkout / extend modal
+  const [coModal, setCoModal] = useState(null); // booking id
+  // extend form
+  const [extNights, setExtNights] = useState(1);
+
+  const todayDate = td();
+
+  // "active" = all except checkedOut and cancelled
+  const filtered = books
+    .filter(b => {
+      const statusOk = filter === "all" ? true
+        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
+        : b.status === filter;
+      const locOk  = !locFilter  || b.locId  === locFilter;
+      const roomOk = !roomFilter || b.roomId === roomFilter;
+      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
+      return statusOk && locOk && roomOk && searchOk;
+    })
+    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
+
+  const selB = books.find(b => b.id === sel);
+  const selR = rooms.find(r => r.id === selB?.roomId);
+
 
   const selB = books.find(b => b.id === sel);
   const totColl = books.reduce((s,b)=>s+b.paid,0);
@@ -6929,76 +7003,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
     w.document.close();
   };
 
-  const printFullStayReceipt = (b) => {
-    const rm  = rooms.find(r => r.id === b.roomId);
-    const loc = locs.find(l => l.id === b.locId);
-    const bal = (b.total||0) - (b.paid||0);
-    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-    const w = window.open("","_blank","width=650,height=900");
-    if (!w) { pop("Please allow popups to print receipts","err"); return; }
-    w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff}
-.page{max-width:580px;margin:0 auto;padding:36px 40px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #6B1B2A;margin-bottom:22px}
-.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;line-height:1}
-.logo-sub{font-size:11px;color:#999;margin-top:3px}
-.doc-h1{font-size:20px;font-weight:900;color:#6B1B2A;text-align:right;text-transform:uppercase}
-.doc-ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
-.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:12px 16px;margin-bottom:18px;border-radius:0 8px 8px 0}
-.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;font-weight:700}
-.guest-box p{font-size:14px;line-height:1.9}
-table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px}
-th{background:#6B1B2A;color:#fff;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
-td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
-.right{text-align:right}
-.totals{background:#6B1B2A;color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:10px}
-.totals .row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px}
-.totals .row.big{font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;margin-top:7px}
-.status{border-radius:8px;padding:11px 16px;margin-bottom:18px;text-align:center;font-weight:700;font-size:14px}
-.paid{background:#E8F5E9;color:#2E7D32}.balance{background:#FFEBEE;color:#C62828}
-.footer{margin-top:22px;text-align:center;font-size:11px;color:#999;line-height:1.9;border-top:1px solid #eee;padding-top:14px}
-@media print{.no-print{display:none!important}}
-</style></head><body><div class="page">
-<div class="header">
-  <div><div class="logo">BNBMIS</div><div class="logo-sub">${storeName||'Property'}</div></div>
-  <div><div class="doc-h1">Full Stay Receipt</div><div class="doc-ref">Ref: ${b.id}</div><div class="doc-ref">Date: ${today}</div></div>
-</div>
-<div class="guest-box">
-  <h3>Guest Information</h3>
-  <p><strong>${b.gName||'—'}</strong><br/>
-  ${b.gPhone?'📞 '+b.gPhone+'<br/>':''}${b.gEmail?'✉ '+b.gEmail+'<br/>':''}${b.gNat?'🌍 '+b.gNat:''}</p>
-</div>
-<table>
-  <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
-  <tbody>
-    <tr>
-      <td><strong>${rm?rm.name:'—'}</strong><br/><span style="font-size:11px;color:#888">${rm?rm.type:''} · ${loc?loc.name:''}</span></td>
-      <td>${b.ci||'—'}</td><td>${b.co||'—'}</td>
-      <td style="text-align:center">${b.nights||1}</td>
-      <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
-      <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
-    </tr>
-    ${(b.disc||0)>0?'<tr><td colspan=\'5\' style=\'color:#B76E00;font-size:12px\'>Discount applied</td><td class=\'right\' style=\'color:#B76E00\'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
-  </tbody>
-</table>
-<div class="totals">
-  <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
-  <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
-  <div class="row big"><span>${bal>0?'Balance Due':'Total Paid'}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
-</div>
-<div class="status ${bal>0?'balance':'paid'}">
-  ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
-</div>
-${b.notes?'<div style=\'margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\'><strong>Notes:</strong> '+b.notes+'</div>':''}
-<div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
-<br/>
-<button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
-<button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
-</div></body></html>`);
-    w.document.close();
-  };
+;
 
   return (
     <div>
@@ -7041,7 +7046,7 @@ ${b.notes?'<div style=\'margin-bottom:16px;font-size:13px;color:#555;background:
                 </div>
               </div>
               <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
-                <button onClick={()=>printFullStayReceipt(b)}
+                <button onClick={()=>printFullStayReceipt(b, rooms, locs, storeName)}
                   style={{ padding:"8px 14px", borderRadius:8, border:"2px solid #2E7D32", background:"#E8F5E9", color:"#2E7D32", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   🏨 Full Stay
                 </button>
