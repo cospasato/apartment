@@ -2547,11 +2547,14 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const printPaymentReceipt = (b, rm, isInvoice=false) => {
     if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
-    const w = window.open("", "_blank", "width=600,height=800");
+    const w = window.open("", "_blank");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<style>
       *{box-sizing:border-box}
-      body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
+      body{font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;color:#111}
+      @media(min-width:640px){body{padding:28px 32px}}
       .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
       .sub{font-size:11px;color:#999;margin-bottom:2px}
       .title{font-size:20px;font-weight:700;color:#6B1B2A;margin:18px 0 4px}
@@ -4855,7 +4858,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
               const w=window.open("","_blank","width=600,height=750");
               const rm=rooms.find(r=>r.id===selB.roomId);
               const lc=locs.find(l=>l.id===selB.locId);
-              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:32px;max-width:560px;margin:0 auto;color:#111}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><meta name='viewport' content='width=device-width,initial-scale=1'><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;color:#111}@media(min-width:640px){body{padding:32px}}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
               <div class="logo">BNBMIS</div><div class="sub">BNB Management Information System</div>
               <hr/>
               <h2>Booking Receipt</h2>
@@ -6824,7 +6827,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF;padding:0}
-  .page{max-width:600px;margin:0 auto;padding:36px 40px}
+  .page{max-width:100%;margin:0 auto;padding:20px}@media(min-width:640px){.page{max-width:600px;padding:32px 40px}}
   .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #6B1B2A}
   .logo{font-family:Georgia,serif;font-size:32px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
   .logo-sub{font-size:11px;color:#999;margin-top:3px}
@@ -6938,10 +6941,11 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
     const w = window.open("","_blank","width=650,height=900");
     if (!w) { pop("Please allow popups to print receipts","err"); return; }
     w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff}
-.page{max-width:580px;margin:0 auto;padding:36px 40px}
+.page{max-width:100%;margin:0 auto;padding:20px}@media(min-width:640px){.page{max-width:600px;padding:32px 40px}}
 .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #6B1B2A;margin-bottom:22px}
 .logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;line-height:1}
 .logo-sub{font-size:11px;color:#999;margin-top:3px}
