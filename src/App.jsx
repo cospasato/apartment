@@ -171,6 +171,7 @@ const mapStaff = s => s ? ({
 const mapExp = e => e ? ({
   id: e.id, locId: e.location_id, storeId: e.store_id, cat: e.category,
   desc: e.description, amt: Number(e.amount), date: e.expense_date?.split?.("T")[0] || e.expense_date,
+  staffId: e.staff_id || null,
 }) : null;
 
 const Badge = ({ s, label }) => (
@@ -3366,7 +3367,7 @@ function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMet
           </button>}
         </div>
         {/* ── BY LOCATION ── */}
-        {locs.length > 0 && (
+        {locs.length > 0 && userRole === "Admin" && (
           <div style={{marginBottom:22}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
               <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📍 Revenue by Location</span>
@@ -3551,6 +3552,7 @@ function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMet
 }
 
 function ExpsTab({ exps, locs, user, saveExp, pop }) {
+  const isAdminExp = !user || user.role === "Admin" || user.role === "Manager" || user.role === "Accountant";
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ locId: locs[0]?.id || "", cat: "Utilities", desc: "", amt: "", date: td() });
   const save = () => { saveExp(form); setModal(false); setForm(f => ({ ...f, desc: "", amt: "" })); };
@@ -3561,17 +3563,27 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Expenses</h2>
         <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
-        {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
-      </div>
-      <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
+      {isAdminExp && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
+            {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
+          </div>
+          <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
+        </>
+      )}
       <Card style={{ marginTop: 14 }}>
         <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
-          rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
+          rows={(isAdminExp ? exps : exps.filter(e => e.staffId === user?.id || e.staffId === user?.staffId))
+            .sort((a, b) => b.date.localeCompare(a.date)).map(e => [
             e.date, locs.find(l => l.id === e.locId)?.name || "-",
             <span style={{ background: G1, padding: "2px 8px", borderRadius: 99, fontSize: 11, color: G6 }}>{e.cat}</span>,
             e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
           ])} />
+        {!isAdminExp && (
+          <div style={{fontSize:12,color:G6,marginTop:10,textAlign:"center"}}>
+            Showing only expenses you added. Managers can view all expenses.
+          </div>
+        )}
       </Card>
       {modal && (
         <Modal title="Add Expense" onClose={() => setModal(false)}>
