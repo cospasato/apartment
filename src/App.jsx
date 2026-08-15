@@ -2221,6 +2221,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
+  const [locPeriod, setLocPeriod] = useState("today");
 
   // ── Date helpers ──
   const today = new Date().toISOString().split("T")[0];
@@ -2451,25 +2452,57 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         )}
       </Card>
       {isReceptDash ? null : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-          {locs.map(function(loc) {
-            var lr = allRooms.filter(function(r) { return r.locId === loc.id; });
-            var lb = books.filter(function(b) { return b.locId === loc.id; });
-            var lrev = lb.reduce(function(s, b) { return s + b.paid; }, 0);
-            var lexp = exps.filter(function(e) { return e.locId === loc.id; }).reduce(function(s, e) { return s + e.amt; }, 0);
-            return (
-              <Card key={loc.id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                  <span style={{ fontSize: 22 }}>{loc.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div>
-                    <div style={{ fontSize: 11, color: G6 }}>{loc.city}</div>
+        <div>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+            <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📍 By Location</span>
+            <div style={{ display:"flex", borderRadius:8, overflow:"hidden", border:"1px solid "+G22 }}>
+              {["today","month","all"].map(function(t) {
+                return (
+                  <button key={t} onClick={function(){setLocPeriod(t);}}
+                    style={{ padding:"5px 13px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"none",
+                      background: locPeriod===t ? M2 : WH2, color: locPeriod===t ? WH2 : "#666" }}>
+                    {t==="today"?"Today":t==="month"?monthName:"All Time"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+            {locs.map(function(loc) {
+              var lr = allRooms.filter(function(r) { return r.locId === loc.id; });
+              var allLB = books.filter(function(b) { return b.locId === loc.id; });
+              var lb = locPeriod === "today"
+                ? allLB.filter(function(b) { return b.created && b.created.split("T")[0] === today; })
+                : locPeriod === "month"
+                ? allLB.filter(function(b) { return b.created && b.created.slice(0,7) === curMonth; })
+                : allLB;
+              var lrev = lb.filter(function(b){ return b.status !== "cancelled"; }).reduce(function(s,b) { return s + (b.paid||0); }, 0);
+              var allLE = exps.filter(function(e) { return e.locId === loc.id; });
+              var le = locPeriod === "today"
+                ? allLE.filter(function(e) { return e.date && e.date.split("T")[0] === today; })
+                : locPeriod === "month"
+                ? allLE.filter(function(e) { return e.date && e.date.slice(0,7) === curMonth; })
+                : allLE;
+              var lexp = le.reduce(function(s,e) { return s + (e.amt||0); }, 0);
+              return (
+                <Card key={loc.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                    <span style={{ fontSize: 22 }}>{loc.icon}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div>
+                      <div style={{ fontSize: 11, color: G6 }}>{loc.city}</div>
+                    </div>
+                    <div style={{ fontSize:10, color: locPeriod==="today"?"#1565C0":locPeriod==="month"?"#2E7D32":"#888",
+                      background: locPeriod==="today"?"#E3F2FD":locPeriod==="month"?"#E8F5E9":"#F5F5F5",
+                      borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                      {locPeriod==="today"?"Today":locPeriod==="month"?monthName:"All Time"}
+                    </div>
                   </div>
-                </div>
-                <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
-              </Card>
-            );
-          })}
+                  <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
