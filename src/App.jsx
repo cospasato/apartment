@@ -3456,39 +3456,71 @@ function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMet
             </div>
           </div>
         </div>
-        <Tbl hdr={["Date","Guest","Room","Total","Paid","Balance","Method","Action"]}
-          rows={(function(){
+        {(function(){
             var now3=new Date(); var d=now3.getDay();
             var weekStart=new Date(now3); weekStart.setDate(now3.getDate()-(d===0?6:d-1));
             var weekStr=weekStart.toISOString().split("T")[0];
             var yest=new Date(now3); yest.setDate(now3.getDate()-1);
             var yesterdayStr=yest.toISOString().split("T")[0];
-            return books.filter(function(b){
+            var filtered=books.filter(function(b){
               var bd=b.created?b.created.split("T")[0]:"";
               if(payFilter==="today")     return bd===today2;
               if(payFilter==="yesterday") return bd===yesterdayStr;
               if(payFilter==="week")      return bd>=weekStr;
               if(payFilter==="month")     return b.created&&b.created.slice(0,7)===curMonth2;
               return true;
-            }).sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));
-          })().map(b=>{
-            const bal=b.total-b.paid;
-            const rm=rooms.find(r=>r.id===b.roomId);
-            return [
-              b.ci||"—",
-              <div><div style={{fontWeight:700,fontSize:13}}>{b.gName}</div><div style={{fontSize:11,color:G6}}>{b.gPhone}</div></div>,
-              <span style={{fontSize:12}}>{rm?.name||"—"}</span>,
-              fmt(b.total),
-              <span style={{color:OK,fontWeight:700}}>{fmt(b.paid)}</span>,
-              <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span>,
-              b.method,
-              b.status==="cancelled"
-                ? <span style={{color:ER,fontSize:12,fontWeight:700}}>✗ Cancelled</span>
-                : bal>0
-                  ? <button onClick={()=>openRecord(b.id)} style={{padding:"4px 10px",fontSize:12,borderRadius:6,background:M,color:WH,border:"none",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>Record</button>
-                  : <span style={{color:OK,fontSize:12,fontWeight:700}}>✓ Settled</span>
-            ];
-          })}/>
+            }).sort(function(a,b){return new Date(b.created||0)-new Date(a.created||0);});
+            if(!filtered.length) return <div style={{textAlign:"center",padding:28,color:G4,fontSize:13}}>No payments found</div>;
+            return (
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid "+G2}}>
+                      {["Date","Guest","Room","Total","Paid","Balance","Method","Action"].map(function(h){
+                        return <th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>;
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(function(b,i){
+                      var bal=b.total-b.paid;
+                      var rm=rooms.find(function(r){return r.id===b.roomId;});
+                      var isUnsettled=b.status!=="cancelled"&&bal>0;
+                      var isCancelled=b.status==="cancelled";
+                      var rowBg=isCancelled?"#FFF8F8":isUnsettled?"#FFF0F0":"#F9FFF9";
+                      var rowBorder=isCancelled?"1px solid #FFCCCC":isUnsettled?"1px solid #FFCCCC":"1px solid #E8F5E9";
+                      return (
+                        <tr key={i} style={{borderBottom:rowBorder,background:rowBg}}>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{b.ci||"—"}</td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
+                            <div style={{fontWeight:700,fontSize:13,color:isUnsettled?ER:BK}}>{b.gName}</div>
+                            <div style={{fontSize:11,color:G6}}>{b.gPhone}</div>
+                          </td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{rm?rm.name:"—"}</td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontWeight:700}}>{fmt(b.total)}</td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
+                            <span style={{color:OK,fontWeight:700}}>{fmt(b.paid)}</span>
+                          </td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
+                            <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span>
+                          </td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{b.method||"—"}</td>
+                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
+                            {isCancelled
+                              ? <span style={{color:ER,fontSize:12,fontWeight:700}}>✗ Cancelled</span>
+                              : bal>0
+                                ? <button onClick={function(){openRecord(b.id);}} style={{padding:"4px 10px",fontSize:12,borderRadius:6,background:M,color:WH,border:"none",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>Record</button>
+                                : <span style={{color:OK,fontSize:12,fontWeight:700}}>✓ Settled</span>
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
       </Card>
 
       {/* ── RECORD PAYMENT MODAL ── */}
