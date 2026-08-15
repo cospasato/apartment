@@ -2531,36 +2531,36 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
       .total-box .lbl{color:rgba(255,255,255,.7)}
       .total-box .val{font-size:22px;font-weight:900;color:#FFF}
       .paid-box{background:#E8F5E9;border-radius:10px;padding:12px 18px;margin-bottom:8px}
-      .balance-box{background:${bal>0?"#FFEBEE":"#E8F5E9"};border-radius:10px;padding:12px 18px}
+      .balance-box{background:${bal>0?'#FFEBEE':'#E8F5E9'};border-radius:10px;padding:12px 18px}
       .badge{display:inline-block;background:#E8F5E9;color:#2E7D32;border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700;text-transform:uppercase}
       .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;line-height:2}
       @media print{.no-print{display:none}}
     </style></head><body>
-    <div class="logo">${storeName||"Property Name"}</div>
+    <div class="logo">${storeName||'Property Name'}</div>
     <div class="sub">Powered by BNBMIS</div>
     <hr/>
     <div class="title">${docType}</div>
-    <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||"").split("T")[0]||""} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
+    <div class="ref">Booking ID: <strong>${b.id}</strong> &nbsp;|&nbsp; Date: ${(b.created||'').split('T')[0]||''} &nbsp;|&nbsp; <span class="badge">${b.status}</span></div>
     <div class="section">
       <div class="section-title">Customer Information</div>
-      <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||"—"}</span></div>
-      <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||"—"}</span></div>
-      ${b.gEmail?"<div class=\"row\"><span class=\"lbl\">Email</span><span class=\"val\">"+b.gEmail+"</span></div>":""}
-      ${b.gNat?"<div class=\"row\"><span class=\"lbl\">Nationality</span><span class=\"val\">"+b.gNat+"</span></div>":""}
+      <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||'—'}</span></div>
+      <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||'—'}</span></div>
+      ${b.gEmail?'<div class=\'row\'><span class=\'lbl\'>Email</span><span class=\'val\'>'+b.gEmail+'</span></div>':''}
+      ${b.gNat?'<div class=\'row\'><span class=\'lbl\'>Nationality</span><span class=\'val\'>'+b.gNat+'</span></div>':''}
     </div>
     <div class="section">
       <div class="section-title">Booking Details</div>
-      <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||b.room_name||"—"}</span></div>
-      <div class="row"><span class="lbl">Check-in</span><span class="val">${b.ci||"—"}</span></div>
-      <div class="row"><span class="lbl">Check-out</span><span class="val">${b.co||"—"}</span></div>
-      <div class="row"><span class="lbl">Duration</span><span class="val">${b.nights} night${b.nights!==1?"s":""}</span></div>
-      <div class="row"><span class="lbl">Payment Method</span><span class="val">${b.method||"—"}</span></div>
+      <div class="row"><span class="lbl">Room</span><span class="val">${rm?.name||b.room_name||'—'}</span></div>
+      <div class="row"><span class="lbl">Check-in</span><span class="val">${b.ci||'—'}</span></div>
+      <div class="row"><span class="lbl">Check-out</span><span class="val">${b.co||'—'}</span></div>
+      <div class="row"><span class="lbl">Duration</span><span class="val">${b.nights} night${b.nights!==1?'s':''}</span></div>
+      <div class="row"><span class="lbl">Payment Method</span><span class="val">${b.method||'—'}</span></div>
     </div>
     <div class="section">
       <div class="section-title">Payment Summary</div>
       <div class="row"><span class="lbl">Room Rate</span><span class="val">TZS ${Number(rm?.price||0).toLocaleString()}/night</span></div>
       <div class="row"><span class="lbl">Base Amount</span><span class="val">TZS ${Number(b.base||0).toLocaleString()}</span></div>
-      ${(b.disc&&b.disc>0)?"<div class=\"row\"><span class=\"lbl\">Discount</span><span class=\"val\" style=\"color:#2E7D32\">-"+(b.discT==="pct"?b.disc+"%":"TZS "+Number(b.disc).toLocaleString())+"</span></div>":""}
+      ${(b.disc&&b.disc>0)?'<div class=\'row\'><span class=\'lbl\'>Discount</span><span class=\'val\' style=\'color:#2E7D32\'>-'+(b.discT==='pct'?b.disc+'%':'TZS '+Number(b.disc).toLocaleString())+'</span></div>':''}
     </div>
     <div class="total-box">
       <div class="row" style="border:none;padding:0"><span class="lbl">Total Amount</span><span class="val">TZS ${Number(b.total||0).toLocaleString()}</span></div>
@@ -2573,13 +2573,13 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     </div>
     <div class="balance-box">
       <div style="display:flex;justify-content:space-between">
-        <span style="font-weight:600;color:${bal>0?"#C62828":"#2E7D32"}">${bal>0?"Balance Due":"Fully Paid ✓"}</span>
-        <span style="font-size:18px;font-weight:900;color:${bal>0?"#C62828":"#2E7D32"}">TZS ${Number(bal).toLocaleString()}</span>
+        <span style="font-weight:600;color:${bal>0?'#C62828':'#2E7D32'}">${bal>0?'Balance Due':'Fully Paid ✓'}</span>
+        <span style="font-size:18px;font-weight:900;color:${bal>0?'#C62828':'#2E7D32'}">TZS ${Number(bal).toLocaleString()}</span>
       </div>
     </div>
     <div class="footer">
       Thank you for choosing us!<br/>
-      ${storeName||"Property Name"} · bnbmis.com
+      ${storeName||'Property Name'} · bnbmis.com
     </div>
     <br/>
     <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#FFF;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
@@ -6947,7 +6947,7 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
       <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
       <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
     </tr>
-    ${(b.disc||0)>0?"<tr><td colspan=\"5\" style=\"color:#B76E00;font-size:12px\">Discount applied</td><td class=\"right\" style=\"color:#B76E00\">- TZS "+Number((b.base||0)-(b.total||0)).toLocaleString()+"</td></tr>":""}
+    ${(b.disc||0)>0?'<tr><td colspan=\'5\' style=\'color:#B76E00;font-size:12px\'>Discount applied</td><td class=\'right\' style=\'color:#B76E00\'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
   </tbody>
 </table>
 <div class="totals">
@@ -6958,7 +6958,7 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
 <div class="status ${bal>0?'balance':'paid'}">
   ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
 </div>
-${b.notes?"<div style=\"margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\"><strong>Notes:</strong> "+b.notes+"</div>":""}
+${b.notes?'<div style=\'margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\'><strong>Notes:</strong> '+b.notes+'</div>':''}
 <div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
 <br/>
 <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
