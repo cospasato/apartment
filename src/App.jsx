@@ -1,4 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+export class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={err:null};}
+  static getDerivedStateFromError(e){return {err:e};}
+  componentDidCatch(e){console.error("BNBMIS:",e.message);}
+  render(){
+    if(this.state.err)return(
+      <div style={{minHeight:"100vh",background:"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"Arial,sans-serif"}}>
+        <div style={{background:"#fff",borderRadius:12,padding:32,maxWidth:360,textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.1)"}}>
+          <div style={{fontSize:36,marginBottom:10}}>⚠️</div>
+          <div style={{fontWeight:700,fontSize:16,color:"#6B1B2A",marginBottom:8}}>Something went wrong</div>
+          <div style={{fontSize:13,color:"#666",marginBottom:20}}>Please reload the app.</div>
+          <button onClick={()=>{this.setState({err:null});window.location.reload();}}
+            style={{background:"#6B1B2A",color:"#fff",border:"none",borderRadius:8,padding:"11px 26px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+            🔄 Reload
+          </button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { api } from "./api";
 
 /* ─── PWA INSTALL PROMPT ─────────────────────────────────── */
@@ -98,6 +119,10 @@ function PWAInstallBanner() {
 }
 
 /* ─── BRAND ─────────────────────────────────────────────── */
+/* Safe month name - toLocaleString with options crashes old mobile browsers */
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const safeMonthName = (d) => MONTHS[d.getMonth()] + " " + d.getFullYear();
+
 const M = "#6B1B2A", MD = "#4A1019", ML = "#8B2D3E", MF = "#F9F0F2";
 const BK = "#111", WH = "#FFF", G1 = "#F5F5F5", G2 = "#E8E8E8";
 const G4 = "#AAAAAA", G6 = "#666", G8 = "#333", GOLD = "#C9A84C";
@@ -493,7 +518,7 @@ export default function App() {
 
   // ── BNBMIS MULTI-TENANT STATE ──
   const [superAdmin, setSuperAdmin] = useState(() => { try { const s = localStorage.getItem("bnbmis_super"); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [owner, setOwner]           = useState(() => { try { const s = localStorage.getItem("bnbmis_owner"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [owner, setOwner]           = useState(() => { try { const s=localStorage.getItem("bnbmis_owner"); if(!s)return null; const p=JSON.parse(s); return(p&&p.store&&p.store.id?p:null); } catch{return null;} });
   const [sTab, setSTab]             = useState("dash");
   const [stores, setStores]         = useState([]);
   const [plans, setPlans]           = useState([]);
@@ -520,7 +545,7 @@ export default function App() {
   const [view, setView]   = useState(() => {
     try {
       if (localStorage.getItem("bnbmis_super"))   return "super";
-      if (localStorage.getItem("bnbmis_owner"))   return "owner_dash";
+      try{var _o=localStorage.getItem("bnbmis_owner");if(_o){var _p=JSON.parse(_o);if(_p&&_p.store&&_p.store.id)return "owner_dash";}}catch(e){}
       if (localStorage.getItem("bnbmis_staff"))   return "admin";
       if (localStorage.getItem("bnbmis_customer"))return "customer";
       return "land";
@@ -656,16 +681,16 @@ export default function App() {
 
   // ── Request OS notification permission ──
   const requestNotifPermission = async () => {
-    if (!("Notification" in window)) {
+    if (typeof Notification === "undefined") {
       pop("Your browser does not support notifications", "err");
       return "denied";
     }
-    if (Notification.permission === "granted") {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       playNotifSound();
       pop("🔔 Notifications are already enabled!", "ok");
       return "granted";
     }
-    const perm = await Notification.requestPermission();
+    const perm = await (typeof Notification !== "undefined" ? Notification.requestPermission() : Promise.resolve("denied"));
     if (perm === "granted") {
       playNotifSound();
       pop("🔔 Notifications enabled! You'll hear a sound and see a popup for every new booking.", "ok");
@@ -727,12 +752,10 @@ export default function App() {
         const doShow = (reg) => {
           if (reg) {
             reg.showNotification(title, opts).catch(() => {
-              const n = new Notification(title, opts);
-              n.onclick = () => { window.focus(); n.close(); };
+              if (typeof Notification !== "undefined") { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; }
             });
           } else {
-            const n = new Notification(title, opts);
-            n.onclick = () => { window.focus(); n.close(); };
+            if (typeof Notification !== "undefined") { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; }
           }
         };
 
@@ -754,7 +777,7 @@ export default function App() {
     if (!sid) return;
 
     // Auto-request permission 3 seconds after login
-    if (Notification.permission === "default") {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
       setTimeout(() => requestNotifPermission(), 3000);
     }
 
@@ -1202,14 +1225,15 @@ export default function App() {
     ...(canReports ? [{ id:"reports",label:"Reports",icon:"📈" }] : []),
     ...(canLocs    ? [{ id:"locs",label:"Locations",icon:"📍" }] : []),
     ...(canStaff   ? [{ id:"staff",label:"Staff",icon:"👥" }] : []),
-    ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"🧑‍🤝‍🧑" }] : []),
+    ...(canCustomers ? [{ id:"customers",label:"Customers",icon:"👥" }] : []),
     { id:"receipts",label:"Receipts",icon:"🧾" },
     { id:"share",   label:"Share",   icon:"📤" },
     { id:"profile", label:"My Profile",icon:"👤" },
   ];
 
+  const storeName = (mktSelStore && mktSelStore.name) || (owner && owner.store && owner.store.name) || (user && user.storeName) || "BNBMIS";
+
   const NavBar = () => {
-    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
@@ -1276,7 +1300,7 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "land") return (
     <div style={{ minHeight:"100vh", background:WH, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <nav style={{ background:BK, height:62, display:"flex", alignItems:"center", padding:"0 24px", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ width:40, height:40, background:M, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -1486,8 +1510,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); setOwner(u); localStorage.setItem("bnbmis_owner",JSON.stringify(u)); setModal(null); await loadAll(null,u.store.id); setView("owner_dash"); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); setUser(u); localStorage.setItem("bnbmis_staff",JSON.stringify(u)); setModal(null); await loadAll(u,u.storeId); setView("admin"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
@@ -1861,7 +1885,7 @@ export default function App() {
   // ── CUSTOMER PORTAL ──
   if (view === "customer" && customer) return (
     <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <NavBar/>
       <div style={{ background: WH, borderBottom: `1px solid ${G2}`, display: "flex", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         {[["bookings","My Bookings","📋"],["newbooking","Book a Room","🛏️"],["profile","My Profile","👤"]].map(([id,label,icon]) => (
@@ -1898,7 +1922,7 @@ export default function App() {
     ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+        
         <div style={{ width:220, background:MD, color:WH, display:"flex", flexDirection:"column", flexShrink:0 }}>
           <div style={{ padding:"22px 20px 16px" }}>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:GOLD }}>BNBMIS</div>
@@ -1939,7 +1963,7 @@ export default function App() {
   /* ══════════════════════════════════════════════════════
      STORE OWNER PORTAL
   ══════════════════════════════════════════════════════ */
-  if (view === "owner_dash" && owner) {
+  if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
@@ -1950,7 +1974,7 @@ export default function App() {
       {id:"reports",   icon:"📈", l:"Reports"},
       {id:"locs",      icon:"📍", l:"Locations"},
       {id:"staff",     icon:"👥", l:"Staff"},
-      {id:"customers", icon:"🧑‍🤝‍🧑", l:"Customers"},
+      {id:"customers", icon:"👥", l:"Customers"},
       {id:"receipts",  icon:"🧾", l:"Receipts"},
       {id:"share",     icon:"📤", l:"Share Store"},
       {id:"billing",   icon:"💰", l:"Billing"},
@@ -1969,7 +1993,7 @@ export default function App() {
       <>
         {loading && <Spinner/>}
         {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
@@ -1989,7 +2013,7 @@ export default function App() {
       <>
         {notifOpen && <NotifInboxPanel notifs={notifInbox} onClose={()=>setNotifOpen(false)} onClear={()=>setNotifInbox([])}/>}
         <MobilePortal
-          storeName={owner.store.name} role="Store Owner"
+          storeName={owner&&owner.store?owner.store.name:""} role="Store Owner"
           tabs={otabs} activeTab={aTab} setTab={setATab}
           pendingCount={pendingBooks}
           onNewBooking={()=>setModal("newBook")}
@@ -2006,11 +2030,11 @@ export default function App() {
     /* ── DESKTOP LAYOUT ── */
     return (
       <div style={{ display:"flex", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+        
         {/* Sidebar */}
         <div style={{ width:220, background:M, color:WH, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh" }}>
           <div style={{ padding:"22px 20px 14px" }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner.store.name}</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:GOLD }}>{owner&&owner.store?owner.store.name:""}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>Store Owner</div>
             {pendingBooks>0 && <div style={{ marginTop:6, background:GOLD, color:BK, borderRadius:99, fontSize:11, fontWeight:700, padding:"3px 8px", display:"inline-block" }}>{pendingBooks} pending</div>}
           </div>
@@ -2105,7 +2129,7 @@ export default function App() {
   /* ── STAFF DESKTOP LAYOUT ── */
   return (
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh", background:G1, fontFamily:"'DM Sans',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      
       <NavBar/>
       <div style={{ background:WH, borderBottom:`1px solid ${G2}`, display:"flex", overflowX:"auto", flexShrink:0 }}>
         {ATABS.map(t=>(
@@ -2160,7 +2184,7 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
           onChange={e => setLoginF(f => ({ ...f, storeId: e.target.value.trim() }))}
           placeholder="e.g. ST3A9F2B"
           autoCapitalize="characters"
-          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "inherit", fontFamily: "monospace", letterSpacing: "1px" }}
+          style={{ width: "100%", padding: "9px 12px", border: `1px solid ${G2}`, borderRadius: 8, fontSize: 14, color: BK, outline: "none", boxSizing: "border-box", fontFamily: "monospace", letterSpacing: "1px" }}
         />
       </div>
       <div style={{ marginBottom: 13 }}>
@@ -2198,6 +2222,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
   const isNewOwner = locs.length === 0 && userRole === "Admin";
+  const [locPeriod, setLocPeriod] = useState("today");
 
   // ── Date helpers ──
   const today = new Date().toISOString().split("T")[0];
@@ -2222,7 +2247,7 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
   const monthBookCnt = monthBooks.length;
   const monthPending = monthBooks.reduce((s,b) => s + ((b.total||0)-(b.paid||0)), 0);
 
-  const monthName = now.toLocaleString("default", { month: "long" }) + " " + now.getFullYear();
+  const monthName = safeMonthName(now);
 
   return (
     <div>
@@ -2428,25 +2453,57 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
         )}
       </Card>
       {isReceptDash ? null : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-          {locs.map(function(loc) {
-            var lr = allRooms.filter(function(r) { return r.locId === loc.id; });
-            var lb = books.filter(function(b) { return b.locId === loc.id; });
-            var lrev = lb.reduce(function(s, b) { return s + b.paid; }, 0);
-            var lexp = exps.filter(function(e) { return e.locId === loc.id; }).reduce(function(s, e) { return s + e.amt; }, 0);
-            return (
-              <Card key={loc.id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                  <span style={{ fontSize: 22 }}>{loc.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div>
-                    <div style={{ fontSize: 11, color: G6 }}>{loc.city}</div>
+        <div>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+            <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:M2 }}>📍 By Location</span>
+            <div style={{ display:"flex", borderRadius:8, overflow:"hidden", border:"1px solid "+G22 }}>
+              {["today","month","all"].map(function(t) {
+                return (
+                  <button key={t} onClick={function(){setLocPeriod(t);}}
+                    style={{ padding:"5px 13px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", border:"none",
+                      background: locPeriod===t ? M2 : WH2, color: locPeriod===t ? WH2 : "#666" }}>
+                    {t==="today"?"Today":t==="month"?monthName:"All Time"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+            {locs.map(function(loc) {
+              var lr = allRooms.filter(function(r) { return r.locId === loc.id; });
+              var allLB = books.filter(function(b) { return b.locId === loc.id; });
+              var lb = locPeriod === "today"
+                ? allLB.filter(function(b) { return b.created && b.created.split("T")[0] === today; })
+                : locPeriod === "month"
+                ? allLB.filter(function(b) { return b.created && b.created.slice(0,7) === curMonth; })
+                : allLB;
+              var lrev = lb.filter(function(b){ return b.status !== "cancelled"; }).reduce(function(s,b) { return s + (b.paid||0); }, 0);
+              var allLE = exps.filter(function(e) { return e.locId === loc.id; });
+              var le = locPeriod === "today"
+                ? allLE.filter(function(e) { return e.date && e.date.split("T")[0] === today; })
+                : locPeriod === "month"
+                ? allLE.filter(function(e) { return e.date && e.date.slice(0,7) === curMonth; })
+                : allLE;
+              var lexp = le.reduce(function(s,e) { return s + (e.amt||0); }, 0);
+              return (
+                <Card key={loc.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                    <span style={{ fontSize: 22 }}>{loc.icon}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight: 700, fontFamily: "'Playfair Display',serif", fontSize: 14 }}>{loc.name}</div>
+                      <div style={{ fontSize: 11, color: G6 }}>{loc.city}</div>
+                    </div>
+                    <div style={{ fontSize:10, color: locPeriod==="today"?"#1565C0":locPeriod==="month"?"#2E7D32":"#888",
+                      background: locPeriod==="today"?"#E3F2FD":locPeriod==="month"?"#E8F5E9":"#F5F5F5",
+                      borderRadius:99, padding:"2px 8px", fontWeight:700 }}>
+                      {locPeriod==="today"?"Today":locPeriod==="month"?monthName:"All Time"}
+                    </div>
                   </div>
-                </div>
-                <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
-              </Card>
-            );
-          })}
+                  <LocStats lr={lr} lrev={lrev} lexp={lexp} lb={lb}/>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -2454,9 +2511,40 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
+  // deleteBooking is null for non-admin roles
+  const [filter, setFilter] = useState("active");  // default: hide checkedOut
+  const [search, setSearch] = useState("");
+  const [locFilter, setLocFilter]   = useState("");   // filter by location
+  const [roomFilter, setRoomFilter] = useState("");   // filter by room
+  const [editBook, setEditBook]     = useState(null); // booking being modified
+  const [sel, setSel] = useState(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payMethod, setPayMethod] = useState("");
+  // checkout / extend modal
+  const [coModal, setCoModal] = useState(null); // booking id
+  // extend form
+  const [extNights, setExtNights] = useState(1);
 
-function printPaymentReceipt(b, rm, storeName, isInvoice) {
-    if (!b) return;
+  const todayDate = td();
+
+  // "active" = all except checkedOut and cancelled
+  const filtered = books
+    .filter(b => {
+      const statusOk = filter === "all" ? true
+        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
+        : b.status === filter;
+      const locOk  = !locFilter  || b.locId  === locFilter;
+      const roomOk = !roomFilter || b.roomId === roomFilter;
+      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
+      return statusOk && locOk && roomOk && searchOk;
+    })
+    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
+
+  const selB = books.find(b => b.id === sel);
+  const selR = rooms.find(r => r.id === selB?.roomId);
+
+  const printPaymentReceipt = (b, rm, isInvoice=false) => {
     if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
     const w = window.open("", "_blank", "width=600,height=800");
@@ -2491,8 +2579,8 @@ function printPaymentReceipt(b, rm, storeName, isInvoice) {
       <div class="section-title">Customer Information</div>
       <div class="row"><span class="lbl">Full Name</span><span class="val">${b.gName||'—'}</span></div>
       <div class="row"><span class="lbl">Phone</span><span class="val">${b.gPhone||'—'}</span></div>
-      ${b.gEmail ? '<div class="row"><span class="lbl">Email</span><span class="val">'+b.gEmail+'</span></div>' : ''}
-      ${b.gNat ? '<div class="row"><span class="lbl">Nationality</span><span class="val">'+b.gNat+'</span></div>' : ''}
+      ${b.gEmail?'<div class=\'row\'><span class=\'lbl\'>Email</span><span class=\'val\'>'+b.gEmail+'</span></div>':''}
+      ${b.gNat?'<div class=\'row\'><span class=\'lbl\'>Nationality</span><span class=\'val\'>'+b.gNat+'</span></div>':''}
     </div>
     <div class="section">
       <div class="section-title">Booking Details</div>
@@ -2506,7 +2594,7 @@ function printPaymentReceipt(b, rm, storeName, isInvoice) {
       <div class="section-title">Payment Summary</div>
       <div class="row"><span class="lbl">Room Rate</span><span class="val">TZS ${Number(rm?.price||0).toLocaleString()}/night</span></div>
       <div class="row"><span class="lbl">Base Amount</span><span class="val">TZS ${Number(b.base||0).toLocaleString()}</span></div>
-      ${(b.disc&&b.disc>0) ? '<div class="row"><span class="lbl">Discount</span><span class="val" style="color:#2E7D32">-'+(b.discT==='pct'?b.disc+'%':'TZS '+Number(b.disc).toLocaleString())+'</span></div>' : ''}
+      ${(b.disc&&b.disc>0)?'<div class=\'row\'><span class=\'lbl\'>Discount</span><span class=\'val\' style=\'color:#2E7D32\'>-'+(b.discT==='pct'?b.disc+'%':'TZS '+Number(b.disc).toLocaleString())+'</span></div>':''}
     </div>
     <div class="total-box">
       <div class="row" style="border:none;padding:0"><span class="lbl">Total Amount</span><span class="val">TZS ${Number(b.total||0).toLocaleString()}</span></div>
@@ -2532,40 +2620,7 @@ function printPaymentReceipt(b, rm, storeName, isInvoice) {
     <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
     </body></html>`);
     w.document.close();
-  }
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
-  // deleteBooking is null for non-admin roles
-  const [filter, setFilter] = useState("active");  // default: hide checkedOut
-  const [search, setSearch] = useState("");
-  const [locFilter, setLocFilter]   = useState("");   // filter by location
-  const [roomFilter, setRoomFilter] = useState("");   // filter by room
-  const [editBook, setEditBook]     = useState(null); // booking being modified
-  const [sel, setSel] = useState(null);
-  const [payAmt, setPayAmt] = useState("");
-  const [payMethod, setPayMethod] = useState("");
-  // checkout / extend modal
-  const [coModal, setCoModal] = useState(null); // booking id
-  // extend form
-  const [extNights, setExtNights] = useState(1);
-
-  const todayDate = td();
-
-  // "active" = all except checkedOut and cancelled
-  const filtered = books
-    .filter(b => {
-      const statusOk = filter === "all" ? true
-        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
-        : b.status === filter;
-      const locOk  = !locFilter  || b.locId  === locFilter;
-      const roomOk = !roomFilter || b.roomId === roomFilter;
-      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
-      return statusOk && locOk && roomOk && searchOk;
-    })
-    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
-
-  const selB = books.find(b => b.id === sel);
-  const selR = rooms.find(r => r.id === selB?.roomId);
-
+  };
   useEffect(() => { if (selB) setPayMethod(selB.method || payMethods?.[0] || "Cash"); }, [sel]);
 
   // bookings due for checkout today (checkedIn and checkout date = today)
@@ -2838,10 +2893,10 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           )}
           {/* Print actions — always shown */}
           <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
-            <button onClick={() => printPaymentReceipt(selB, selR, storeName, false)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               🧾 Print Receipt
             </button>
-            <button onClick={() => printPaymentReceipt(selB, selR, storeName, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               📄 Print Invoice
             </button>
           </div>
@@ -3134,7 +3189,7 @@ function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, use
   const today2   = new Date().toISOString().split("T")[0];
   const now2     = new Date();
   const curMonth2= now2.getFullYear()+"-"+String(now2.getMonth()+1).padStart(2,"0");
-  const monthName2 = now2.toLocaleString("default",{month:"long"})+" "+now2.getFullYear();
+  const monthName2 = safeMonthName(now2);
 
   // ── Daily payment stats ──
   const todayPaidBooks = books.filter(b=>b.created&&b.created.split("T")[0]===today2&&b.status!=="cancelled");
@@ -5876,7 +5931,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       top: 0, left: 0, right: 0, bottom: 0,
     }}>
       {/* ── TOP BAR ── */}
-      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:"max(env(safe-area-inset-top), 14px)", paddingBottom:10, flexShrink:0, zIndex:300 }}>
+      <div style={{ background:BG, color:"#FFF", display:"flex", alignItems:"center", justifyContent:"space-between", paddingLeft:14, paddingRight:14, paddingTop:14, paddingBottom:10, flexShrink:0, zIndex:300 }}>
         {/* Left: hamburger + title */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setDrawerOpen(true)}
@@ -5908,7 +5963,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
           <div style={{ position:"fixed", top:0, left:0, bottom:0, width:280, background:"#1a1a1a", zIndex:500, display:"flex", flexDirection:"column", animation:"slideIn .22s ease" }}>
             <style>{`@keyframes slideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}`}</style>
             {/* Drawer header */}
-            <div style={{ background:BG, padding:"max(env(safe-area-inset-top),20px) 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ background:BG, padding:"20px 20px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div>
                 <div style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:"#C9A84C" }}>{storeName}</div>
                 <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:2 }}>{role}</div>
@@ -5928,7 +5983,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
               ))}
             </div>
             {/* Drawer footer */}
-            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,.08)", paddingBottom:"max(env(safe-area-inset-bottom),12px)" }}>
+            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,.08)", paddingBottom:12 }}>
               <button onClick={onLogout}
                 style={{ width:"100%", padding:"11px", borderRadius:8, border:"1px solid rgba(255,255,255,.15)", background:"transparent", color:"rgba(255,255,255,.6)", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                 Sign Out
@@ -5944,7 +5999,7 @@ function MobilePortal({ storeName, role, tabs, activeTab, setTab, pendingCount, 
       </div>
 
       {/* ── BOTTOM NAV (4 tabs + menu) ── */}
-      <div style={{ flexShrink:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:"max(env(safe-area-inset-bottom), 4px)" }}>
+      <div style={{ flexShrink:0, background:"#FFF", borderTop:"2px solid #E8E8E8", display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:200, paddingBottom:4 }}>
         {bottomTabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{ padding:"8px 2px 6px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
@@ -6873,15 +6928,15 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 </div>
 </body></html>`);
     w.document.close();
-  }
+  };
 
   const printFullStayReceipt = (b) => {
     const rm  = rooms.find(r => r.id === b.roomId);
     const loc = locs.find(l => l.id === b.locId);
     const bal = (b.total||0) - (b.paid||0);
-    const today = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-    const w = window.open('','_blank','width=650,height=900');
-    if (!w) { pop('Please allow popups to print','err'); return; }
+    const today = new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    const w = window.open("","_blank","width=650,height=900");
+    if (!w) { pop("Please allow popups to print receipts","err"); return; }
     w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -6892,16 +6947,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff}
 .logo-sub{font-size:11px;color:#999;margin-top:3px}
 .doc-h1{font-size:20px;font-weight:900;color:#6B1B2A;text-align:right;text-transform:uppercase}
 .doc-ref{font-size:12px;color:#888;text-align:right;margin-top:4px}
-.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:12px 16px;margin-bottom:18px}
-.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.guest-box{background:#F9F6F0;border-left:4px solid #6B1B2A;padding:12px 16px;margin-bottom:18px;border-radius:0 8px 8px 0}
+.guest-box h3{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;font-weight:700}
 .guest-box p{font-size:14px;line-height:1.9}
 table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px}
-th{background:#6B1B2A;color:#fff;padding:9px 12px;text-align:left;font-size:11px}
+th{background:#6B1B2A;color:#fff;padding:9px 12px;text-align:left;font-size:11px;letter-spacing:.06em}
 td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
 .right{text-align:right}
 .totals{background:#6B1B2A;color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:10px}
 .totals .row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px}
-.totals .big{font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;margin-top:7px}
+.totals .row.big{font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;margin-top:7px}
 .status{border-radius:8px;padding:11px 16px;margin-bottom:18px;text-align:center;font-weight:700;font-size:14px}
 .paid{background:#E8F5E9;color:#2E7D32}.balance{background:#FFEBEE;color:#C62828}
 .footer{margin-top:22px;text-align:center;font-size:11px;color:#999;line-height:1.9;border-top:1px solid #eee;padding-top:14px}
@@ -6914,37 +6969,37 @@ td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
 <div class="guest-box">
   <h3>Guest Information</h3>
   <p><strong>${b.gName||'—'}</strong><br/>
-  ${b.gPhone ? '📞 '+b.gPhone+'<br/>' : ''}${b.gEmail ? '✉ '+b.gEmail+'<br/>' : ''}${b.gNat ? '🌍 '+b.gNat : ''}</p>
+  ${b.gPhone?'📞 '+b.gPhone+'<br/>':''}${b.gEmail?'✉ '+b.gEmail+'<br/>':''}${b.gNat?'🌍 '+b.gNat:''}</p>
 </div>
 <table>
   <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Rate/Night</th><th class="right">Amount</th></tr></thead>
   <tbody>
     <tr>
-      <td><strong>${rm ? rm.name : '—'}</strong><br/><span style="font-size:11px;color:#888">${rm ? rm.type : ''} · ${loc ? loc.name : ''}</span></td>
+      <td><strong>${rm?rm.name:'—'}</strong><br/><span style="font-size:11px;color:#888">${rm?rm.type:''} · ${loc?loc.name:''}</span></td>
       <td>${b.ci||'—'}</td><td>${b.co||'—'}</td>
       <td style="text-align:center">${b.nights||1}</td>
-      <td>TZS ${Number(rm ? rm.price : 0).toLocaleString()}</td>
+      <td>TZS ${Number(rm?rm.price:0).toLocaleString()}</td>
       <td class="right">TZS ${Number(b.base||b.total||0).toLocaleString()}</td>
     </tr>
-    ${(b.disc||0)>0 ? '<tr><td colspan="5" style="color:#B76E00;font-size:12px">Discount applied</td><td class="right" style="color:#B76E00">- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>' : ''}
+    ${(b.disc||0)>0?'<tr><td colspan=\'5\' style=\'color:#B76E00;font-size:12px\'>Discount applied</td><td class=\'right\' style=\'color:#B76E00\'>- TZS '+Number((b.base||0)-(b.total||0)).toLocaleString()+'</td></tr>':''}
   </tbody>
 </table>
 <div class="totals">
   <div class="row"><span>Total Charges</span><span>TZS ${Number(b.total||0).toLocaleString()}</span></div>
   <div class="row"><span>Amount Paid</span><span>TZS ${Number(b.paid||0).toLocaleString()}</span></div>
-  <div class="row big"><span>${bal>0 ? 'Balance Due' : 'Total Paid'}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
+  <div class="row big"><span>${bal>0?'Balance Due':'Total Paid'}</span><span>TZS ${Number(Math.abs(bal)).toLocaleString()}</span></div>
 </div>
-<div class="status ${bal>0 ? 'balance' : 'paid'}">
-  ${bal>0 ? '⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString() : '✅ Fully Paid — Thank You!'}
+<div class="status ${bal>0?'balance':'paid'}">
+  ${bal>0?'⚠️ Balance Remaining: TZS '+Number(bal).toLocaleString():'✅ Fully Paid — Thank You!'}
 </div>
-${b.notes ? '<div style="margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;padding:11px 14px">' + b.notes + '</div>' : ''}
-<div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS</div>
+${b.notes?'<div style=\'margin-bottom:16px;font-size:13px;color:#555;background:#f9f9f9;border-radius:8px;padding:11px 14px\'><strong>Notes:</strong> '+b.notes+'</div>':''}
+<div class="footer">Thank you for your stay at <strong>${storeName||'our property'}</strong>.<br/>Powered by BNBMIS · www.bnbmis.com</div>
 <br/>
 <button class="no-print" onclick="window.print()" style="background:#6B1B2A;color:#fff;border:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px">🖨 Print</button>
 <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 20px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
 </div></body></html>`);
     w.document.close();
-  };;
+  };
 
   return (
     <div>
@@ -7045,7 +7100,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         display:"flex", flexDirection:"column",
       }}>
         {/* Header */}
-        <div style={{ background:M2, color:WH2, padding:"16px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:"max(env(safe-area-inset-top),16px)", flexShrink:0 }}>
+        <div style={{ background:M2, color:WH2, padding:"16px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:16, flexShrink:0 }}>
           <div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>🔔 Notifications</div>
             <div style={{ fontSize:11, opacity:.7, marginTop:2 }}>{notifs.length} total · {notifs.filter(n=>!n.read).length} unread</div>
@@ -7102,7 +7157,7 @@ function NotifInboxPanel({ notifs, onClose, onClear }) {
         </div>
 
         {/* Footer tip */}
-        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"max(12px,env(safe-area-inset-bottom))" }}>
+        <div style={{ padding:"12px 18px", borderTop:`1px solid ${G22}`, background:G12, flexShrink:0, paddingBottom:"8px" }}>
           <div style={{ fontSize:11, color:G62, lineHeight:1.7 }}>
             💡 Notifications work even when this tab is in the background. Make sure notifications are <strong>allowed</strong> in your browser settings for the best experience.
           </div>
