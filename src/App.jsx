@@ -556,7 +556,14 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [custModal, setCustModal] = useState(null);
   const [toast, setToast] = useState(null);
-  const [loading, setLoading] = useState(false);
+  // Start loading=true if a session exists so we don't flash empty/new-store screen
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !!(localStorage.getItem("bnbmis_owner") ||
+                localStorage.getItem("bnbmis_staff") ||
+                localStorage.getItem("bnbmis_super"));
+    } catch { return false; }
+  });
   const [custBooks, setCustBooks] = useState([]);
   const [custLoading, setCustLoading] = useState(false);
   const [custTab, setCustTab] = useState("bookings");
@@ -1991,7 +1998,7 @@ export default function App() {
     const content = (
       <>
         {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin" isLoading={loading}/>}
         {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
         {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
@@ -2091,7 +2098,7 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role} isLoading={loading}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
       {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
@@ -2217,10 +2224,10 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole, isLoading }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
-  const isNewOwner = locs.length === 0 && userRole === "Admin";
+  const isNewOwner = locs.length === 0 && userRole === "Admin" && !isLoading;
   const [locPeriod, setLocPeriod] = useState("today");
 
   // ── Date helpers ──
@@ -4689,7 +4696,14 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
 function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop, bookingIntent }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", nationality: "", password: "", confirm: "" });
   const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(false);
+  // Start loading=true if a session exists so we don't flash empty/new-store screen
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !!(localStorage.getItem("bnbmis_owner") ||
+                localStorage.getItem("bnbmis_staff") ||
+                localStorage.getItem("bnbmis_super"));
+    } catch { return false; }
+  });
 
   const doLogin = async () => {
     setErr(""); setLoading(true);
@@ -6610,7 +6624,14 @@ function SuperComms({ stores, api, pop }) {
 /* ─── SUPER: PLATFORM REPORTS ────────────────────────────── */
 function SuperReports({ stores, api, pop, fmt, fmtDate }) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  // Start loading=true if a session exists so we don't flash empty/new-store screen
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !!(localStorage.getItem("bnbmis_owner") ||
+                localStorage.getItem("bnbmis_staff") ||
+                localStorage.getItem("bnbmis_super"));
+    } catch { return false; }
+  });
 
   const load = async () => {
     setLoading(true);
