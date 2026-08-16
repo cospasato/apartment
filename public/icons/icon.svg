@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#6B1B2A"/>
+  <rect x="40" y="40" width="432" height="432" rx="60" fill="#4A1019"/>
+  <!-- Building icon -->
+  <rect x="106" y="200" width="300" height="220" rx="8" fill="#C9A84C"/>
+  <rect x="126" y="180" width="260" height="40" rx="6" fill="#E8C96A"/>
+  <!-- Roof -->
+  <polygon points="256,80 80,200 432,200" fill="#C9A84C"/>
+  <!-- Door -->
+  <rect x="216" y="320" width="80" height="100" rx="6" fill="#4A1019"/>
+  <!-- Windows -->
+  <rect x="130" y="240" width="60" height="50" rx="4" fill="rgba(255,255,255,0.3)"/>
+  <rect x="322" y="240" width="60" height="50" rx="4" fill="rgba(255,255,255,0.3)"/>
+  <rect x="130" y="310" width="60" height="50" rx="4" fill="rgba(255,255,255,0.3)"/>
+  <rect x="322" y="310" width="60" height="50" rx="4" fill="rgba(255,255,255,0.3)"/>
+  <!-- BNB text -->
+  <text x="256" y="460" font-family="Georgia,serif" font-size="52" font-weight="900" fill="#C9A84C" text-anchor="middle">BNB</text>
+</svg>
