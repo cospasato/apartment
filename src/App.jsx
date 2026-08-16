@@ -833,12 +833,12 @@ export default function App() {
         (u?.role === "Admin" || u?.role === "Manager") ? api.getStaff(storeIdToUse) : Promise.resolve([]),
         api.getPayMethods(storeIdToUse).catch(()=>[]),
       ]);
-      if (l?.length) setLocs(l.map(mapLoc));
-      if (r?.length) setRooms(r.map(mapRoom));
-      if (b?.length) setBooks(b.map(mapBook));
-      if (e?.length) setExps(e.map(mapExp));
-      if (s?.length) setStaff(s.map(mapStaff));
-      if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
+      setLocs(Array.isArray(l) ? l.map(mapLoc) : []);
+      setRooms(Array.isArray(r) ? r.map(mapRoom) : []);
+      setBooks(Array.isArray(b) ? b.map(mapBook) : []);
+      setExps(Array.isArray(e) ? e.map(mapExp) : []);
+      if (Array.isArray(s) && s.length) setStaff(s.map(mapStaff));
+      if (Array.isArray(pm)) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
     } catch {
       console.warn("DB not reachable");
     } finally {
@@ -909,8 +909,6 @@ export default function App() {
 
   // On app start: reload data for whoever is already logged in (from localStorage)
   useEffect(() => {
-    if (user)       { loadAll(user, user.storeId); }
-    if (owner)      { loadAll(null, owner.store?.id); }
     if (superAdmin) { loadSuperData(); }
     if (customer)   { loadCustBooks(customer.id); }
   }, []);
@@ -1511,8 +1509,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
