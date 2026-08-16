@@ -1,157 +1,227 @@
-# BNBMIS — BNB Management Information System
+# Shopify Marketplace Platform
 
-A multi-tenant SaaS platform for apartment and lodge management. Built with React + Vite, Vercel serverless functions, and Neon PostgreSQL.
-
----
-
-## 🚀 Quick Deployment (5 steps)
-
-### Step 1 — Set up the database (Neon)
-1. Go to [neon.tech](https://neon.tech) and create a free project
-2. In your Neon dashboard, click **SQL Editor**
-3. Paste the entire contents of `schema.sql` and click **Run**
-4. You should see tables created successfully
-5. Copy your **Connection String** (starts with `postgresql://`)
-
-### Step 2 — Push to GitHub
-```bash
-git init
-git add .
-git commit -m "Initial BNBMIS commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/bnbmis.git
-git push -u origin main
-```
-
-### Step 3 — Deploy to Vercel
-1. Go to [vercel.com](https://vercel.com) and sign in
-2. Click **New Project** → **Import from GitHub**
-3. Select your `bnbmis` repository
-4. Vercel will auto-detect the Vite settings
-5. Before clicking Deploy, go to **Environment Variables** and add:
-   ```
-   DATABASE_URL = postgresql://your-neon-connection-string
-   ```
-6. Click **Deploy**
-
-### Step 4 — Verify deployment
-Visit `https://your-project.vercel.app/api/stores?action=setup` — you should see:
-```json
-{ "ok": true, "tables": [...] }
-```
-
-### Step 5 — First login
-- Visit your deployed URL
-- Click **Sign In** → **Super Admin**
-- Email: `admin@bnbmis.com`
-- Password: `Admin@2024!`
-- **Immediately go to Settings → Change Password**
+A full-stack Next.js marketplace that aggregates products from multiple Shopify stores into one unified browsing experience. Shoppers browse natively, click a product, and the store opens in an embedded viewer — they never leave your platform.
 
 ---
 
-## 👥 User Access
+## Features
 
-### Super Admin (you)
-- URL: your-site.vercel.app
-- Click Sign In → Super Admin
-- Credentials set in `schema.sql` (change after first login)
-
-### Store Owners
-- Register at: your-site.vercel.app → "List Your Property"
-- Or: Sign In → Store Owner
-- After registration, they get 14-day free trial
-
-### Store Staff
-- Sign In → Staff Login
-- Requires: **Store ID** (shown in owner portal) + email + PIN
-- Store owner must create staff accounts and share the Store ID
-
-### Guests (customers)
-- Browse properties on the homepage
-- Click any room → "Book Now" → creates account or logs in
+- **Homepage** — hero section, partner store grid, featured random products
+- **Products page** — unified product feed with filters (store, category, price, sort)
+- **Search page** — live cross-store search with 400ms debounce
+- **Embedded store viewer** — iFrame viewer with your platform nav always on top
+- **Admin panel** — add/edit/delete stores, manual sync, real-time stats, sync logs
+- **Webhook receiver** — auto-syncs product data when stores update Shopify
+- **Prisma + Postgres** — full persistence, no in-memory state
 
 ---
 
-## 📁 Project Structure
+## Tech Stack
 
-```
-bnbmis/
-├── api/                    # Vercel serverless functions
-│   ├── _db.js             # Database connection + auth helpers
-│   ├── auth.js            # Login for super/owner/staff
-│   ├── stores.js          # Store CRUD + marketplace
-│   ├── subscriptions.js   # Subscription plans + billing
-│   ├── platform.js        # Platform settings
-│   ├── locations.js       # Location management
-│   ├── rooms.js           # Room management
-│   ├── bookings.js        # Full booking lifecycle
-│   ├── staff.js           # Staff + payment methods
-│   ├── expenses.js        # Expense logging
-│   ├── reports.js         # Financial reports
-
-│   ├── reviews.js         # Reviews
-
-├── src/
-│   ├── App.jsx            # Main React app (all portals)
-│   ├── api.js             # Frontend API client
-│   └── main.jsx           # React entry point
-├── schema.sql             # Full database schema + seed data
-├── vercel.json            # Vercel routing config
-├── vite.config.js         # Vite build config
-└── package.json
-```
+| | |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Shopify API | Storefront API (public, no OAuth needed) |
+| Database | PostgreSQL via Prisma ORM |
+| Styling | CSS Variables + inline styles (dark theme) |
+| Deployment | Vercel (recommended) |
 
 ---
 
-## 🔑 Authentication System
+## Setup
 
-Tokens are base64-encoded strings: `type:id:storeId`
-
-| Token Type | Format | Who |
-|-----------|--------|-----|
-| `super:SA001` | Super admin | You |
-| `owner:OWN123:ST456` | Store owner | Apartment owner |
-| `staff:S789:ST456` | Staff | Receptionist/manager |
-
-Customers use a separate session in `bnbmis_customer` localStorage.
-
----
-
-## 💳 Subscription Plans (defaults)
-
-| Plan | Monthly | Locations | Rooms | Staff |
-|------|---------|-----------|-------|-------|
-| Free Trial | TZS 0 | 1 | 5 | 2 |
-| Starter | TZS 29,000 | 2 | 15 | 5 |
-| Professional | TZS 79,000 | 10 | 50 | 20 |
-| Enterprise | TZS 199,000 | ∞ | ∞ | ∞ |
-
-Edit these in Super Admin → Plans.
-
----
-
-## 🛠 Local Development
+### 1. Clone and install
 
 ```bash
+git clone <your-repo>
+cd marketplace
 npm install
-# Create .env file:
-echo "DATABASE_URL=your-neon-connection-string" > .env
+```
+
+### 2. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Fill in `.env`:
+
+```env
+DATABASE_URL="postgresql://user:password@host:5432/marketplace"
+NEXT_PUBLIC_APP_URL="https://your-marketplace.com"
+SHOPIFY_WEBHOOK_SECRET="generate-a-random-secret"
+ADMIN_SECRET_KEY="your-admin-password"
+```
+
+### 3. Set up the database
+
+```bash
+npm run db:migrate     # Run migrations
+# or for fast prototyping:
+npm run db:push        # Push schema directly (no migration files)
+```
+
+### 4. Run locally
+
+```bash
 npm run dev
-# Visit http://localhost:5173
+```
+
+Open http://localhost:3000
+
+---
+
+## Connecting Your First Store
+
+### Step 1 — Get a Storefront API token from each client store
+
+1. Go to **Shopify Admin** → Settings → Apps and sales channels
+2. Click **Develop apps** → Create an app (name it "Marketplace")
+3. Click **Configure Storefront API scopes**
+4. Enable: `unauthenticated_read_product_listings`, `unauthenticated_read_product_inventory`
+5. Click **Save** → **Install app**
+6. Copy the **Storefront API access token**
+
+### Step 2 — Add the store in Admin
+
+1. Go to `/admin` on your marketplace
+2. Enter your admin password
+3. Click **+ Add Store** tab
+4. Fill in: Shopify domain, store name, and the token from Step 1
+5. Click **Add store**
+6. Click **Sync** to pull products immediately
+
+### Step 3 — Configure iFrame embedding (important!)
+
+Shopify blocks iFrame embedding by default. Since you manage these stores, add this to each store's `theme.liquid` in the `<head>` section:
+
+```html
+<meta http-equiv="Content-Security-Policy"
+  content="frame-ancestors 'self' https://your-marketplace.com;">
+```
+
+Or ask your client to add it, or inject it via a Shopify app script.
+
+---
+
+## Webhook Setup (Auto-sync)
+
+Register webhooks so your marketplace auto-updates when a client changes their products.
+
+### Option A — Register via Shopify Admin
+
+For each connected store, go to Shopify Admin → Settings → Notifications → Webhooks and add:
+
+| Topic | URL |
+|---|---|
+| products/create | `https://your-marketplace.com/api/webhooks` |
+| products/update | `https://your-marketplace.com/api/webhooks` |
+| products/delete | `https://your-marketplace.com/api/webhooks` |
+
+Set the webhook secret to match `SHOPIFY_WEBHOOK_SECRET` in your `.env`.
+
+### Option B — Register via Shopify API (programmatic)
+
+```bash
+curl -X POST https://YOUR-STORE.myshopify.com/admin/api/2024-10/webhooks.json \
+  -H "X-Shopify-Access-Token: YOUR-ADMIN-TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook": {
+      "topic": "products/update",
+      "address": "https://your-marketplace.com/api/webhooks",
+      "format": "json"
+    }
+  }'
+```
+
+Repeat for `products/create` and `products/delete`.
+
+---
+
+## Project Structure
+
+```
+marketplace/
+├── app/
+│   ├── page.jsx                    # Homepage
+│   ├── layout.jsx                  # Root layout + navbar
+│   ├── globals.css                 # Design system (dark theme)
+│   ├── products/
+│   │   ├── page.jsx                # Server: fetch products + filters
+│   │   └── ProductsClient.jsx      # Client: filter UI + grid
+│   ├── search/page.jsx             # Live cross-store search
+│   ├── store/[shopDomain]/page.jsx # Embedded store viewer
+│   ├── admin/
+│   │   ├── layout.jsx              # Admin auth gate
+│   │   ├── AdminAuth.jsx           # Password protection
+│   │   └── page.jsx                # Full admin panel
+│   └── api/
+│       ├── products/route.js       # GET products with filters
+│       ├── webhooks/route.js       # Shopify webhook receiver
+│       └── admin/
+│           ├── auth/route.js       # Admin login
+│           ├── stores/route.js     # CRUD stores
+│           ├── stores/[id]/route.js
+│           ├── sync/route.js       # Trigger sync
+│           ├── stats/route.js      # Dashboard stats
+│           └── logs/route.js       # Sync history
+├── components/
+│   ├── layout/Navbar.jsx
+│   └── ui/ProductCard.jsx
+├── lib/
+│   ├── db.js                       # Prisma singleton
+│   ├── shopify.js                  # Storefront API client
+│   └── aggregator.js               # Product sync + queries
+└── prisma/schema.prisma
 ```
 
 ---
 
-## 🔒 Security Notes
+## Deployment to Vercel
 
-- Passwords are stored as plain text in demo mode — add bcrypt hashing before production
-- The `DATABASE_URL` must ONLY be in Vercel environment variables — never commit it to GitHub
-- Change the super admin password immediately after first deployment
-- Store IDs are needed for staff login — keep them private within your team
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+Set all environment variables in the Vercel dashboard under **Settings → Environment Variables**.
+
+For the database, use [Neon](https://neon.tech) (free Postgres, works perfectly with Vercel) or [Supabase](https://supabase.com).
+
+After deploying, update `NEXT_PUBLIC_APP_URL` to your production URL and re-register webhooks with the production URL.
 
 ---
 
-## 📞 Support
+## Shopper Journey
 
-Built on top of BNC Lodge system. For issues, check Vercel function logs:
-Vercel Dashboard → Your Project → Functions → View logs
+```
+Land on marketplace homepage
+    ↓
+Browse partner stores + random featured products
+    ↓
+Go to /products — filter by store, category, price
+    ↓
+Search across all stores at /search
+    ↓
+Click a product card
+    ↓
+Store opens in embedded viewer (your nav bar stays on top)
+    ↓
+Shopper browses, adds to cart, checks out (on Shopify store)
+    ↓
+Click "← Marketplace" to return — still in your ecosystem
+```
+
+---
+
+## Admin Panel Guide
+
+| Action | How |
+|---|---|
+| Add a store | Admin → "+ Add Store" tab → fill form |
+| Edit a store | Admin → Stores tab → Edit button |
+| Remove a store | Admin → Stores tab → ✕ → Confirm |
+| Manual sync | Admin → Stores tab → Sync (single) or "Sync All Stores" button |
+| View sync history | Admin → Sync Logs tab |
+| Stats overview | Top of admin page — stores, products, sync count |
