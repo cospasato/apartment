@@ -1231,8 +1231,9 @@ export default function App() {
     { id:"profile", label:"My Profile",icon:"👤" },
   ];
 
+  const storeName = (mktSelStore && mktSelStore.name) || (owner && owner.store && owner.store.name) || (user && user.storeName) || "BNBMIS";
+
   const NavBar = () => {
-    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
