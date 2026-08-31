@@ -2512,45 +2512,13 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 }
 
 /* ─── BOOKINGS TAB ───────────────────────────────────────── */
-function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
-  // deleteBooking is null for non-admin roles
-  const [filter, setFilter] = useState("active");  // default: hide checkedOut
-  const [search, setSearch] = useState("");
-  const [locFilter, setLocFilter]   = useState("");   // filter by location
-  const [roomFilter, setRoomFilter] = useState("");   // filter by room
-  const [editBook, setEditBook]     = useState(null); // booking being modified
-  const [sel, setSel] = useState(null);
-  const [payAmt, setPayAmt] = useState("");
-  const [payMethod, setPayMethod] = useState("");
-  // checkout / extend modal
-  const [coModal, setCoModal] = useState(null); // booking id
-  // extend form
-  const [extNights, setExtNights] = useState(1);
 
-  const todayDate = td();
-
-  // "active" = all except checkedOut and cancelled
-  const filtered = books
-    .filter(b => {
-      const statusOk = filter === "all" ? true
-        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
-        : b.status === filter;
-      const locOk  = !locFilter  || b.locId  === locFilter;
-      const roomOk = !roomFilter || b.roomId === roomFilter;
-      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
-      return statusOk && locOk && roomOk && searchOk;
-    })
-    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
-
-  const selB = books.find(b => b.id === sel);
-  const selR = rooms.find(r => r.id === selB?.roomId);
-
-  const printPaymentReceipt = (b, rm, isInvoice=false) => {
+function printPaymentReceipt(b, rm, storeName, isInvoice) {
     if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
-    const w = window.open("", "_blank", "width=600,height=800");
+    const w = window.open("", "_blank");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><meta name='viewport' content='width=device-width,initial-scale=1'><style>
       *{box-sizing:border-box}
       body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
       .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
@@ -2621,7 +2589,40 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
     <button class="no-print" onclick="window.close()" style="background:#eee;color:#333;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer">Close</button>
     </body></html>`);
     w.document.close();
-  };
+  }
+function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBooking, modifyBooking, onNew, pop, user, payMethods, bookedDates, storeName }) {
+  // deleteBooking is null for non-admin roles
+  const [filter, setFilter] = useState("active");  // default: hide checkedOut
+  const [search, setSearch] = useState("");
+  const [locFilter, setLocFilter]   = useState("");   // filter by location
+  const [roomFilter, setRoomFilter] = useState("");   // filter by room
+  const [editBook, setEditBook]     = useState(null); // booking being modified
+  const [sel, setSel] = useState(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payMethod, setPayMethod] = useState("");
+  // checkout / extend modal
+  const [coModal, setCoModal] = useState(null); // booking id
+  // extend form
+  const [extNights, setExtNights] = useState(1);
+
+  const todayDate = td();
+
+  // "active" = all except checkedOut and cancelled
+  const filtered = books
+    .filter(b => {
+      const statusOk = filter === "all" ? true
+        : filter === "active" ? !["checkedOut","cancelled"].includes(b.status)
+        : b.status === filter;
+      const locOk  = !locFilter  || b.locId  === locFilter;
+      const roomOk = !roomFilter || b.roomId === roomFilter;
+      const searchOk = !search || b.gName.toLowerCase().includes(search.toLowerCase()) || b.id.toLowerCase().includes(search.toLowerCase());
+      return statusOk && locOk && roomOk && searchOk;
+    })
+    .sort((a, b) => new Date(b.created||0) - new Date(a.created||0));
+
+  const selB = books.find(b => b.id === sel);
+  const selR = rooms.find(r => r.id === selB?.roomId);
+
   useEffect(() => { if (selB) setPayMethod(selB.method || payMethods?.[0] || "Cash"); }, [sel]);
 
   // bookings due for checkout today (checkedIn and checkout date = today)
@@ -2894,10 +2895,10 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
           )}
           {/* Print actions — always shown */}
           <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
-            <button onClick={() => printPaymentReceipt(selB, selR)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, storeName, false)} style={{ flex:1, background:INB, color:IN, border:`1px solid ${IN}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               🧾 Print Receipt
             </button>
-            <button onClick={() => printPaymentReceipt(selB, selR, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <button onClick={() => printPaymentReceipt(selB, selR, storeName, true)} style={{ flex:1, background:MF, color:M, border:`1px solid ${M}`, borderRadius:8, padding:"9px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               📄 Print Invoice
             </button>
           </div>
