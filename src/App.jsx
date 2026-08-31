@@ -1918,6 +1918,7 @@ export default function App() {
       {id:"comms",     l:"📣 Announcements"},
       {id:"reports",   l:"📈 Reports"},
       {id:"settings",  l:"⚙️ Settings"},
+      {id:"users",      l:"👥 Users"},
     ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
@@ -1952,6 +1953,7 @@ export default function App() {
             {sTab==="comms"    && <SuperComms stores={stores} api={api} pop={pop}/>}
             {sTab==="reports"  && <SuperReports stores={stores} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="settings" && <SuperSettings superAdmin={superAdmin} api={api} pop={pop}/>}
+            {sTab==="users"    && <SuperUsers api={api} pop={pop}/>}
           </div>
         </div>
         {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000 }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
@@ -5544,6 +5546,192 @@ function SuperPlans({ plans, onRefresh, api, pop, fmt }) {
             </button>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+function SuperUsers({ api, pop }) {
+  const [users, setUsers]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm]       = useState(null); // null=closed, {}=new, {id,...}=edit
+  const [saving, setSaving]   = useState(false);
+  const M="#6B1B2A",WH="#FFF",G1="#F5F5F5",G2="#E8E8E8",G6="#666",OK="#2E7D32",ER="#C62828";
+
+  const ROLES = ["Super","Manager","Support","Finance","Technical"];
+  const ALL_PERMS = ["stores","billing","plans","payments","reports","comms","featured","gateways","users"];
+
+  const load = async () => {
+    setLoading(true);
+    try { setUsers(await api.getAdminUsers()); }
+    catch(e) { pop(e.message,"err"); }
+    finally { setLoading(false); }
+  };
+  useEffect(()=>{ load(); },[]);
+
+  const save = async () => {
+    if (!form.name||!form.email) return pop("Name and email required","err");
+    if (!form.id && !form.password) return pop("Password required for new user","err");
+    setSaving(true);
+    try {
+      const data = {
+        name: form.name, email: form.email, role: form.role||"Support",
+        permissions: form.permissions||["stores","billing"],
+        active: form.active!==false,
+        ...(form.password ? {password: form.password} : {})
+      };
+      if (form.id) { await api.updateAdminUser(form.id, data); pop("User updated"); }
+      else         { await api.createAdminUser(data);           pop("User created"); }
+      setForm(null); load();
+    } catch(e) { pop(e.message,"err"); }
+    finally { setSaving(false); }
+  };
+
+  const del = async (u) => {
+    if (!confirm(`Delete ${u.name}?`)) return;
+    try { await api.deleteAdminUser(u.id); pop("User deleted"); load(); }
+    catch(e) { pop(e.message,"err"); }
+  };
+
+  const togglePerm = (perm) => {
+    const perms = form.permissions||[];
+    setForm(f=>({...f, permissions: perms.includes(perm) ? perms.filter(p=>p!==perm) : [...perms, perm]}));
+  };
+
+  const roleColor = {Super:"#6B1B2A",Manager:"#1565C0",Support:"#2E7D32",Finance:"#B76E00",Technical:"#6A1B9A"};
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 4px"}}>Platform Users</h2>
+          <div style={{fontSize:13,color:G6}}>Manage your internal team who can access the admin panel</div>
+        </div>
+        <button onClick={()=>setForm({name:"",email:"",password:"",role:"Support",permissions:["stores","billing"],active:true})}
+          style={{background:M,color:WH,border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          + Add User
+        </button>
+      </div>
+
+      {loading ? <div style={{textAlign:"center",padding:40,color:G6}}>Loading…</div> : (
+        <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{borderBottom:`2px solid ${G2}`,background:G1}}>
+                {["Name","Email","Role","Permissions","Status","Last Login","Actions"].map(h=>(
+                  <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!users.length && (
+                <tr><td colSpan={7} style={{padding:32,textAlign:"center",color:G6}}>No users yet. Add your first team member.</td></tr>
+              )}
+              {users.map((u,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${G2}`,background:u.active?WH:"#FFF8F8"}}>
+                  <td style={{padding:"12px 14px"}}>
+                    <div style={{fontWeight:700}}>{u.name}</div>
+                    {!u.active && <div style={{fontSize:11,color:ER}}>Inactive</div>}
+                  </td>
+                  <td style={{padding:"12px 14px",color:G6,fontSize:12}}>{u.email}</td>
+                  <td style={{padding:"12px 14px"}}>
+                    <span style={{background:roleColor[u.role]||G6,color:WH,borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:700}}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td style={{padding:"12px 14px"}}>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                      {(u.permissions||[]).map(p=>(
+                        <span key={p} style={{background:G1,border:`1px solid ${G2}`,borderRadius:4,padding:"1px 7px",fontSize:10,color:G6,textTransform:"capitalize"}}>{p}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{padding:"12px 14px"}}>
+                    <span style={{color:u.active?OK:ER,fontWeight:700,fontSize:12}}>{u.active?"Active":"Inactive"}</span>
+                  </td>
+                  <td style={{padding:"12px 14px",fontSize:12,color:G6}}>
+                    {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
+                  </td>
+                  <td style={{padding:"12px 14px"}}>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={()=>setForm({...u,password:""})}
+                        style={{background:"#E3F2FD",color:"#1565C0",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>Edit</button>
+                      <button onClick={()=>api.updateAdminUser(u.id,{active:!u.active}).then(()=>{pop(u.active?"User deactivated":"User activated");load();})}
+                        style={{background:u.active?"#FFF3E0":"#E8F5E9",color:u.active?"#B76E00":"#2E7D32",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>
+                        {u.active?"Deactivate":"Activate"}
+                      </button>
+                      <button onClick={()=>del(u)}
+                        style={{background:"#FFEBEE",color:ER,border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Add/Edit Modal ── */}
+      {form && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:WH,borderRadius:14,padding:28,width:"100%",maxWidth:520,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:19,margin:0}}>{form.id?"Edit User":"New Platform User"}</h3>
+              <button onClick={()=>setForm(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:G6}}>✕</button>
+            </div>
+
+            {[{l:"Full Name *",k:"name",t:"text",ph:"e.g. John Mwakasege"},
+              {l:"Email Address *",k:"email",t:"email",ph:"user@bnbmis.com"},
+              {l:form.id?"New Password (leave blank to keep)":"Password *",k:"password",t:"password",ph:"••••••••"},
+            ].map(({l,k,t,ph})=>(
+              <div key={k} style={{marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:700,marginBottom:5,color:G6}}>{l}</div>
+                <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}
+                  style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            ))}
+
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:700,marginBottom:5,color:G6}}>Role</div>
+              <select value={form.role||"Support"} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
+                style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,fontFamily:"inherit",outline:"none"}}>
+                {ROLES.map(r=><option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:G6}}>Permissions</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {ALL_PERMS.map(p=>{
+                  const has = (form.permissions||[]).includes(p);
+                  return (
+                    <button key={p} onClick={()=>togglePerm(p)}
+                      style={{padding:"5px 12px",borderRadius:6,fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",
+                        border:`2px solid ${has?M:G2}`,background:has?"#F9F0F2":WH,color:has?M:G6,textTransform:"capitalize"}}>
+                      {has?"✓ ":""}{p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+              <input type="checkbox" id="uactive" checked={form.active!==false} onChange={e=>setForm(f=>({...f,active:e.target.checked}))}/>
+              <label htmlFor="uactive" style={{fontSize:13,cursor:"pointer"}}>Active (can log in)</label>
+            </div>
+
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={save} disabled={saving}
+                style={{flex:1,background:M,color:WH,border:"none",borderRadius:8,padding:"11px 0",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:saving?.6:1}}>
+                {saving?"Saving…":form.id?"Save Changes":"Create User"}
+              </button>
+              <button onClick={()=>setForm(null)}
+                style={{padding:"11px 18px",border:`1px solid ${G2}`,borderRadius:8,background:WH,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

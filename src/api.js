@@ -127,3 +127,15 @@ export const api = {
     dt  ? `date_to=${dt}` : '',
   ].filter(Boolean).join('&')),
 };
+
+  // ── Admin Users (platform team) ──
+  getAdminUsers:   ()        => get('/admin_users'),
+  createAdminUser: (data)    => req('POST',   '/admin_users', data),
+  updateAdminUser: (id, data)=> req('PUT',    '/admin_users?id=' + id, data),
+  deleteAdminUser: (id)      => req('DELETE', '/admin_users?id=' + id),
+
+  // ── Backup ──
+  downloadBackup: (sid, tok) => fetch('/api/backup?store_id=' + sid, {
+    headers: { 'Authorization': 'Bearer ' + (tok || '') }
+  }).then(r => r.json()),
+};
