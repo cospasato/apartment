@@ -171,7 +171,6 @@ const mapStaff = s => s ? ({
 const mapExp = e => e ? ({
   id: e.id, locId: e.location_id, storeId: e.store_id, cat: e.category,
   desc: e.description, amt: Number(e.amount), date: e.expense_date?.split?.("T")[0] || e.expense_date,
-  staffId: e.staff_id || null,
 }) : null;
 
 const Badge = ({ s, label }) => (
@@ -556,14 +555,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [custModal, setCustModal] = useState(null);
   const [toast, setToast] = useState(null);
-  // Start loading=true if a session exists so we don't flash empty/new-store screen
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !!(localStorage.getItem("bnbmis_owner") ||
-                localStorage.getItem("bnbmis_staff") ||
-                localStorage.getItem("bnbmis_super"));
-    } catch { return false; }
-  });
+  const [loading, setLoading] = useState(false);
   const [custBooks, setCustBooks] = useState([]);
   const [custLoading, setCustLoading] = useState(false);
   const [custTab, setCustTab] = useState("bookings");
@@ -840,12 +832,12 @@ export default function App() {
         (u?.role === "Admin" || u?.role === "Manager") ? api.getStaff(storeIdToUse) : Promise.resolve([]),
         api.getPayMethods(storeIdToUse).catch(()=>[]),
       ]);
-      setLocs(Array.isArray(l) ? l.map(mapLoc) : []);
-      setRooms(Array.isArray(r) ? r.map(mapRoom) : []);
-      setBooks(Array.isArray(b) ? b.map(mapBook) : []);
-      setExps(Array.isArray(e) ? e.map(mapExp) : []);
-      if (Array.isArray(s) && s.length) setStaff(s.map(mapStaff));
-      if (Array.isArray(pm)) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
+      if (l?.length) setLocs(l.map(mapLoc));
+      if (r?.length) setRooms(r.map(mapRoom));
+      if (b?.length) setBooks(b.map(mapBook));
+      if (e?.length) setExps(e.map(mapExp));
+      if (s?.length) setStaff(s.map(mapStaff));
+      if (pm?.length) setPayMethods(pm.filter(p=>p.active).map(p=>p.name));
     } catch {
       console.warn("DB not reachable");
     } finally {
@@ -916,6 +908,8 @@ export default function App() {
 
   // On app start: reload data for whoever is already logged in (from localStorage)
   useEffect(() => {
+    if (user)       { loadAll(user, user.storeId); }
+    if (owner)      { loadAll(null, owner.store?.id); }
     if (superAdmin) { loadSuperData(); }
     if (customer)   { loadCustBooks(customer.id); }
   }, []);
@@ -1237,9 +1231,8 @@ export default function App() {
     { id:"profile", label:"My Profile",icon:"👤" },
   ];
 
-  const storeName = (mktSelStore && mktSelStore.name) || (owner && owner.store && owner.store.name) || (user && user.storeName) || "BNBMIS";
-
   const NavBar = () => {
+    const storeName = mktSelStore?.name || owner?.store?.name || user?.storeName || "BNBMIS";
     return (
     <nav style={{ background: BK, height: 62, display:"flex", alignItems:"center", padding:"0 18px", justifyContent:"space-between", flexShrink:0 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={()=>{ setMktSelStore(null); navTo("land"); }}>
@@ -1516,8 +1509,8 @@ export default function App() {
       {modal==="bnbmis_login" && <BNBMISLoginModal
         plans={plans}
         onSuperLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
-        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); }}
-        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); }}
+        onOwnerLogin={async(email,pw)=>{ const u=await api.loginOwner(email,pw); if(!u||!u.store||!u.store.id){pop("Login error","err");return;} setOwner(u); try{localStorage.setItem("bnbmis_owner",JSON.stringify(u));}catch(e){} setModal(null); setView("owner_dash"); loadAll(null,u.store.id); }}
+        onStaffLogin={async(email,pin,sid)=>{ const u=await api.loginStaff(email,pin,sid); if(!u||!u.storeId){pop("Login error","err");return;} setUser(u); try{localStorage.setItem("bnbmis_staff",JSON.stringify(u));}catch(e){} setModal(null); setView("admin"); loadAll(u,u.storeId); }}
         onClose={()=>setModal(null)} pop={pop}/>}
       {modal==="super_login" && <SuperLoginModal
         onLogin={async(email,pw)=>{ const u=await api.loginSuper(email,pw); setSuperAdmin(u); localStorage.setItem("bnbmis_super",JSON.stringify(u)); setModal(null); loadSuperData(); setView("super"); }}
@@ -1998,10 +1991,10 @@ export default function App() {
     const content = (
       <>
         {loading && <Spinner/>}
-        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin" isLoading={loading}/>}
-        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
+        {!loading && aTab==="dash"    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev2} totExp={totExp2} netPro={netPro2} pending={pending2} occPct={occPct2} setATab={setATab} userRole="Admin"/>}
+        {!loading && aTab==="books"   && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={deleteBooking} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={ownerUser} payMethods={payMethods} bookedDates={bookedDates} storeName={owner&&owner.store?owner.store.name:""}/>}
         {!loading && aTab==="rooms"   && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug}/>}
-        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
+        {!loading && aTab==="pays"    && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={sid} userRole="Admin" storeName={owner?.store?.name}/>}
         {!loading && aTab==="exps"    && <ExpsTab exps={exps} locs={locs} user={ownerUser} saveExp={saveExp} pop={pop}/>}
         {!loading && aTab==="reports" && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={ownerUser} storeId={sid} api={api}/>}
         {!loading && aTab==="locs"      && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
@@ -2098,10 +2091,10 @@ export default function App() {
   const adminContent = (
     <>
       {loading && <Spinner/>}
-      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role} isLoading={loading}/>}
+      {!loading && aTab==="dash"      && canDash    && <DashTab books={books} rooms={rooms} exps={exps} locs={locs} allRooms={rooms} totRev={totRev} totExp={totExp} netPro={netPro} pending={pending} occPct={occPct} setATab={setATab} userRole={user?.role}/>}
       {!loading && aTab==="books"     && <BooksTab books={books} rooms={rooms} locs={locs} updBook={updBook} recPay={recPay} deleteBooking={canDelete?deleteBooking:null} extendBooking={extendBooking} modifyBooking={modifyBooking} onNew={()=>setModal("newBook")} pop={pop} user={user} payMethods={payMethods} bookedDates={bookedDates} storeName={storeName}/>}
       {!loading && aTab==="rooms"     && <RoomsTab rooms={rooms} locs={locs} saveRoom={saveRoom} deleteRoom={deleteRoom} pop={pop} storeSlug={owner?.store?.slug||(stores.find(s=>s.id===user?.storeId)?.slug)||subdomainSlug}/>}
-      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} locs={locs} exps={exps} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
+      {!loading && aTab==="pays"      && <PaysTab books={books} rooms={rooms} recPay={recPay} payMethods={payMethods} setPayMethods={setPayMethods} storeId={user?.storeId} storeName={stores.find(s=>s.id===user?.storeId)?.name}/>}
       {!loading && aTab==="exps"      && <ExpsTab exps={exps} locs={locs} user={user} saveExp={saveExp} pop={pop}/>}
       {!loading && aTab==="reports"   && canReports && <ReportsTab books={books} exps={exps} rooms={rooms} locs={locs} allRooms={rooms} user={user} storeId={user?.storeId} api={api}/>}
       {!loading && aTab==="locs"      && canLocs    && <LocsTab locs={locs} saveLoc={saveLoc} deleteLoc={deleteLoc} rooms={rooms} books={books} pop={pop}/>}
@@ -2224,10 +2217,10 @@ function LoginModal({ loginF, setLoginF, loginErr, doLogin, onClose }) {
   );
 }
 
-function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole, isLoading }) {
+function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, pending, occPct, setATab, userRole }) {
   const isReceptDash = userRole === "Receptionist";
   const M2="#6B1B2A",G22="#E8E8E8",WH2="#FFF",GOLD2="#C9A84C";
-  const isNewOwner = locs.length === 0 && userRole === "Admin" && !isLoading;
+  const isNewOwner = locs.length === 0 && userRole === "Admin";
   const [locPeriod, setLocPeriod] = useState("today");
 
   // ── Date helpers ──
@@ -2553,14 +2546,11 @@ function BooksTab({ books, rooms, locs, updBook, recPay, deleteBooking, extendBo
   const printPaymentReceipt = (b, rm, isInvoice=false) => {
     if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
-    const w = window.open("", "_blank");
+    const w = window.open("", "_blank", "width=600,height=800");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
-<style>
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
       *{box-sizing:border-box}
-      body{font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;color:#111}
-      @media(min-width:640px){body{padding:28px 32px}}
+      body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
       .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
       .sub{font-size:11px;color:#999;margin-bottom:2px}
       .title{font-size:20px;font-weight:700;color:#6B1B2A;margin:18px 0 4px}
@@ -3181,16 +3171,13 @@ function RoomsTab({ rooms, locs, saveRoom, deleteRoom, pop, storeSlug }) {
 
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
 /* ─── PAYMENTS TAB ───────────────────────────────────────── */
-function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
+function PaysTab({ books, rooms, recPay, payMethods, setPayMethods, storeId, userRole, storeName }) {
   const hideFinance = !["Admin","Manager","Accountant"].includes(userRole);
   const [sel, setSel]       = useState(null);
   const [amt, setAmt]       = useState("");
   const [method, setMethod] = useState("");
   const [newPM, setNewPM]   = useState(false);
   const [newPMName, setNewPMName] = useState("");
-
-  const [payFilter, setPayFilter] = useState("today");
-  const [locPayPeriod, setLocPayPeriod] = useState("today");
 
   const selB = books.find(b => b.id === sel);
   const totColl = books.reduce((s,b)=>s+b.paid,0);
@@ -3371,162 +3358,25 @@ function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMet
             🖨 Print Report
           </button>}
         </div>
-        {/* ── BY LOCATION ── */}
-        {locs.length > 0 && userRole === "Admin" && (
-          <div style={{marginBottom:22}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-              <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>📍 Revenue by Location</span>
-              <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid "+G2}}>
-                {["today","month","all"].map(function(t){
-                  return (
-                    <button key={t} onClick={function(){setLocPayPeriod(t);}}
-                      style={{padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"none",
-                        background:locPayPeriod===t?M:WH,color:locPayPeriod===t?WH:"#666"}}>
-                      {t==="today"?"Today":t==="month"?monthName2:"All Time"}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
-              {locs.map(function(loc){
-                var lb = books.filter(function(b){
-                  if(b.locId!==loc.id||b.status==="cancelled")return false;
-                  if(locPayPeriod==="today")return b.created&&b.created.split("T")[0]===today2;
-                  if(locPayPeriod==="month")return b.created&&b.created.slice(0,7)===curMonth2;
-                  return true;
-                });
-                var le = exps.filter(function(e){
-                  if(e.locId!==loc.id)return false;
-                  if(locPayPeriod==="today")return e.date&&e.date.split("T")[0]===today2;
-                  if(locPayPeriod==="month")return e.date&&e.date.slice(0,7)===curMonth2;
-                  return true;
-                });
-                var lrev = lb.reduce(function(s,b){return s+(b.paid||0);},0);
-                var lexp = le.reduce(function(s,e){return s+(e.amt||0);},0);
-                var lnet = lrev - lexp;
-                return (
-                  <div key={loc.id} style={{background:WH,borderRadius:12,padding:"14px 16px",border:"1px solid "+G2}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                      <span style={{fontSize:20}}>{loc.icon}</span>
-                      <div>
-                        <div style={{fontWeight:700,fontSize:13}}>{loc.name}</div>
-                        <div style={{fontSize:11,color:G6}}>{loc.city}</div>
-                      </div>
-                    </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
-                        <div style={{fontSize:10,color:G6}}>Revenue</div>
-                        <div style={{fontSize:13,fontWeight:700,color:OK}}>{fmt(lrev)}</div>
-                      </div>
-                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
-                        <div style={{fontSize:10,color:G6}}>Expenses</div>
-                        <div style={{fontSize:13,fontWeight:700,color:ER}}>{fmt(lexp)}</div>
-                      </div>
-                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
-                        <div style={{fontSize:10,color:G6}}>Net</div>
-                        <div style={{fontSize:13,fontWeight:700,color:lnet>=0?"#1565C0":"#B76E00"}}>{fmt(lnet)}</div>
-                      </div>
-                      <div style={{background:G1,borderRadius:7,padding:"7px 9px"}}>
-                        <div style={{fontSize:10,color:G6}}>Bookings</div>
-                        <div style={{fontSize:13,fontWeight:700,color:M}}>{lb.length}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── PAYMENTS LIST WITH DATE FILTER ── */}
-        <div style={{marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:M}}>💳 Payments List</span>
-            <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid "+G2}}>
-              {[
-                {k:"today",l:"Today"},
-                {k:"yesterday",l:"Yesterday"},
-                {k:"week",l:"This Week"},
-                {k:"month",l:"This Month"},
-                {k:"all",l:"All"},
-              ].map(function(f){
-                return (
-                  <button key={f.k} onClick={function(){setPayFilter(f.k);}}
-                    style={{padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:"none",
-                      background:payFilter===f.k?M:WH,color:payFilter===f.k?WH:"#666"}}>
-                    {f.l}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        {(function(){
-            var now3=new Date(); var d=now3.getDay();
-            var weekStart=new Date(now3); weekStart.setDate(now3.getDate()-(d===0?6:d-1));
-            var weekStr=weekStart.toISOString().split("T")[0];
-            var yest=new Date(now3); yest.setDate(now3.getDate()-1);
-            var yesterdayStr=yest.toISOString().split("T")[0];
-            var filtered=books.filter(function(b){
-              var bd=b.created?b.created.split("T")[0]:"";
-              if(payFilter==="today")     return bd===today2;
-              if(payFilter==="yesterday") return bd===yesterdayStr;
-              if(payFilter==="week")      return bd>=weekStr;
-              if(payFilter==="month")     return b.created&&b.created.slice(0,7)===curMonth2;
-              return true;
-            }).sort(function(a,b){return new Date(b.created||0)-new Date(a.created||0);});
-            if(!filtered.length) return <div style={{textAlign:"center",padding:28,color:G4,fontSize:13}}>No payments found</div>;
-            return (
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                  <thead>
-                    <tr style={{borderBottom:"2px solid "+G2}}>
-                      {["Date","Guest","Room","Total","Paid","Balance","Method","Action"].map(function(h){
-                        return <th key={h} style={{padding:"8px 10px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>;
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map(function(b,i){
-                      var bal=b.total-b.paid;
-                      var rm=rooms.find(function(r){return r.id===b.roomId;});
-                      var isUnsettled=b.status!=="cancelled"&&bal>0;
-                      var isCancelled=b.status==="cancelled";
-                      var rowBg=isCancelled?"#FFF8F8":isUnsettled?"#FFF0F0":"#F9FFF9";
-                      var rowBorder=isCancelled?"1px solid #FFCCCC":isUnsettled?"1px solid #FFCCCC":"1px solid #E8F5E9";
-                      return (
-                        <tr key={i} style={{borderBottom:rowBorder,background:rowBg}}>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{b.ci||"—"}</td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
-                            <div style={{fontWeight:700,fontSize:13,color:isUnsettled?ER:BK}}>{b.gName}</div>
-                            <div style={{fontSize:11,color:G6}}>{b.gPhone}</div>
-                          </td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{rm?rm.name:"—"}</td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontWeight:700}}>{fmt(b.total)}</td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
-                            <span style={{color:OK,fontWeight:700}}>{fmt(b.paid)}</span>
-                          </td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
-                            <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span>
-                          </td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle",fontSize:12}}>{b.method||"—"}</td>
-                          <td style={{padding:"10px 10px",verticalAlign:"middle"}}>
-                            {isCancelled
-                              ? <span style={{color:ER,fontSize:12,fontWeight:700}}>✗ Cancelled</span>
-                              : bal>0
-                                ? <button onClick={function(){openRecord(b.id);}} style={{padding:"4px 10px",fontSize:12,borderRadius:6,background:M,color:WH,border:"none",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>Record</button>
-                                : <span style={{color:OK,fontSize:12,fontWeight:700}}>✓ Settled</span>
-                            }
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
+        <Tbl hdr={["Date","Guest","Room","Total","Paid","Balance","Method","Action"]}
+          rows={books.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).map(b=>{
+            const bal=b.total-b.paid;
+            const rm=rooms.find(r=>r.id===b.roomId);
+            return [
+              b.ci||"—",
+              <div><div style={{fontWeight:700,fontSize:13}}>{b.gName}</div><div style={{fontSize:11,color:G6}}>{b.gPhone}</div></div>,
+              <span style={{fontSize:12}}>{rm?.name||"—"}</span>,
+              fmt(b.total),
+              <span style={{color:OK,fontWeight:700}}>{fmt(b.paid)}</span>,
+              <span style={{color:bal>0?ER:OK,fontWeight:700}}>{fmt(bal)}</span>,
+              b.method,
+              b.status==="cancelled"
+                ? <span style={{color:ER,fontSize:12,fontWeight:700}}>✗ Cancelled</span>
+                : bal>0
+                  ? <button onClick={()=>openRecord(b.id)} style={{padding:"4px 10px",fontSize:12,borderRadius:6,background:M,color:WH,border:"none",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>Record</button>
+                  : <span style={{color:OK,fontSize:12,fontWeight:700}}>✓ Settled</span>
+            ];
+          })}/>
       </Card>
 
       {/* ── RECORD PAYMENT MODAL ── */}
@@ -3557,7 +3407,6 @@ function PaysTab({ books, rooms, locs=[], exps=[], recPay, payMethods, setPayMet
 }
 
 function ExpsTab({ exps, locs, user, saveExp, pop }) {
-  const isAdminExp = !user || user.role === "Admin" || user.role === "Manager" || user.role === "Accountant";
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ locId: locs[0]?.id || "", cat: "Utilities", desc: "", amt: "", date: td() });
   const save = () => { saveExp(form); setModal(false); setForm(f => ({ ...f, desc: "", amt: "" })); };
@@ -3568,27 +3417,17 @@ function ExpsTab({ exps, locs, user, saveExp, pop }) {
         <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, margin: 0 }}>Expenses</h2>
         <Btn onClick={() => setModal(true)}>+ Add Expense</Btn>
       </div>
-      {isAdminExp && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
-            {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
-          </div>
-          <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
-        </>
-      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 14 }}>
+        {Object.entries(byCat).map(([cat, amt]) => <KPI key={cat} label={cat} value={fmt(amt)} />)}
+      </div>
+      <KPI label="Total Expenses" value={fmt(exps.reduce((s, e) => s + e.amt, 0))} color={ER} icon="📤" />
       <Card style={{ marginTop: 14 }}>
         <Tbl hdr={["Date", "Location", "Category", "Description", "Amount"]}
-          rows={(isAdminExp ? exps : exps.filter(e => e.staffId === user?.id || e.staffId === user?.staffId))
-            .sort((a, b) => b.date.localeCompare(a.date)).map(e => [
+          rows={exps.sort((a, b) => b.date.localeCompare(a.date)).map(e => [
             e.date, locs.find(l => l.id === e.locId)?.name || "-",
             <span style={{ background: G1, padding: "2px 8px", borderRadius: 99, fontSize: 11, color: G6 }}>{e.cat}</span>,
             e.desc, <span style={{ fontWeight: 700, color: ER }}>{fmt(e.amt)}</span>
           ])} />
-        {!isAdminExp && (
-          <div style={{fontSize:12,color:G6,marginTop:10,textAlign:"center"}}>
-            Showing only expenses you added. Managers can view all expenses.
-          </div>
-        )}
       </Card>
       {modal && (
         <Modal title="Add Expense" onClose={() => setModal(false)}>
@@ -4696,14 +4535,7 @@ function RoomDetailContent({ dr, loc, isYT, ytId, isIG, avail, dateTakenForThisR
 function CustomerAuthModal({ mode, setMode, onLogin, onRegister, onClose, pop, bookingIntent }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", nationality: "", password: "", confirm: "" });
   const [err, setErr] = useState("");
-  // Start loading=true if a session exists so we don't flash empty/new-store screen
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !!(localStorage.getItem("bnbmis_owner") ||
-                localStorage.getItem("bnbmis_staff") ||
-                localStorage.getItem("bnbmis_super"));
-    } catch { return false; }
-  });
+  const [loading, setLoading] = useState(false);
 
   const doLogin = async () => {
     setErr(""); setLoading(true);
@@ -5022,7 +4854,7 @@ function CustomerBookingsTab({ customer, custBooks, custLoading, onCancel, onRef
               const w=window.open("","_blank","width=600,height=750");
               const rm=rooms.find(r=>r.id===selB.roomId);
               const lc=locs.find(l=>l.id===selB.locId);
-              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><meta name='viewport' content='width=device-width,initial-scale=1'><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;color:#111}@media(min-width:640px){body{padding:32px}}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${selB.id}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:32px;max-width:560px;margin:0 auto;color:#111}.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}.sub{font-size:11px;color:#999;margin-bottom:4px}hr{border:none;border-top:2px solid #6B1B2A;margin:16px 0}h2{font-size:18px;color:#6B1B2A;margin:0 0 4px}.ref{font-size:12px;color:#666;margin-bottom:16px}.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}.lbl{color:#666}.val{font-weight:700}.total-row{padding:12px 0;font-size:16px;border-top:2px solid #6B1B2A;margin-top:8px;display:flex;justify-content:space-between}.total-val{font-size:20px;font-weight:900;color:#6B1B2A}.balance{color:${(selB.total-selB.paid)>0?"#C62828":"#2E7D32"}}.footer{margin-top:28px;font-size:11px;color:#999;text-align:center;line-height:1.8}.badge{background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}@media print{.no-print{display:none}}</style></head><body>
               <div class="logo">BNBMIS</div><div class="sub">BNB Management Information System</div>
               <hr/>
               <h2>Booking Receipt</h2>
@@ -5474,7 +5306,15 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                 </td>
                 <td style={{ padding:"9px 10px" }}><div style={{ fontSize:12 }}>{s.owner_name}</div><div style={{ fontSize:11, color:"#AAA" }}>{s.owner_email}</div></td>
                 <td style={{ padding:"9px 10px", fontSize:12 }}>{s.city||"—"}</td>
-                <td style={{ padding:"9px 10px" }}><span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span></td>
+                <td style={{ padding:"9px 10px" }}>
+                  <span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span>
+                  {s.status==="trial" && s.trial_ends && (
+                    <div style={{ fontSize:10, color:"#888", marginTop:2 }}>
+                      {Math.ceil((new Date(s.trial_ends)-new Date())/(1000*60*60*24))} days left
+                    </div>
+                  )}
+                  {s.status==="suspended" && <div style={{ fontSize:10, color:"#C62828", marginTop:2 }}>No access</div>}
+                </td>
                 <td style={{ padding:"9px 10px", fontSize:12 }}>{s.plan_name||"—"}</td>
                 <td style={{ padding:"9px 10px" }}>{s.room_count||0}</td>
                 <td style={{ padding:"9px 10px" }}>{s.booking_count||0}</td>
@@ -5487,7 +5327,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                     {(s.status==="active"||s.status==="suspended")&&<button onClick={()=>updateStatus(s.id,"terminated")} style={{ background:"#FFEBEE", color:"#C62828", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Terminate</button>}
                     <button onClick={()=>setModal({type:"record_pay",storeId:s.id,storeName:s.name})} style={{ background:"#E3F2FD", color:"#1565C0", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>+ Pay</button>
                     <button onClick={()=>setPlanModal({storeId:s.id,storeName:s.name,currentPlanId:s.plan_id})} style={{ background:"#F3E5F5", color:"#6A1B9A", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Plan</button>
-                    <button onClick={()=>setTrialModal({storeId:s.id,storeName:s.name})} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Extend</button>
+                    <button onClick={()=>setTrialModal({storeId:s.id,storeName:s.name})} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>📅 Extend Trial</button>
                   </div>
                 </td>
               </tr>
@@ -6219,8 +6059,16 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
         setPlatSettings(ps||{});
         if (st) setStore(st);
         // Payments separately (can fail gracefully)
-        const pay = await api.getSubPayments(storeId).catch(()=>[]);
-        setPayments(pay||[]);
+        const payData = await api.getSubPayments(storeId).catch(()=>null);
+        if (payData && payData.payments) {
+          setPayments(payData.payments || []);
+          // Update store with subscription info
+          if (payData.subscription) {
+            setStore(prev => ({...prev, current_period_end: payData.subscription.current_period_end, sub_status: payData.subscription.status}));
+          }
+        } else if (Array.isArray(payData)) {
+          setPayments(payData);
+        }
       } catch(e) {
         setLoadErr(e?.message || "Failed to load billing info");
       } finally {
@@ -6250,6 +6098,31 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   return (
     <div>
       <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Billing & Plan</h2>
+
+      {/* Suspension / expiry warning */}
+      {store?.status === "suspended" && (
+        <div style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:12, padding:"16px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+          <span style={{ fontSize:28 }}>🚫</span>
+          <div>
+            <div style={{ fontWeight:700, color:"#C62828", fontSize:15, marginBottom:3 }}>Account Suspended</div>
+            <div style={{ fontSize:13, color:"#666" }}>Your store is currently suspended. Please contact support or renew your subscription to restore access.</div>
+          </div>
+        </div>
+      )}
+      {store?.status === "trial" && store?.trial_ends && (
+        (()=>{
+          const days = Math.ceil((new Date(store.trial_ends) - new Date()) / (1000*60*60*24));
+          return days <= 5 ? (
+            <div style={{ background:"#FFF3E0", border:"2px solid #B76E00", borderRadius:12, padding:"16px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+              <span style={{ fontSize:28 }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight:700, color:"#B76E00", fontSize:15, marginBottom:3 }}>Trial Expiring Soon</div>
+                <div style={{ fontSize:13, color:"#666" }}>{days <= 0 ? "Your trial has expired." : `Your free trial ends in ${days} day${days!==1?"s":""}. Subscribe to keep your data and access.`}</div>
+              </div>
+            </div>
+          ) : null;
+        })()
+      )}
 
       {/* Account Status card — single full-width card */}
       <div style={{ background:WH2, border:"2px solid "+M2, borderRadius:14, padding:22, marginBottom:24 }}>
@@ -6624,14 +6497,7 @@ function SuperComms({ stores, api, pop }) {
 /* ─── SUPER: PLATFORM REPORTS ────────────────────────────── */
 function SuperReports({ stores, api, pop, fmt, fmtDate }) {
   const [data, setData] = useState(null);
-  // Start loading=true if a session exists so we don't flash empty/new-store screen
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !!(localStorage.getItem("bnbmis_owner") ||
-                localStorage.getItem("bnbmis_staff") ||
-                localStorage.getItem("bnbmis_super"));
-    } catch { return false; }
-  });
+  const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -6998,7 +6864,7 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#FFF;padding:0}
-  .page{max-width:100%;margin:0 auto;padding:20px}@media(min-width:640px){.page{max-width:600px;padding:32px 40px}}
+  .page{max-width:600px;margin:0 auto;padding:36px 40px}
   .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #6B1B2A}
   .logo{font-family:Georgia,serif;font-size:32px;font-weight:900;color:#6B1B2A;letter-spacing:-1px;line-height:1}
   .logo-sub{font-size:11px;color:#999;margin-top:3px}
@@ -7112,11 +6978,10 @@ function ReceiptsTab({ books, rooms, locs, user, pop, storeName }) {
     const w = window.open("","_blank","width=650,height=900");
     if (!w) { pop("Please allow popups to print receipts","err"); return; }
     w.document.write(`<!DOCTYPE html><html><head><title>Full Stay Receipt - ${b.id}</title>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff}
-.page{max-width:100%;margin:0 auto;padding:20px}@media(min-width:640px){.page{max-width:600px;padding:32px 40px}}
+.page{max-width:580px;margin:0 auto;padding:36px 40px}
 .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #6B1B2A;margin-bottom:22px}
 .logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#6B1B2A;line-height:1}
 .logo-sub{font-size:11px;color:#999;margin-top:3px}
