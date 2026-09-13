@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
           LEFT JOIN locations l ON l.store_id = s.id AND l.active = true
           LEFT JOIN rooms r ON r.store_id = s.id AND r.status = 'available'
           LEFT JOIN reviews rev ON rev.store_id = s.id
-          WHERE s.status IN ('active','trial') AND lower(s.city) LIKE lower(${'%' + city + '%'})
+          WHERE s.status IN ('active','trial') AND (s.status='active' OR s.trial_ends >= CURRENT_DATE) AND lower(s.city) LIKE lower(${'%' + city + '%'})
           GROUP BY s.id, p.name ORDER BY s.created_at DESC
         `;
       } else {

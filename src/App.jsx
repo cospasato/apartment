@@ -1967,6 +1967,43 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
+
+    // ── SUSPENDED / EXPIRED PAYWALL ──
+    const storeStatus  = owner.store.status || "trial";
+    const trialEnds    = owner.store.trial_ends ? new Date(owner.store.trial_ends) : null;
+    const trialExpired = storeStatus === "trial" && trialEnds && trialEnds < new Date();
+    const isSuspended  = storeStatus === "suspended" || storeStatus === "cancelled" || trialExpired;
+    const daysLeft     = trialEnds ? Math.ceil((trialEnds - new Date()) / (1000*60*60*24)) : null;
+
+    if (isSuspended) return (
+      <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
+        <div style={{ background:"#FFF", borderRadius:16, padding:36, maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 4px 32px rgba(0,0,0,.10)" }}>
+          <div style={{ fontSize:52, marginBottom:12 }}>{trialExpired ? "⏰" : "🚫"}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:"#6B1B2A", marginBottom:8 }}>
+            {trialExpired ? "Free Trial Ended" : "Account Suspended"}
+          </div>
+          <div style={{ fontSize:14, color:"#555", lineHeight:1.7, marginBottom:24 }}>
+            {trialExpired
+              ? "Your 14-day free trial has ended. Subscribe to continue using BNBMIS and keep all your data."
+              : "Your account has been suspended. Please contact support or renew your subscription to restore full access."}
+          </div>
+          <div style={{ background:"#F9F6F0", borderRadius:10, padding:"14px 18px", marginBottom:24, fontSize:13, color:"#444" }}>
+            📞 <strong>Contact Support</strong><br/>
+            support@bnbmis.com · 0783739369<br/>
+            www.bnbmis.com
+          </div>
+          <button onClick={()=>{ setATab("billing"); }}
+            style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
+            💳 View Billing & Subscribe
+          </button>
+          <button onClick={()=>{ localStorage.removeItem("bnbmis_owner"); setOwner(null); setView("land"); }}
+            style={{ background:"none", color:"#888", border:"none", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
       {id:"books",     icon:"📋", l:"Bookings"},
@@ -2084,6 +2121,34 @@ export default function App() {
 
   /* ── ADMIN DASHBOARD ── */
   if (view === "admin" && user) {
+
+  // ── STAFF: suspended store paywall ──
+  const staffStoreStatus  = stores.find(s=>s.id===user.storeId)?.status || "active";
+  const staffTrialEnds    = stores.find(s=>s.id===user.storeId)?.trial_ends;
+  const staffTrialExpired = staffStoreStatus==="trial" && staffTrialEnds && new Date(staffTrialEnds)<new Date();
+  const staffSuspended    = staffStoreStatus==="suspended" || staffStoreStatus==="cancelled" || staffTrialExpired;
+
+  if (staffSuspended) return (
+    <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ background:"#FFF", borderRadius:16, padding:36, maxWidth:420, width:"100%", textAlign:"center", boxShadow:"0 4px 32px rgba(0,0,0,.10)" }}>
+        <div style={{ fontSize:52, marginBottom:12 }}>🚫</div>
+        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:"#6B1B2A", marginBottom:8 }}>Access Restricted</div>
+        <div style={{ fontSize:14, color:"#555", lineHeight:1.7, marginBottom:24 }}>
+          {staffTrialExpired ? "Your store's free trial has ended." : "Your store account has been suspended."}<br/>
+          Please ask your store owner to renew the BNBMIS subscription to restore access.
+        </div>
+        <div style={{ background:"#F9F6F0", borderRadius:10, padding:"14px 18px", marginBottom:24, fontSize:13, color:"#444" }}>
+          📞 <strong>BNBMIS Support</strong><br/>
+          support@bnbmis.com · 0783739369
+        </div>
+        <button onClick={()=>{ localStorage.removeItem("bnbmis_staff"); setUser(null); setView("land"); }}
+          style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%" }}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+
   const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
   const totExp = exps.reduce((s,e)=>s+e.amt,0);
   const netPro = totRev - totExp;
