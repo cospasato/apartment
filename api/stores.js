@@ -209,7 +209,28 @@ module.exports = async function handler(req, res) {
       if (!token || token.type !== 'owner') return res.status(401).json({ error: 'Owner login required' });
       if (token.storeId !== id) return res.status(403).json({ error: 'Access denied' });
       const { visibility } = req.body || {};
-      // Owners can only toggle between active and suspended (their own store only)
+
+      // Check current store status - only allow pause/resume if store is active or owner-paused
+      const current = await sql`SELECT status, trial_ends FROM stores WHERE id = ${id} LIMIT 1`;
+      if (!current.length) return res.status(404).json({ error: 'Store not found' });
+      const currentStatus = current[0].status;
+
+      // Cannot self-activate if suspended by admin or terminated
+      if (visibility === 'active' && (currentStatus === 'terminated')) {
+        return res.status(403).json({ error: 'Store is terminated. Contact support.' });
+      }
+      // Suspended stores can only be reactivated through payment, not by owner toggle
+      if (visibility === 'active' && currentStatus === 'suspended') {
+        return res.status(403).json({ error: 'Store is suspended. Please renew your subscription to reactivate.' });
+      }
+      // Trial expired stores cannot self-activate
+      if (visibility === 'active' && currentStatus === 'trial') {
+        const trialEnds = current[0].trial_ends;
+        if (trialEnds && new Date(trialEnds) < new Date()) {
+          return res.status(403).json({ error: 'Trial has expired. Please subscribe to reactivate.' });
+        }
+      }
+
       const allowed = ['active', 'suspended'];
       if (!allowed.includes(visibility)) return res.status(400).json({ error: 'Invalid visibility value' });
       await sql`UPDATE stores SET status = ${visibility} WHERE id = ${id}`;

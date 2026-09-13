@@ -1992,6 +1992,37 @@ export default function App() {
             support@bnbmis.com · 0783739369<br/>
             www.bnbmis.com
           </div>
+          {/* Pay directly from paywall */}
+          {(()=>{
+            const ps = platSettings || {};
+            const hasPP = !!(ps.pesapal_consumer_key && ps.pesapal_consumer_key !== "undefined");
+            const activePlans = plans ? plans.filter(p=>p.is_active && p.price_monthly > 0) : [];
+            if (hasPP && activePlans.length > 0) {
+              return (
+                <button onClick={async()=>{
+                  const plan = activePlans[0];
+                  const stored = localStorage.getItem("bnbmis_owner");
+                  const tok = stored ? (() => { try { return JSON.parse(stored).token||""; } catch { return ""; } })() : "";
+                  const ownerD = stored ? (() => { try { return JSON.parse(stored); } catch { return {}; } })() : {};
+                  try {
+                    const r = await fetch("/api/pesapal?action=initiate", {
+                      method:"POST",
+                      headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},
+                      body:JSON.stringify({store_id:sid,plan_id:plan.id,billing_cycle:"monthly",
+                        owner_email:ownerD.email||"",owner_phone:ownerD.phone||"",owner_name:ownerD.name||""})
+                    });
+                    const d = await r.json();
+                    if (d.redirect_url) { window.location.href = d.redirect_url; }
+                    else { alert(d.error||"Payment failed"); }
+                  } catch(e) { alert("Could not connect to payment gateway"); }
+                }}
+                  style={{ background:"#2E7D32", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
+                  🟢 Pay with Pesapal — TZS {Number(activePlans[0]?.price_monthly||0).toLocaleString()}/mo
+                </button>
+              );
+            }
+            return null;
+          })()}
           <button onClick={()=>{ setATab("billing"); setOwner(prev => ({...prev, _bypass_paywall: true})); }}
             style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
             💳 View Billing & Subscribe
