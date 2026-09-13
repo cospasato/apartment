@@ -1975,7 +1975,7 @@ export default function App() {
     const isSuspended  = storeStatus === "suspended" || storeStatus === "cancelled" || trialExpired;
     const daysLeft     = trialEnds ? Math.ceil((trialEnds - new Date()) / (1000*60*60*24)) : null;
 
-    if (isSuspended) return (
+    if (isSuspended && !owner._bypass_paywall) return (
       <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
         <div style={{ background:"#FFF", borderRadius:16, padding:36, maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 4px 32px rgba(0,0,0,.10)" }}>
           <div style={{ fontSize:52, marginBottom:12 }}>{trialExpired ? "⏰" : "🚫"}</div>
@@ -1992,13 +1992,13 @@ export default function App() {
             support@bnbmis.com · 0783739369<br/>
             www.bnbmis.com
           </div>
-          <button onClick={()=>{ setATab("billing"); }}
+          <button onClick={()=>{ setATab("billing"); setOwner(prev => ({...prev, _bypass_paywall: true})); }}
             style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
             💳 View Billing & Subscribe
           </button>
-          <button onClick={()=>{ localStorage.removeItem("bnbmis_owner"); setOwner(null); setView("land"); }}
-            style={{ background:"none", color:"#888", border:"none", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
-            Sign out
+          <button onClick={()=>{ window.location.reload(); }}
+            style={{ background:"#F5F5F5", color:"#444", border:"1px solid #DDD", borderRadius:10, padding:"11px 32px", fontSize:14, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:8 }}>
+            🔄 Check Again
           </button>
         </div>
       </div>
@@ -2141,9 +2141,9 @@ export default function App() {
           📞 <strong>BNBMIS Support</strong><br/>
           support@bnbmis.com · 0783739369
         </div>
-        <button onClick={()=>{ localStorage.removeItem("bnbmis_staff"); setUser(null); setView("land"); }}
+        <button onClick={()=>{ window.location.reload(); }}
           style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%" }}>
-          Sign Out
+          🔄 Check Again
         </button>
       </div>
     </div>
