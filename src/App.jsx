@@ -5364,7 +5364,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
-              {["Store","Owner","City","Status","Plan","Rooms","Bookings","Revenue","Actions"].map((h,i)=>
+              {["Store","Owner","Status","Subscription Expires","Rooms","Active","Bookings","Revenue","Actions"].map((h,i)=>
                 <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em", whiteSpace:"nowrap" }}>{h}</th>)}
             </tr></thead>
             <tbody>{filtered.map((s,i)=>(
@@ -5374,18 +5374,33 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                   <div style={{ fontSize:11, color:"#AAA" }}>/{s.slug} · {s.id}</div>
                 </td>
                 <td style={{ padding:"9px 10px" }}><div style={{ fontSize:12 }}>{s.owner_name}</div><div style={{ fontSize:11, color:"#AAA" }}>{s.owner_email}</div></td>
-                <td style={{ padding:"9px 10px", fontSize:12 }}>{s.city||"—"}</td>
                 <td style={{ padding:"9px 10px" }}>
                   <span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span>
                   {s.status==="trial" && s.trial_ends && (
                     <div style={{ fontSize:10, color:"#888", marginTop:2 }}>
-                      {Math.ceil((new Date(s.trial_ends)-new Date())/(1000*60*60*24))} days left
+                      Trial: {Math.ceil((new Date(s.trial_ends)-new Date())/(1000*60*60*24))} days left
                     </div>
                   )}
                   {s.status==="suspended" && <div style={{ fontSize:10, color:"#C62828", marginTop:2 }}>No access</div>}
                 </td>
-                <td style={{ padding:"9px 10px", fontSize:12 }}>{s.plan_name||"—"}</td>
+                <td style={{ padding:"9px 10px", fontSize:12 }}>
+                  {s.current_period_end ? (
+                    <div>
+                      <div style={{ fontWeight:700, color: new Date(s.current_period_end)<new Date()?"#C62828":"#2E7D32" }}>
+                        {(s.current_period_end+"").split("T")[0]}
+                      </div>
+                      <div style={{ fontSize:10, color:"#888" }}>
+                        {s.plan_name||"—"} · {s.sub_status||"—"}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ color:"#AAA", fontSize:12 }}>
+                      {s.status==="trial" ? (s.trial_ends ? "Trial till "+((s.trial_ends+"").split("T")[0]) : "Trial") : "—"}
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding:"9px 10px" }}>{s.room_count||0}</td>
+                <td style={{ padding:"9px 10px", fontWeight:700, color:s.active_stays>0?"#1565C0":"#999" }}>{s.active_stays||0}</td>
                 <td style={{ padding:"9px 10px" }}>{s.booking_count||0}</td>
                 <td style={{ padding:"9px 10px", fontWeight:700, color:"#6B1B2A" }}>{fmt(s.total_revenue||0)}</td>
                 <td style={{ padding:"9px 10px" }}>
@@ -8267,16 +8282,41 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
             </div>
           </div>
 
-          {/* Owner info (read-only) */}
-          <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner</div>
+          {/* Store stats */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
+            {[
+              { l:"Owner",      v:store.owner_name||"—" },
+              { l:"Email",      v:store.owner_email||"—" },
+              { l:"Phone",      v:store.owner_phone||"—" },
+              { l:"Joined",     v:(store.created_at||"").split("T")[0] },
+              { l:"Rooms",      v:store.room_count||0 },
+              { l:"Active Stays", v:store.active_stays||0, bold:true, color:IN2 },
+              { l:"Bookings",   v:store.booking_count||0 },
+              { l:"Revenue",    v:"TZS "+(Number(store.total_revenue||0).toLocaleString()), bold:true, color:OK2 },
+            ].map(({l,v,bold,color})=>(
+              <div key={l} style={{ background:G12, borderRadius:8, padding:"10px 12px" }}>
+                <div style={{ fontSize:10, color:G62, textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>{l}</div>
+                <div style={{ fontSize:13, fontWeight:bold?700:500, color:color||G82 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subscription info */}
+          <div style={{ background: store.current_period_end && new Date(store.current_period_end)>=new Date() ? OKB2 : store.status==="trial" ? INB2 : ERB2,
+            border:"1px solid "+(store.current_period_end && new Date(store.current_period_end)>=new Date() ? "#A5D6A7" : store.status==="trial" ? "#90CAF9" : "#EF9A9A"),
+            borderRadius:10, padding:"12px 16px", marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Subscription</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
-              <div><span style={{ color:G62 }}>Name: </span><strong>{store.owner_name||"—"}</strong></div>
-              <div><span style={{ color:G62 }}>Email: </span><strong>{store.owner_email||"—"}</strong></div>
-              <div><span style={{ color:G62 }}>Rooms: </span><strong>{store.room_count||0}</strong></div>
-              <div><span style={{ color:G62 }}>Bookings: </span><strong>{store.booking_count||0}</strong></div>
-              <div><span style={{ color:G62 }}>Revenue: </span><strong style={{ color:OK2 }}>TZS {Number(store.total_revenue||0).toLocaleString()}</strong></div>
-              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
+              <div><span style={{ color:G62 }}>Plan: </span><strong>{plans.find(p=>p.id===store.plan_id)?.name||"None"}</strong></div>
+              <div><span style={{ color:G62 }}>Sub Status: </span><strong>{store.sub_status||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Expires: </span><strong style={{ color: store.current_period_end && new Date(store.current_period_end)<new Date() ? ER2 : OK2 }}>
+                {store.current_period_end ? (store.current_period_end+"").split("T")[0] : "—"}
+              </strong></div>
+              <div><span style={{ color:G62 }}>Trial Ends: </span><strong>{store.trial_ends ? (store.trial_ends+"").split("T")[0] : "—"}</strong></div>
+              <div><span style={{ color:G62 }}>Sub Paid: </span><strong style={{ color:OK2 }}>TZS {Number(store.subscription_paid||0).toLocaleString()}</strong></div>
+              <div><span style={{ color:G62 }}>Days Left: </span><strong style={{ color: store.current_period_end && Math.ceil((new Date(store.current_period_end)-new Date())/(1000*60*60*24))<7 ? ER2 : OK2 }}>
+                {store.current_period_end ? Math.ceil((new Date(store.current_period_end)-new Date())/(1000*60*60*24))+" days" : "—"}
+              </strong></div>
             </div>
           </div>
 

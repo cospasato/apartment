@@ -155,9 +155,10 @@ module.exports = async function handler(req, res) {
           COUNT(DISTINCT l.id)::int AS location_count,
           COUNT(DISTINCT r.id)::int AS room_count,
           COUNT(DISTINCT b.id)::int AS booking_count,
-          COALESCE(SUM(b.paid_amount), 0) AS total_revenue,
+          COALESCE(SUM(CASE WHEN b.status != 'cancelled' THEN b.paid_amount ELSE 0 END), 0) AS total_revenue,
           sub.status AS sub_status, sub.current_period_end,
-          COALESCE(sp_total.total, 0) AS subscription_paid
+          COALESCE(sp_total.total, 0) AS subscription_paid,
+          COUNT(DISTINCT CASE WHEN b.status IN ('confirmed','checkedIn') THEN b.id END)::int AS active_stays
         FROM stores s
         JOIN store_owners o ON o.id = s.owner_id
         LEFT JOIN subscription_plans p ON p.id = s.plan_id
