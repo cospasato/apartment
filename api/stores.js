@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
           LEFT JOIN locations l ON l.store_id = s.id AND l.active = true
           LEFT JOIN rooms r ON r.store_id = s.id AND r.status = 'available'
           LEFT JOIN reviews rev ON rev.store_id = s.id
-          WHERE s.status IN ('active','trial') AND (s.status='active' OR s.trial_ends >= CURRENT_DATE) AND lower(s.city) LIKE lower(${'%' + city + '%'})
+          WHERE s.status IN ('active','trial') AND lower(s.city) LIKE lower(${'%' + city + '%'})
           GROUP BY s.id, p.name ORDER BY s.created_at DESC
         `;
       } else {
@@ -155,10 +155,9 @@ module.exports = async function handler(req, res) {
           COUNT(DISTINCT l.id)::int AS location_count,
           COUNT(DISTINCT r.id)::int AS room_count,
           COUNT(DISTINCT b.id)::int AS booking_count,
-          COALESCE(SUM(CASE WHEN b.status != 'cancelled' THEN b.paid_amount ELSE 0 END), 0) AS total_revenue,
+          COALESCE(SUM(b.paid_amount), 0) AS total_revenue,
           sub.status AS sub_status, sub.current_period_end,
-          COALESCE(sp_total.total, 0) AS subscription_paid,
-          COUNT(DISTINCT CASE WHEN b.status IN ('confirmed','checkedIn') THEN b.id END)::int AS active_stays
+          COALESCE(sp_total.total, 0) AS subscription_paid
         FROM stores s
         JOIN store_owners o ON o.id = s.owner_id
         LEFT JOIN subscription_plans p ON p.id = s.plan_id
@@ -209,28 +208,7 @@ module.exports = async function handler(req, res) {
       if (!token || token.type !== 'owner') return res.status(401).json({ error: 'Owner login required' });
       if (token.storeId !== id) return res.status(403).json({ error: 'Access denied' });
       const { visibility } = req.body || {};
-
-      // Check current store status - only allow pause/resume if store is active or owner-paused
-      const current = await sql`SELECT status, trial_ends FROM stores WHERE id = ${id} LIMIT 1`;
-      if (!current.length) return res.status(404).json({ error: 'Store not found' });
-      const currentStatus = current[0].status;
-
-      // Cannot self-activate if suspended by admin or terminated
-      if (visibility === 'active' && (currentStatus === 'terminated')) {
-        return res.status(403).json({ error: 'Store is terminated. Contact support.' });
-      }
-      // Suspended stores can only be reactivated through payment, not by owner toggle
-      if (visibility === 'active' && currentStatus === 'suspended') {
-        return res.status(403).json({ error: 'Store is suspended. Please renew your subscription to reactivate.' });
-      }
-      // Trial expired stores cannot self-activate
-      if (visibility === 'active' && currentStatus === 'trial') {
-        const trialEnds = current[0].trial_ends;
-        if (trialEnds && new Date(trialEnds) < new Date()) {
-          return res.status(403).json({ error: 'Trial has expired. Please subscribe to reactivate.' });
-        }
-      }
-
+      // Owners can only toggle between active and suspended (their own store only)
       const allowed = ['active', 'suspended'];
       if (!allowed.includes(visibility)) return res.status(400).json({ error: 'Invalid visibility value' });
       await sql`UPDATE stores SET status = ${visibility} WHERE id = ${id}`;

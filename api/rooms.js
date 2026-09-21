@@ -24,9 +24,8 @@ module.exports = async function handler(req, res) {
         JOIN locations l ON l.id = r.location_id AND l.active = true
         JOIN stores s ON s.id = r.store_id AND s.status IN ('active','trial')
         WHERE r.status != 'maintenance'
-          AND r.photos IS NOT NULL AND array_length(r.photos, 1) > 0
-          AND (s.status = 'active' OR (s.status = 'trial' AND (s.trial_ends IS NULL OR s.trial_ends >= CURRENT_DATE)))
-        ORDER BY COALESCE(r.is_featured, false) DESC, r.created_at DESC
+          AND (r.status = 'available' OR r.status = 'occupied')
+        ORDER BY COALESCE(r.is_featured, false) DESC, r.price_per_night ASC, r.created_at DESC
       `;
       return res.status(200).json(rows);
     }

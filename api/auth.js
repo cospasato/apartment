@@ -40,8 +40,8 @@ module.exports = async function handler(req, res) {
       if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
       const rows = await sql`
         SELECT o.id, o.name, o.email, o.phone,
-               s.id AS store_id, s.name AS store_name, s.slug, s.status AS store_status,
-               s.trial_ends, s.plan_id, p.name AS plan_name
+               s.id AS store_id, s.name AS store_name, s.slug, s.status AS store_status, s.plan_id,
+               p.name AS plan_name
         FROM store_owners o
         JOIN stores s ON s.owner_id = o.id
         LEFT JOIN subscription_plans p ON p.id = s.plan_id
@@ -50,19 +50,13 @@ module.exports = async function handler(req, res) {
       `;
       if (!rows.length) return res.status(401).json({ error: 'Invalid email or password' });
       const u = rows[0];
-              // Auto-suspend on login if trial expired
-        let finalStatus = u.store_status;
-        if (finalStatus === 'trial' && u.trial_ends && new Date(u.trial_ends) < new Date()) {
-          await sql`UPDATE stores SET status='suspended' WHERE id=${u.store_id}`;
-          finalStatus = 'suspended';
-        }
-        return res.status(200).json({
-          id: u.id, name: u.name, email: u.email, phone: u.phone,
-          role: 'store_owner',
-          store: { id: u.store_id, name: u.store_name, slug: u.slug, status: finalStatus, trial_ends: u.trial_ends, planName: u.plan_name },
-          token: makeToken('owner', u.id, u.store_id)
-        });
-      } //endOwnerLogin
+      return res.status(200).json({
+        id: u.id, name: u.name, email: u.email, phone: u.phone,
+        role: 'store_owner',
+        store: { id: u.store_id, name: u.store_name, slug: u.slug, status: u.store_status, planName: u.plan_name },
+        token: makeToken('owner', u.id, u.store_id)
+      });
+    }
 
     // ── STAFF LOGIN ────────────────────────────────────────
     if (type === 'staff' && req.method === 'POST') {

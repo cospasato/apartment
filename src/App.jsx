@@ -1919,7 +1919,6 @@ export default function App() {
       {id:"comms",     l:"📣 Announcements"},
       {id:"reports",   l:"📈 Reports"},
       {id:"settings",  l:"⚙️ Settings"},
-      {id:"users",      l:"👥 Users"},
     ];
     return (
       <div style={{ display:"flex", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
@@ -1954,7 +1953,6 @@ export default function App() {
             {sTab==="comms"    && <SuperComms stores={stores} api={api} pop={pop}/>}
             {sTab==="reports"  && <SuperReports stores={stores} api={api} pop={pop} fmt={fmt} fmtDate={fmtDate}/>}
             {sTab==="settings" && <SuperSettings superAdmin={superAdmin} api={api} pop={pop}/>}
-            {sTab==="users"    && <SuperUsers api={api} pop={pop}/>}
           </div>
         </div>
         {toast && <div style={{ position:"fixed", bottom:22, right:22, background:toast.t==="ok"?OK:ER, color:WH, padding:"11px 18px", borderRadius:10, fontSize:14, fontWeight:700, zIndex:2000 }}>{toast.t==="ok"?"✓ ":"✗ "}{toast.msg}</div>}
@@ -1967,74 +1965,6 @@ export default function App() {
   ══════════════════════════════════════════════════════ */
   if (view === "owner_dash" && owner && owner.store && owner.store.id) {
     const sid = owner.store.id;
-
-    // ── SUSPENDED / EXPIRED PAYWALL ──
-    const storeStatus  = owner.store.status || "trial";
-    const trialEnds    = owner.store.trial_ends ? new Date(owner.store.trial_ends) : null;
-    const trialExpired = storeStatus === "trial" && trialEnds && trialEnds < new Date();
-    const isSuspended  = storeStatus === "suspended" || storeStatus === "cancelled" || trialExpired;
-    const daysLeft     = trialEnds ? Math.ceil((trialEnds - new Date()) / (1000*60*60*24)) : null;
-
-    if (isSuspended && !owner._bypass_paywall) return (
-      <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
-        <div style={{ background:"#FFF", borderRadius:16, padding:36, maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 4px 32px rgba(0,0,0,.10)" }}>
-          <div style={{ fontSize:52, marginBottom:12 }}>{trialExpired ? "⏰" : "🚫"}</div>
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:"#6B1B2A", marginBottom:8 }}>
-            {trialExpired ? "Free Trial Ended" : "Account Suspended"}
-          </div>
-          <div style={{ fontSize:14, color:"#555", lineHeight:1.7, marginBottom:24 }}>
-            {trialExpired
-              ? "Your 14-day free trial has ended. Subscribe to continue using BNBMIS and keep all your data."
-              : "Your account has been suspended. Please contact support or renew your subscription to restore full access."}
-          </div>
-          <div style={{ background:"#F9F6F0", borderRadius:10, padding:"14px 18px", marginBottom:24, fontSize:13, color:"#444" }}>
-            📞 <strong>Contact Support</strong><br/>
-            support@bnbmis.com · 0783739369<br/>
-            www.bnbmis.com
-          </div>
-          {/* Pay directly from paywall */}
-          {(()=>{
-            const ps = platSettings || {};
-            const hasPP = !!(ps.pesapal_consumer_key && ps.pesapal_consumer_key !== "undefined");
-            const activePlans = plans ? plans.filter(p=>p.is_active && p.price_monthly > 0) : [];
-            if (hasPP && activePlans.length > 0) {
-              return (
-                <button onClick={async()=>{
-                  const plan = activePlans[0];
-                  const stored = localStorage.getItem("bnbmis_owner");
-                  const tok = stored ? (() => { try { return JSON.parse(stored).token||""; } catch { return ""; } })() : "";
-                  const ownerD = stored ? (() => { try { return JSON.parse(stored); } catch { return {}; } })() : {};
-                  try {
-                    const r = await fetch("/api/pesapal?action=initiate", {
-                      method:"POST",
-                      headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},
-                      body:JSON.stringify({store_id:sid,plan_id:plan.id,billing_cycle:"monthly",
-                        owner_email:ownerD.email||"",owner_phone:ownerD.phone||"",owner_name:ownerD.name||""})
-                    });
-                    const d = await r.json();
-                    if (d.redirect_url) { window.location.href = d.redirect_url; }
-                    else { alert(d.error||"Payment failed"); }
-                  } catch(e) { alert("Could not connect to payment gateway"); }
-                }}
-                  style={{ background:"#2E7D32", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
-                  🟢 Pay with Pesapal — TZS {Number(activePlans[0]?.price_monthly||0).toLocaleString()}/mo
-                </button>
-              );
-            }
-            return null;
-          })()}
-          <button onClick={()=>{ setATab("billing"); setOwner(prev => ({...prev, _bypass_paywall: true})); }}
-            style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:10 }}>
-            💳 View Billing & Subscribe
-          </button>
-          <button onClick={()=>{ window.location.reload(); }}
-            style={{ background:"#F5F5F5", color:"#444", border:"1px solid #DDD", borderRadius:10, padding:"11px 32px", fontSize:14, cursor:"pointer", fontFamily:"inherit", width:"100%", marginBottom:8 }}>
-            🔄 Check Again
-          </button>
-        </div>
-      </div>
-    );
-
     const otabs = [
       {id:"dash",      icon:"📊", l:"Dashboard"},
       {id:"books",     icon:"📋", l:"Bookings"},
@@ -2152,34 +2082,6 @@ export default function App() {
 
   /* ── ADMIN DASHBOARD ── */
   if (view === "admin" && user) {
-
-  // ── STAFF: suspended store paywall ──
-  const staffStoreStatus  = stores.find(s=>s.id===user.storeId)?.status || "active";
-  const staffTrialEnds    = stores.find(s=>s.id===user.storeId)?.trial_ends;
-  const staffTrialExpired = staffStoreStatus==="trial" && staffTrialEnds && new Date(staffTrialEnds)<new Date();
-  const staffSuspended    = staffStoreStatus==="suspended" || staffStoreStatus==="cancelled" || staffTrialExpired;
-
-  if (staffSuspended) return (
-    <div style={{ minHeight:"100vh", background:"#F5F5F5", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
-      <div style={{ background:"#FFF", borderRadius:16, padding:36, maxWidth:420, width:"100%", textAlign:"center", boxShadow:"0 4px 32px rgba(0,0,0,.10)" }}>
-        <div style={{ fontSize:52, marginBottom:12 }}>🚫</div>
-        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:"#6B1B2A", marginBottom:8 }}>Access Restricted</div>
-        <div style={{ fontSize:14, color:"#555", lineHeight:1.7, marginBottom:24 }}>
-          {staffTrialExpired ? "Your store's free trial has ended." : "Your store account has been suspended."}<br/>
-          Please ask your store owner to renew the BNBMIS subscription to restore access.
-        </div>
-        <div style={{ background:"#F9F6F0", borderRadius:10, padding:"14px 18px", marginBottom:24, fontSize:13, color:"#444" }}>
-          📞 <strong>BNBMIS Support</strong><br/>
-          support@bnbmis.com · 0783739369
-        </div>
-        <button onClick={()=>{ window.location.reload(); }}
-          style={{ background:"#6B1B2A", color:"#FFF", border:"none", borderRadius:10, padding:"13px 32px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit", width:"100%" }}>
-          🔄 Check Again
-        </button>
-      </div>
-    </div>
-  );
-
   const totRev = books.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.paid,0);
   const totExp = exps.reduce((s,e)=>s+e.amt,0);
   const netPro = totRev - totExp;
@@ -2612,10 +2514,11 @@ function DashTab({ books, rooms, exps, locs, allRooms, totRev, totExp, netPro, p
 
 function printPaymentReceipt(b, rm, storeName, isInvoice) {
     if (!b) return;
+    if (!b) return;
     const docType = isInvoice ? "INVOICE" : "RECEIPT";
-    const w = window.open("", "_blank");
+    const w = window.open("", "_blank", "width=600,height=800");
     const bal = (b.total||0) - (b.paid||0);
-    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><meta name='viewport' content='width=device-width,initial-scale=1'><style>
+    w.document.write(`<!DOCTYPE html><html><head><title>${docType}</title><style>
       *{box-sizing:border-box}
       body{font-family:Arial,sans-serif;padding:28px 32px;max-width:520px;margin:0 auto;color:#111}
       .logo{font-family:Georgia,serif;font-size:30px;font-weight:900;color:#6B1B2A;letter-spacing:-1px}
@@ -5395,7 +5298,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead><tr style={{ borderBottom:"2px solid #E8E8E8" }}>
-              {["Store","Owner","Status","Subscription Expires","Rooms","Active","Bookings","Revenue","Actions"].map((h,i)=>
+              {["Store","Owner","City","Status","Plan","Rooms","Bookings","Revenue","Actions"].map((h,i)=>
                 <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"#666", textTransform:"uppercase", letterSpacing:".06em", whiteSpace:"nowrap" }}>{h}</th>)}
             </tr></thead>
             <tbody>{filtered.map((s,i)=>(
@@ -5405,33 +5308,10 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                   <div style={{ fontSize:11, color:"#AAA" }}>/{s.slug} · {s.id}</div>
                 </td>
                 <td style={{ padding:"9px 10px" }}><div style={{ fontSize:12 }}>{s.owner_name}</div><div style={{ fontSize:11, color:"#AAA" }}>{s.owner_email}</div></td>
-                <td style={{ padding:"9px 10px" }}>
-                  <span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span>
-                  {s.status==="trial" && s.trial_ends && (
-                    <div style={{ fontSize:10, color:"#888", marginTop:2 }}>
-                      Trial: {Math.ceil((new Date(s.trial_ends)-new Date())/(1000*60*60*24))} days left
-                    </div>
-                  )}
-                  {s.status==="suspended" && <div style={{ fontSize:10, color:"#C62828", marginTop:2 }}>No access</div>}
-                </td>
-                <td style={{ padding:"9px 10px", fontSize:12 }}>
-                  {s.current_period_end ? (
-                    <div>
-                      <div style={{ fontWeight:700, color: new Date(s.current_period_end)<new Date()?"#C62828":"#2E7D32" }}>
-                        {(s.current_period_end+"").split("T")[0]}
-                      </div>
-                      <div style={{ fontSize:10, color:"#888" }}>
-                        {s.plan_name||"—"} · {s.sub_status||"—"}
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ color:"#AAA", fontSize:12 }}>
-                      {s.status==="trial" ? (s.trial_ends ? "Trial till "+((s.trial_ends+"").split("T")[0]) : "Trial") : "—"}
-                    </span>
-                  )}
-                </td>
+                <td style={{ padding:"9px 10px", fontSize:12 }}>{s.city||"—"}</td>
+                <td style={{ padding:"9px 10px" }}><span style={{ background:sB2(s.status), color:sC2(s.status), padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{s.status}</span></td>
+                <td style={{ padding:"9px 10px", fontSize:12 }}>{s.plan_name||"—"}</td>
                 <td style={{ padding:"9px 10px" }}>{s.room_count||0}</td>
-                <td style={{ padding:"9px 10px", fontWeight:700, color:s.active_stays>0?"#1565C0":"#999" }}>{s.active_stays||0}</td>
                 <td style={{ padding:"9px 10px" }}>{s.booking_count||0}</td>
                 <td style={{ padding:"9px 10px", fontWeight:700, color:"#6B1B2A" }}>{fmt(s.total_revenue||0)}</td>
                 <td style={{ padding:"9px 10px" }}>
@@ -5442,7 +5322,7 @@ function SuperStores({ stores, plans, onRefresh, api, pop, setModal, fmtDate, fm
                     {(s.status==="active"||s.status==="suspended")&&<button onClick={()=>updateStatus(s.id,"terminated")} style={{ background:"#FFEBEE", color:"#C62828", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Terminate</button>}
                     <button onClick={()=>setModal({type:"record_pay",storeId:s.id,storeName:s.name})} style={{ background:"#E3F2FD", color:"#1565C0", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>+ Pay</button>
                     <button onClick={()=>setPlanModal({storeId:s.id,storeName:s.name,currentPlanId:s.plan_id})} style={{ background:"#F3E5F5", color:"#6A1B9A", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Plan</button>
-                    <button onClick={()=>setTrialModal({storeId:s.id,storeName:s.name})} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>📅 Extend Trial</button>
+                    <button onClick={()=>setTrialModal({storeId:s.id,storeName:s.name})} style={{ background:"#E8F5E9", color:"#2E7D32", border:"none", borderRadius:6, padding:"4px 9px", fontSize:11, cursor:"pointer", fontWeight:700 }}>Extend</button>
                   </div>
                 </td>
               </tr>
@@ -5659,192 +5539,6 @@ function SuperPlans({ plans, onRefresh, api, pop, fmt }) {
             </button>
           </div>
         </Modal>
-      )}
-    </div>
-  );
-}
-
-function SuperUsers({ api, pop }) {
-  const [users, setUsers]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState(null); // null=closed, {}=new, {id,...}=edit
-  const [saving, setSaving]   = useState(false);
-  const M="#6B1B2A",WH="#FFF",G1="#F5F5F5",G2="#E8E8E8",G6="#666",OK="#2E7D32",ER="#C62828";
-
-  const ROLES = ["Super","Manager","Support","Finance","Technical"];
-  const ALL_PERMS = ["stores","billing","plans","payments","reports","comms","featured","gateways","users"];
-
-  const load = async () => {
-    setLoading(true);
-    try { setUsers(await api.getAdminUsers()); }
-    catch(e) { pop(e.message,"err"); }
-    finally { setLoading(false); }
-  };
-  useEffect(()=>{ load(); },[]);
-
-  const save = async () => {
-    if (!form.name||!form.email) return pop("Name and email required","err");
-    if (!form.id && !form.password) return pop("Password required for new user","err");
-    setSaving(true);
-    try {
-      const data = {
-        name: form.name, email: form.email, role: form.role||"Support",
-        permissions: form.permissions||["stores","billing"],
-        active: form.active!==false,
-        ...(form.password ? {password: form.password} : {})
-      };
-      if (form.id) { await api.updateAdminUser(form.id, data); pop("User updated"); }
-      else         { await api.createAdminUser(data);           pop("User created"); }
-      setForm(null); load();
-    } catch(e) { pop(e.message,"err"); }
-    finally { setSaving(false); }
-  };
-
-  const del = async (u) => {
-    if (!confirm(`Delete ${u.name}?`)) return;
-    try { await api.deleteAdminUser(u.id); pop("User deleted"); load(); }
-    catch(e) { pop(e.message,"err"); }
-  };
-
-  const togglePerm = (perm) => {
-    const perms = form.permissions||[];
-    setForm(f=>({...f, permissions: perms.includes(perm) ? perms.filter(p=>p!==perm) : [...perms, perm]}));
-  };
-
-  const roleColor = {Super:"#6B1B2A",Manager:"#1565C0",Support:"#2E7D32",Finance:"#B76E00",Technical:"#6A1B9A"};
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div>
-          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,margin:"0 0 4px"}}>Platform Users</h2>
-          <div style={{fontSize:13,color:G6}}>Manage your internal team who can access the admin panel</div>
-        </div>
-        <button onClick={()=>setForm({name:"",email:"",password:"",role:"Support",permissions:["stores","billing"],active:true})}
-          style={{background:M,color:WH,border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-          + Add User
-        </button>
-      </div>
-
-      {loading ? <div style={{textAlign:"center",padding:40,color:G6}}>Loading…</div> : (
-        <div style={{background:WH,border:`1px solid ${G2}`,borderRadius:12,overflow:"hidden"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{borderBottom:`2px solid ${G2}`,background:G1}}>
-                {["Name","Email","Role","Permissions","Status","Last Login","Actions"].map(h=>(
-                  <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:G6,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!users.length && (
-                <tr><td colSpan={7} style={{padding:32,textAlign:"center",color:G6}}>No users yet. Add your first team member.</td></tr>
-              )}
-              {users.map((u,i)=>(
-                <tr key={i} style={{borderBottom:`1px solid ${G2}`,background:u.active?WH:"#FFF8F8"}}>
-                  <td style={{padding:"12px 14px"}}>
-                    <div style={{fontWeight:700}}>{u.name}</div>
-                    {!u.active && <div style={{fontSize:11,color:ER}}>Inactive</div>}
-                  </td>
-                  <td style={{padding:"12px 14px",color:G6,fontSize:12}}>{u.email}</td>
-                  <td style={{padding:"12px 14px"}}>
-                    <span style={{background:roleColor[u.role]||G6,color:WH,borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:700}}>
-                      {u.role}
-                    </span>
-                  </td>
-                  <td style={{padding:"12px 14px"}}>
-                    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                      {(u.permissions||[]).map(p=>(
-                        <span key={p} style={{background:G1,border:`1px solid ${G2}`,borderRadius:4,padding:"1px 7px",fontSize:10,color:G6,textTransform:"capitalize"}}>{p}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td style={{padding:"12px 14px"}}>
-                    <span style={{color:u.active?OK:ER,fontWeight:700,fontSize:12}}>{u.active?"Active":"Inactive"}</span>
-                  </td>
-                  <td style={{padding:"12px 14px",fontSize:12,color:G6}}>
-                    {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
-                  </td>
-                  <td style={{padding:"12px 14px"}}>
-                    <div style={{display:"flex",gap:6}}>
-                      <button onClick={()=>setForm({...u,password:""})}
-                        style={{background:"#E3F2FD",color:"#1565C0",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>Edit</button>
-                      <button onClick={()=>api.updateAdminUser(u.id,{active:!u.active}).then(()=>{pop(u.active?"User deactivated":"User activated");load();})}
-                        style={{background:u.active?"#FFF3E0":"#E8F5E9",color:u.active?"#B76E00":"#2E7D32",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>
-                        {u.active?"Deactivate":"Activate"}
-                      </button>
-                      <button onClick={()=>del(u)}
-                        style={{background:"#FFEBEE",color:ER,border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:700}}>Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ── Add/Edit Modal ── */}
-      {form && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div style={{background:WH,borderRadius:14,padding:28,width:"100%",maxWidth:520,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:19,margin:0}}>{form.id?"Edit User":"New Platform User"}</h3>
-              <button onClick={()=>setForm(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:G6}}>✕</button>
-            </div>
-
-            {[{l:"Full Name *",k:"name",t:"text",ph:"e.g. John Mwakasege"},
-              {l:"Email Address *",k:"email",t:"email",ph:"user@bnbmis.com"},
-              {l:form.id?"New Password (leave blank to keep)":"Password *",k:"password",t:"password",ph:"••••••••"},
-            ].map(({l,k,t,ph})=>(
-              <div key={k} style={{marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:700,marginBottom:5,color:G6}}>{l}</div>
-                <input type={t} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}
-                  style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
-              </div>
-            ))}
-
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:12,fontWeight:700,marginBottom:5,color:G6}}>Role</div>
-              <select value={form.role||"Support"} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
-                style={{width:"100%",padding:"9px 12px",border:`1px solid ${G2}`,borderRadius:8,fontSize:13,fontFamily:"inherit",outline:"none"}}>
-                {ROLES.map(r=><option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:G6}}>Permissions</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {ALL_PERMS.map(p=>{
-                  const has = (form.permissions||[]).includes(p);
-                  return (
-                    <button key={p} onClick={()=>togglePerm(p)}
-                      style={{padding:"5px 12px",borderRadius:6,fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",
-                        border:`2px solid ${has?M:G2}`,background:has?"#F9F0F2":WH,color:has?M:G6,textTransform:"capitalize"}}>
-                      {has?"✓ ":""}{p}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
-              <input type="checkbox" id="uactive" checked={form.active!==false} onChange={e=>setForm(f=>({...f,active:e.target.checked}))}/>
-              <label htmlFor="uactive" style={{fontSize:13,cursor:"pointer"}}>Active (can log in)</label>
-            </div>
-
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={save} disabled={saving}
-                style={{flex:1,background:M,color:WH,border:"none",borderRadius:8,padding:"11px 0",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:saving?.6:1}}>
-                {saving?"Saving…":form.id?"Save Changes":"Create User"}
-              </button>
-              <button onClick={()=>setForm(null)}
-                style={{padding:"11px 18px",border:`1px solid ${G2}`,borderRadius:8,background:WH,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -6360,16 +6054,8 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
         setPlatSettings(ps||{});
         if (st) setStore(st);
         // Payments separately (can fail gracefully)
-        const payData = await api.getSubPayments(storeId).catch(()=>null);
-        if (payData && payData.payments) {
-          setPayments(payData.payments || []);
-          // Update store with subscription info
-          if (payData.subscription) {
-            setStore(prev => ({...prev, current_period_end: payData.subscription.current_period_end, sub_status: payData.subscription.status}));
-          }
-        } else if (Array.isArray(payData)) {
-          setPayments(payData);
-        }
+        const pay = await api.getSubPayments(storeId).catch(()=>[]);
+        setPayments(pay||[]);
       } catch(e) {
         setLoadErr(e?.message || "Failed to load billing info");
       } finally {
@@ -6399,31 +6085,6 @@ function OwnerBillingTab({ owner, storeId, api, pop }) {
   return (
     <div>
       <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, margin:"0 0 20px" }}>Billing & Plan</h2>
-
-      {/* Suspension / expiry warning */}
-      {store?.status === "suspended" && (
-        <div style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:12, padding:"16px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
-          <span style={{ fontSize:28 }}>🚫</span>
-          <div>
-            <div style={{ fontWeight:700, color:"#C62828", fontSize:15, marginBottom:3 }}>Account Suspended</div>
-            <div style={{ fontSize:13, color:"#666" }}>Your store is currently suspended. Please contact support or renew your subscription to restore access.</div>
-          </div>
-        </div>
-      )}
-      {store?.status === "trial" && store?.trial_ends && (
-        (()=>{
-          const days = Math.ceil((new Date(store.trial_ends) - new Date()) / (1000*60*60*24));
-          return days <= 5 ? (
-            <div style={{ background:"#FFF3E0", border:"2px solid #B76E00", borderRadius:12, padding:"16px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
-              <span style={{ fontSize:28 }}>⚠️</span>
-              <div>
-                <div style={{ fontWeight:700, color:"#B76E00", fontSize:15, marginBottom:3 }}>Trial Expiring Soon</div>
-                <div style={{ fontSize:13, color:"#666" }}>{days <= 0 ? "Your trial has expired." : `Your free trial ends in ${days} day${days!==1?"s":""}. Subscribe to keep your data and access.`}</div>
-              </div>
-            </div>
-          ) : null;
-        })()
-      )}
 
       {/* Account Status card — single full-width card */}
       <div style={{ background:WH2, border:"2px solid "+M2, borderRadius:14, padding:22, marginBottom:24 }}>
@@ -8313,41 +7974,16 @@ function SuperStoreDetail({ store: initialStore, plans, api, pop, onClose, onRef
             </div>
           </div>
 
-          {/* Store stats */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
-            {[
-              { l:"Owner",      v:store.owner_name||"—" },
-              { l:"Email",      v:store.owner_email||"—" },
-              { l:"Phone",      v:store.owner_phone||"—" },
-              { l:"Joined",     v:(store.created_at||"").split("T")[0] },
-              { l:"Rooms",      v:store.room_count||0 },
-              { l:"Active Stays", v:store.active_stays||0, bold:true, color:IN2 },
-              { l:"Bookings",   v:store.booking_count||0 },
-              { l:"Revenue",    v:"TZS "+(Number(store.total_revenue||0).toLocaleString()), bold:true, color:OK2 },
-            ].map(({l,v,bold,color})=>(
-              <div key={l} style={{ background:G12, borderRadius:8, padding:"10px 12px" }}>
-                <div style={{ fontSize:10, color:G62, textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>{l}</div>
-                <div style={{ fontSize:13, fontWeight:bold?700:500, color:color||G82 }}>{v}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Subscription info */}
-          <div style={{ background: store.current_period_end && new Date(store.current_period_end)>=new Date() ? OKB2 : store.status==="trial" ? INB2 : ERB2,
-            border:"1px solid "+(store.current_period_end && new Date(store.current_period_end)>=new Date() ? "#A5D6A7" : store.status==="trial" ? "#90CAF9" : "#EF9A9A"),
-            borderRadius:10, padding:"12px 16px", marginBottom:16 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Subscription</div>
+          {/* Owner info (read-only) */}
+          <div style={{ background:G12, borderRadius:10, padding:"12px 16px", marginBottom:20 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:G62, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>Owner</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, fontSize:13 }}>
-              <div><span style={{ color:G62 }}>Plan: </span><strong>{plans.find(p=>p.id===store.plan_id)?.name||"None"}</strong></div>
-              <div><span style={{ color:G62 }}>Sub Status: </span><strong>{store.sub_status||"—"}</strong></div>
-              <div><span style={{ color:G62 }}>Expires: </span><strong style={{ color: store.current_period_end && new Date(store.current_period_end)<new Date() ? ER2 : OK2 }}>
-                {store.current_period_end ? (store.current_period_end+"").split("T")[0] : "—"}
-              </strong></div>
-              <div><span style={{ color:G62 }}>Trial Ends: </span><strong>{store.trial_ends ? (store.trial_ends+"").split("T")[0] : "—"}</strong></div>
-              <div><span style={{ color:G62 }}>Sub Paid: </span><strong style={{ color:OK2 }}>TZS {Number(store.subscription_paid||0).toLocaleString()}</strong></div>
-              <div><span style={{ color:G62 }}>Days Left: </span><strong style={{ color: store.current_period_end && Math.ceil((new Date(store.current_period_end)-new Date())/(1000*60*60*24))<7 ? ER2 : OK2 }}>
-                {store.current_period_end ? Math.ceil((new Date(store.current_period_end)-new Date())/(1000*60*60*24))+" days" : "—"}
-              </strong></div>
+              <div><span style={{ color:G62 }}>Name: </span><strong>{store.owner_name||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Email: </span><strong>{store.owner_email||"—"}</strong></div>
+              <div><span style={{ color:G62 }}>Rooms: </span><strong>{store.room_count||0}</strong></div>
+              <div><span style={{ color:G62 }}>Bookings: </span><strong>{store.booking_count||0}</strong></div>
+              <div><span style={{ color:G62 }}>Revenue: </span><strong style={{ color:OK2 }}>TZS {Number(store.total_revenue||0).toLocaleString()}</strong></div>
+              <div><span style={{ color:G62 }}>Joined: </span><strong>{(store.created_at||"").split("T")[0]}</strong></div>
             </div>
           </div>
 
