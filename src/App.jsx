@@ -1536,9 +1536,9 @@ export default function App() {
       payMethods={payMethods}
       onBook={(roomId)=>{
         if (roomId) {
-          setBD(d=>({...d,roomId}));
-          setRoomDetail(roomId);
-          navTo("book",3);
+          const rm = rooms.find(r=>r.id===roomId);
+          setBD(d=>({...d, roomId, locId: rm?.locId || d.locId}));
+          navTo("book", 2);
         } else {
           navTo("book",1);
         }
@@ -1635,7 +1635,24 @@ export default function App() {
         {bStep === 2 && (
           <div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 6, color: BK }}>Select Your Dates</h2>
-            <p style={{ color: G6, marginBottom: 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            <p style={{ color: G6, marginBottom: bD.roomId ? 10 : 20, fontSize: 13 }}>{locs.find(l => l.id === bD.locId)?.name}</p>
+            {bD.roomId && (()=>{
+              const pr = rooms.find(r=>r.id===bD.roomId);
+              return pr ? (
+                <div style={{ background:"#E8F5E9", border:"2px solid #2E7D32", borderRadius:10, padding:"12px 14px", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+                  {pr.photos&&pr.photos[0] && <img src={pr.photos[0]} alt={pr.name} style={{ width:48, height:48, borderRadius:7, objectFit:"cover", flexShrink:0 }}/>}
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"#2E7D32", textTransform:"uppercase", letterSpacing:".06em" }}>✓ Room Selected</div>
+                    <div style={{ fontWeight:700, fontSize:14, color:"#111" }}>{pr.name}</div>
+                    <div style={{ fontSize:12, color:"#666" }}>{pr.type} · TZS {Number(pr.price||0).toLocaleString()}/night</div>
+                  </div>
+                  <button onClick={()=>setBD(d=>({...d,roomId:""}))}
+                    style={{ background:"none", border:"1px solid #ccc", borderRadius:6, padding:"4px 9px", fontSize:11, color:"#888", cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+                    Change
+                  </button>
+                </div>
+              ) : null;
+            })()}
             <Card>
               <div style={{ fontSize: 12, color: G6, marginBottom: 14, background: G1, borderRadius: 8, padding: "8px 12px" }}>
                 ℹ️ Check-in from <strong>14:00</strong> · Checkout by <strong>12:00 noon</strong> — room available again from checkout day
@@ -1661,12 +1678,13 @@ export default function App() {
             </Card>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <Btn v="ghost" onClick={() => goStep(1)}>← Back</Btn>
-              <Btn onClick={() => goStep(3)} disabled={!bD.ci || !bD.co}>See Available Rooms →</Btn>
+              <Btn onClick={() => goStep(3)} disabled={!bD.ci || !bD.co}>{bD.roomId ? "Continue to Details →" : "See Available Rooms →"}</Btn>
             </div>
           </div>
         )}
 
-        {/* Step 3 — SELECT ROOM (new order, dates already chosen) */}
+        {/* Step 3 — SELECT ROOM — auto-skip to step 4 if room pre-selected AND dates set */}
+        {bStep === 3 && bD.roomId && bD.ci && bD.co && (() => { goStep(4); return null; })()}
         {bStep === 3 && (
           <div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, marginBottom: 4, color: BK }}>
