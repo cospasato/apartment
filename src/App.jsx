@@ -8212,13 +8212,13 @@ function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }
           ? <img src={cover} alt={stName} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}/>
           : <div style={{ position:"absolute", inset:0, background:`linear-gradient(135deg, ${M} 0%, #2C0A11 100%)` }}/>
         }
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(0,0,0,.35) 0%, rgba(0,0,0,.65) 100%)" }}/>
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,.72) 100%)" }}/>
 
         <div style={{ position:"relative", textAlign:"center", padding:"0 24px", maxWidth:720 }}>
           {avgRating > 0 && (
             <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(255,255,255,.15)", backdropFilter:"blur(8px)", borderRadius:99, padding:"6px 16px", marginBottom:20 }}>
               <span style={{ color:GOLD, fontSize:14 }}>{"★".repeat(Math.round(avgRating))}</span>
-              <span style={{ color:WH, fontSize:13, fontWeight:600 }}>{avgRating} · {store.review_count||0} reviews</span>
+              <span style={{ color:WH, fontSize:13, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,.5)" }}>{avgRating} · {store.review_count||0} reviews</span>
             </div>
           )}
           <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(36px,6vw,72px)", fontWeight:900, color:WH, lineHeight:1.1, margin:"0 0 16px", textShadow:"0 2px 20px rgba(0,0,0,.4)" }}>
@@ -8226,11 +8226,11 @@ function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }
           </h1>
           {stCity && (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, color:WH+"CC", fontSize:16, marginBottom:20 }}>
-              <span>📍</span><span>{stCity}</span>
+              <span style={{textShadow:"0 1px 6px rgba(0,0,0,.7)"}}>📍</span><span style={{textShadow:"0 1px 6px rgba(0,0,0,.7)"}}>{stCity}</span>
             </div>
           )}
           {stDesc && (
-            <p style={{ color:WH+"BB", fontSize:16, lineHeight:1.7, marginBottom:32, maxWidth:560, margin:"0 auto 32px" }}>
+            <p style={{ color:WH, fontSize:16, lineHeight:1.7, marginBottom:32, maxWidth:560, margin:"0 auto 32px", textShadow:"0 1px 8px rgba(0,0,0,.8)", fontWeight:400 }}>
               {stDesc.slice(0,160)}{stDesc.length>160?"…":""}
             </p>
           )}
@@ -8264,7 +8264,7 @@ function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }
             <div key={l} style={{ textAlign:"center" }}>
               <div style={{ fontSize:28, marginBottom:4 }}>{icon}</div>
               <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:GOLD }}>{num}</div>
-              <div style={{ fontSize:12, color:WH+"AA", fontWeight:500 }}>{l}</div>
+              <div style={{ fontSize:12, color:WH, fontWeight:500, opacity:.85 }}>{l}</div>
             </div>
           ))}
         </div>
