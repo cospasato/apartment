@@ -12,7 +12,9 @@ module.exports = async function handler(req, res) {
   try {
     // ── PUBLIC: All marketplace rooms (for landing page) ──
     if (req.method === 'GET' && action === 'marketplace_rooms') {
-      // Fast query: no RANDOM() (done client-side), no heavy review aggregation
+      // Ensure columns exist (safe to run every time)
+      await sql`ALTER TABLE rooms ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT false`.catch(()=>{});
+      await sql`ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`.catch(()=>{});
       const rows = await sql`
         SELECT r.id, r.name, r.type, r.beds, r.max_guests, r.price_per_night AS price,
                r.photos, r.amenities, r.status,
