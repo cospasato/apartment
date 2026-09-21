@@ -487,13 +487,14 @@ export default function App() {
       if (!hasSession) {
         loadPublic(store.id).then(() => {
           if (deepRoomId) {
-            // Deep link to specific room — open it directly
+            // Deep link to specific room — open booking directly
             setBD(d => ({ ...d, roomId: deepRoomId }));
             setRoomDetail(deepRoomId);
             setView("book");
-            setBStep(2); // skip to rooms step
+            setBStep(3);
           } else {
-            setView("book");
+            // Go to store website, not booking wizard
+            setView("store_site");
           }
         });
       }
@@ -8112,6 +8113,7 @@ function MktRoomCard({ rm, onClick }) {
 function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }) {
   const [activeSection, setActiveSection] = useState("home");
   const [selLoc, setSelLoc]               = useState(null);
+  const [menuOpen, setMenuOpen]           = useState(false);
 
   const M="#6B1B2A",WH="#FFF",BK="#111",G1="#F7F5F3",G2="#E8E4E0",G6="#666",G3="#F0EDE9";
   const OK="#2E7D32",GOLD="#C9A84C";
@@ -8145,30 +8147,62 @@ function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }
   return (
     <div style={{ minHeight:"100vh", fontFamily:"'DM Sans',sans-serif", background:G1, color:BK }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+      <style>{`
+        @media(min-width:640px){ .sw-mobile-only{display:none!important} }
+        @media(max-width:639px){ .sw-desktop-nav{display:none!important} }
+      `}</style>
 
       {/* ── STICKY NAV ── */}
-      <nav style={{ position:"sticky", top:0, zIndex:100, background:"rgba(107,27,42,.97)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", height:60, boxShadow:"0 2px 16px rgba(0,0,0,.25)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          {logo
-            ? <img src={logo} alt={stName} style={{ height:36, borderRadius:6, objectFit:"contain" }}/>
-            : <div style={{ width:36, height:36, background:GOLD, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <span style={{ color:BK, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
-              </div>
-          }
-          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:WH, letterSpacing:"-0.3px" }}>{stName}</span>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-          {NAV_LINKS.map(n => (
-            <button key={n.id} onClick={()=>scrollTo(n.id)}
-              style={{ background:"none", border:"none", color:activeSection===n.id?GOLD:WH+"CC", padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", borderRadius:6, transition:"color .15s" }}>
-              {n.l}
+      <nav style={{ position:"sticky", top:0, zIndex:100, background:"rgba(107,27,42,.97)", backdropFilter:"blur(8px)", boxShadow:"0 2px 16px rgba(0,0,0,.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", height:56 }}>
+          {/* Logo only */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            {logo
+              ? <img src={logo} alt={stName} style={{ height:34, borderRadius:6, objectFit:"contain" }}/>
+              : <div style={{ width:34, height:34, background:GOLD, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <span style={{ color:BK, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
+                </div>
+            }
+          </div>
+
+          {/* Desktop nav links */}
+          <div style={{ display:"flex", alignItems:"center", gap:2 }} className="sw-desktop-nav">
+            {NAV_LINKS.map(n => (
+              <button key={n.id} onClick={()=>scrollTo(n.id)}
+                style={{ background:"none", border:"none", color:activeSection===n.id?GOLD:WH+"CC", padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", borderRadius:6 }}>
+                {n.l}
+              </button>
+            ))}
+            <button onClick={()=>onBook(null)}
+              style={{ background:GOLD, color:BK, border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginLeft:6, whiteSpace:"nowrap" }}>
+              Book Now
             </button>
-          ))}
-          <button onClick={()=>onBook(null)}
-            style={{ background:GOLD, color:BK, border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginLeft:8 }}>
-            Book Now
-          </button>
+          </div>
+
+          {/* Mobile: Book + Hamburger */}
+          <div className="sw-mobile-only" style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={()=>onBook(null)}
+              style={{ background:GOLD, color:BK, border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+              Book Now
+            </button>
+            <button onClick={()=>setMenuOpen(o=>!o)}
+              style={{ background:"rgba(255,255,255,.15)", border:"none", color:WH, borderRadius:7, padding:"8px 10px", fontSize:18, cursor:"pointer", lineHeight:1 }}>
+              {menuOpen?"✕":"☰"}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {menuOpen && (
+          <div style={{ background:"rgba(80,10,25,.98)", borderTop:"1px solid rgba(255,255,255,.1)", padding:"8px 0 12px" }}>
+            {NAV_LINKS.map(n => (
+              <button key={n.id} onClick={()=>{ scrollTo(n.id); setMenuOpen(false); }}
+                style={{ display:"block", width:"100%", background:"none", border:"none", color:activeSection===n.id?GOLD:WH+"CC", padding:"12px 20px", fontSize:15, fontWeight:600, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
+                {n.l}
+              </button>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* ── HERO ── */}
