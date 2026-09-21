@@ -1285,12 +1285,12 @@ export default function App() {
      SUBDOMAIN STORE VIEW (sunrise.bnbmis.com)
      When on a store subdomain, show that store directly
   ══════════════════════════════════════════════════════ */
-  // If on a subdomain, route directly to that store's booking page
+  // If on a subdomain, show the store website first
   if (subdomainStore && view !== "admin" && view !== "owner_dash" && view !== "super" && view !== "customer") {
     if (!mktSelStore || mktSelStore.id !== subdomainStore.id) {
       setTimeout(() => {
         setMktSelStore(subdomainStore);
-        if (view !== "book") { navTo("book", 1); }
+        if (view !== "book" && view !== "store_site") { navTo("store_site"); }
       }, 0);
     }
   }
@@ -1522,6 +1522,34 @@ export default function App() {
       <PWAInstallBanner/>
     </div>
   );
+
+  /* ══════════════════════════════════════════════════════
+     STORE WEBSITE (subdomain.bnbmis.com one-page site)
+  ══════════════════════════════════════════════════════ */
+  if (view === "store_site" && mktSelStore) {
+    const st = mktSelStore;
+    return <StoreWebsite
+      store={st}
+      rooms={rooms}
+      locs={locs}
+      payMethods={payMethods}
+      onBook={(roomId)=>{
+        if (roomId) {
+          setBD(d=>({...d,roomId}));
+          setRoomDetail(roomId);
+          navTo("book",3);
+        } else {
+          navTo("book",1);
+        }
+      }}
+      onContact={()=>{
+        const phone = st.phone || "";
+        if (phone) window.open("tel:"+phone);
+      }}
+      pop={pop}
+    />;
+  }
+
 
   if (view === "book") return (
     <div style={{ minHeight: "100vh", background: G1, fontFamily: "'DM Sans',sans-serif" }}>
@@ -8078,6 +8106,342 @@ function MktRoomCard({ rm, onClick }) {
 }
 
 /* ─── SUPER: FEATURED ROOMS MANAGER ─────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   STORE WEBSITE COMPONENT — one-page site for each store
+══════════════════════════════════════════════════════════ */
+function StoreWebsite({ store, rooms, locs, payMethods, onBook, onContact, pop }) {
+  const [activeSection, setActiveSection] = useState("home");
+  const [selLoc, setSelLoc]               = useState(null);
+
+  const M="#6B1B2A",WH="#FFF",BK="#111",G1="#F7F5F3",G2="#E8E4E0",G6="#666",G3="#F0EDE9";
+  const OK="#2E7D32",GOLD="#C9A84C";
+
+  const logo    = store.logo_url;
+  const cover   = store.featured_image || (locs[0]?.featured_image) || null;
+  const stName  = store.name || "Property";
+  const stDesc  = store.description || "";
+  const stCity  = store.city || "";
+  const stPhone = store.phone || "";
+  const stEmail = store.email || "";
+  const stWeb   = store.website || "";
+  const avgRating = Number(store.avg_rating || 0);
+
+  const availRooms = rooms.filter(r => r.status !== "maintenance");
+  const displayRooms = selLoc ? availRooms.filter(r => r.locId === selLoc) : availRooms;
+
+  const scrollTo = (id) => {
+    setActiveSection(id);
+    const el = document.getElementById("sw-"+id);
+    if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+  };
+
+  const NAV_LINKS = [
+    { id:"home",    l:"Home" },
+    { id:"rooms",   l:"Rooms" },
+    { id:"about",   l:"About" },
+    { id:"contact", l:"Contact" },
+  ];
+
+  return (
+    <div style={{ minHeight:"100vh", fontFamily:"'DM Sans',sans-serif", background:G1, color:BK }}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+      {/* ── STICKY NAV ── */}
+      <nav style={{ position:"sticky", top:0, zIndex:100, background:"rgba(107,27,42,.97)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", height:60, boxShadow:"0 2px 16px rgba(0,0,0,.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          {logo
+            ? <img src={logo} alt={stName} style={{ height:36, borderRadius:6, objectFit:"contain" }}/>
+            : <div style={{ width:36, height:36, background:GOLD, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ color:BK, fontWeight:900, fontSize:11, fontFamily:"'Playfair Display',serif" }}>BNB</span>
+              </div>
+          }
+          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:WH, letterSpacing:"-0.3px" }}>{stName}</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          {NAV_LINKS.map(n => (
+            <button key={n.id} onClick={()=>scrollTo(n.id)}
+              style={{ background:"none", border:"none", color:activeSection===n.id?GOLD:WH+"CC", padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", borderRadius:6, transition:"color .15s" }}>
+              {n.l}
+            </button>
+          ))}
+          <button onClick={()=>onBook(null)}
+            style={{ background:GOLD, color:BK, border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginLeft:8 }}>
+            Book Now
+          </button>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <section id="sw-home" style={{ position:"relative", height:"90vh", minHeight:520, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+        {/* Background */}
+        {cover
+          ? <img src={cover} alt={stName} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}/>
+          : <div style={{ position:"absolute", inset:0, background:`linear-gradient(135deg, ${M} 0%, #2C0A11 100%)` }}/>
+        }
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(0,0,0,.35) 0%, rgba(0,0,0,.65) 100%)" }}/>
+
+        <div style={{ position:"relative", textAlign:"center", padding:"0 24px", maxWidth:720 }}>
+          {avgRating > 0 && (
+            <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(255,255,255,.15)", backdropFilter:"blur(8px)", borderRadius:99, padding:"6px 16px", marginBottom:20 }}>
+              <span style={{ color:GOLD, fontSize:14 }}>{"★".repeat(Math.round(avgRating))}</span>
+              <span style={{ color:WH, fontSize:13, fontWeight:600 }}>{avgRating} · {store.review_count||0} reviews</span>
+            </div>
+          )}
+          <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(36px,6vw,72px)", fontWeight:900, color:WH, lineHeight:1.1, margin:"0 0 16px", textShadow:"0 2px 20px rgba(0,0,0,.4)" }}>
+            {stName}
+          </h1>
+          {stCity && (
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, color:WH+"CC", fontSize:16, marginBottom:20 }}>
+              <span>📍</span><span>{stCity}</span>
+            </div>
+          )}
+          {stDesc && (
+            <p style={{ color:WH+"BB", fontSize:16, lineHeight:1.7, marginBottom:32, maxWidth:560, margin:"0 auto 32px" }}>
+              {stDesc.slice(0,160)}{stDesc.length>160?"…":""}
+            </p>
+          )}
+          <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
+            <button onClick={()=>onBook(null)}
+              style={{ background:M, color:WH, border:"none", borderRadius:10, padding:"15px 36px", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 20px rgba(107,27,42,.6)" }}>
+              🛏 Book a Room
+            </button>
+            <button onClick={()=>scrollTo("rooms")}
+              style={{ background:"rgba(255,255,255,.15)", backdropFilter:"blur(8px)", color:WH, border:"2px solid rgba(255,255,255,.4)", borderRadius:10, padding:"15px 36px", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              View Rooms
+            </button>
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div style={{ position:"absolute", bottom:24, left:"50%", transform:"translateX(-50%)", color:WH+"88", fontSize:12, textAlign:"center", animation:"bounce 2s infinite" }}>
+          <div style={{ fontSize:20 }}>↓</div>
+        </div>
+      </section>
+
+      {/* ── QUICK STATS ── */}
+      <section style={{ background:M, padding:"28px 24px" }}>
+        <div style={{ maxWidth:900, margin:"0 auto", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:20 }}>
+          {[
+            { icon:"🛏️", num:availRooms.length, l:"Rooms Available" },
+            { icon:"📍", num:locs.length,        l:"Location"+(locs.length!==1?"s":"") },
+            { icon:"💳", num:payMethods.length||3, l:"Payment Options" },
+            { icon:"⭐", num:avgRating>0?avgRating+"★":"New",  l:"Guest Rating" },
+          ].map(({icon,num,l})=>(
+            <div key={l} style={{ textAlign:"center" }}>
+              <div style={{ fontSize:28, marginBottom:4 }}>{icon}</div>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:26, fontWeight:700, color:GOLD }}>{num}</div>
+              <div style={{ fontSize:12, color:WH+"AA", fontWeight:500 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── ROOMS ── */}
+      <section id="sw-rooms" style={{ padding:"64px 24px", maxWidth:1100, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:40 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:M, textTransform:"uppercase", letterSpacing:".15em", marginBottom:8 }}>Accommodation</div>
+          <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(28px,4vw,42px)", fontWeight:900, margin:"0 0 12px", color:BK }}>Our Rooms</h2>
+          <p style={{ color:G6, fontSize:15, maxWidth:480, margin:"0 auto" }}>Choose from our carefully curated selection of rooms and suites</p>
+        </div>
+
+        {/* Location filter */}
+        {locs.length > 1 && (
+          <div style={{ display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap", marginBottom:32 }}>
+            <button onClick={()=>setSelLoc(null)}
+              style={{ padding:"8px 20px", borderRadius:99, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", border:`2px solid ${!selLoc?M:G2}`, background:!selLoc?M:WH, color:!selLoc?WH:G6 }}>
+              All Locations
+            </button>
+            {locs.map(l=>(
+              <button key={l.id} onClick={()=>setSelLoc(l.id)}
+                style={{ padding:"8px 20px", borderRadius:99, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", border:`2px solid ${selLoc===l.id?M:G2}`, background:selLoc===l.id?M:WH, color:selLoc===l.id?WH:G6 }}>
+                {l.icon} {l.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {displayRooms.length === 0 ? (
+          <div style={{ textAlign:"center", padding:48, color:G6, fontSize:15 }}>No rooms available at this time.</div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:24 }}>
+            {displayRooms.map(rm => {
+              const loc = locs.find(l=>l.id===rm.locId);
+              const photo = rm.photos&&rm.photos[0];
+              const isAvail = rm.status==="available";
+              return (
+                <div key={rm.id} style={{ background:WH, borderRadius:16, overflow:"hidden", boxShadow:"0 2px 20px rgba(0,0,0,.08)", transition:"transform .2s,box-shadow .2s" }}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,.15)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 2px 20px rgba(0,0,0,.08)";}}>
+                  {/* Photo */}
+                  <div style={{ position:"relative", height:200, background:G3, overflow:"hidden" }}>
+                    {photo
+                      ? <img src={photo} alt={rm.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} loading="lazy"/>
+                      : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>🛏️</div>
+                    }
+                    <div style={{ position:"absolute", top:12, right:12 }}>
+                      <span style={{ background:isAvail?OK:"#B76E00", color:WH, borderRadius:99, padding:"4px 10px", fontSize:11, fontWeight:700 }}>
+                        {isAvail?"Available":"Occupied"}
+                      </span>
+                    </div>
+                    {rm.is_featured && (
+                      <div style={{ position:"absolute", top:12, left:12 }}>
+                        <span style={{ background:GOLD, color:BK, borderRadius:99, padding:"4px 10px", fontSize:11, fontWeight:700 }}>⭐ Featured</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding:"20px 20px 16px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                      <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, margin:0, color:BK }}>{rm.name}</h3>
+                      <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
+                        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:M }}>TZS {Number(rm.price||0).toLocaleString()}</div>
+                        <div style={{ fontSize:11, color:G6 }}>per night</div>
+                      </div>
+                    </div>
+                    {loc && <div style={{ fontSize:12, color:M, fontWeight:600, marginBottom:8 }}>📍 {loc.name}{loc.city?" · "+loc.city:""}</div>}
+                    <div style={{ display:"flex", gap:12, fontSize:12, color:G6, marginBottom:12 }}>
+                      <span>🛏 {rm.beds} bed{rm.beds!==1?"s":""}</span>
+                      <span>👥 {rm.maxGuests} guest{rm.maxGuests!==1?"s":""}</span>
+                      <span>🏷 {rm.type}</span>
+                    </div>
+                    {rm.desc && <p style={{ fontSize:13, color:G6, lineHeight:1.6, margin:"0 0 12px" }}>{rm.desc.slice(0,80)}{rm.desc.length>80?"…":""}</p>}
+                    {rm.amen&&rm.amen.length>0 && (
+                      <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:14 }}>
+                        {rm.amen.slice(0,4).map(a=>(
+                          <span key={a} style={{ background:G3, color:G6, borderRadius:4, padding:"2px 8px", fontSize:11 }}>{a}</span>
+                        ))}
+                        {rm.amen.length>4 && <span style={{ background:G3, color:G6, borderRadius:4, padding:"2px 8px", fontSize:11 }}>+{rm.amen.length-4}</span>}
+                      </div>
+                    )}
+                    <button onClick={()=>isAvail?onBook(rm.id):null} disabled={!isAvail}
+                      style={{ width:"100%", background:isAvail?M:"#AAA", color:WH, border:"none", borderRadius:8, padding:"11px", fontSize:14, fontWeight:700, cursor:isAvail?"pointer":"not-allowed", fontFamily:"inherit" }}>
+                      {isAvail?"Book This Room →":"Currently Occupied"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── ABOUT ── */}
+      <section id="sw-about" style={{ background:G3, padding:"64px 24px" }}>
+        <div style={{ maxWidth:800, margin:"0 auto" }}>
+          <div style={{ textAlign:"center", marginBottom:40 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:M, textTransform:"uppercase", letterSpacing:".15em", marginBottom:8 }}>About Us</div>
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(28px,4vw,42px)", fontWeight:900, margin:0, color:BK }}>{stName}</h2>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:cover?"1fr 1fr":"1fr", gap:40, alignItems:"center" }}>
+            {cover && (
+              <img src={cover} alt={stName} style={{ width:"100%", borderRadius:16, objectFit:"cover", height:320 }}/>
+            )}
+            <div>
+              {stDesc ? (
+                <p style={{ fontSize:16, lineHeight:1.8, color:G6, margin:"0 0 24px" }}>{stDesc}</p>
+              ) : (
+                <p style={{ fontSize:16, lineHeight:1.8, color:G6, margin:"0 0 24px" }}>
+                  Welcome to {stName}. We offer comfortable accommodation with modern amenities in {stCity||"Tanzania"}.
+                  Our friendly staff is ready to make your stay unforgettable.
+                </p>
+              )}
+              {/* Locations */}
+              {locs.length > 0 && (
+                <div style={{ marginBottom:24 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:BK, marginBottom:12 }}>Our Locations</div>
+                  {locs.map(l=>(
+                    <div key={l.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid "+G2 }}>
+                      <span style={{ fontSize:22 }}>{l.icon||"🏨"}</span>
+                      <div>
+                        <div style={{ fontWeight:600, fontSize:14 }}>{l.name}</div>
+                        {(l.city||l.address) && <div style={{ fontSize:12, color:G6 }}>📍 {[l.address,l.city].filter(Boolean).join(", ")}</div>}
+                        {l.phone && <div style={{ fontSize:12, color:G6 }}>📞 {l.phone}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Payment methods */}
+              {payMethods.length > 0 && (
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14, color:BK, marginBottom:8 }}>We Accept</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {payMethods.map(pm=>(
+                      <span key={pm} style={{ background:WH, border:"1px solid "+G2, borderRadius:6, padding:"4px 12px", fontSize:12, fontWeight:600 }}>{pm}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONTACT ── */}
+      <section id="sw-contact" style={{ padding:"64px 24px", maxWidth:700, margin:"0 auto", textAlign:"center" }}>
+        <div style={{ fontSize:12, fontWeight:700, color:M, textTransform:"uppercase", letterSpacing:".15em", marginBottom:8 }}>Get In Touch</div>
+        <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(28px,4vw,42px)", fontWeight:900, margin:"0 0 12px", color:BK }}>Contact Us</h2>
+        <p style={{ color:G6, fontSize:15, marginBottom:40 }}>Ready to book or have questions? We're here to help.</p>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:16, marginBottom:40 }}>
+          {stPhone && (
+            <a href={"tel:"+stPhone} style={{ textDecoration:"none" }}>
+              <div style={{ background:WH, borderRadius:12, padding:"24px 16px", border:"1px solid "+G2, textAlign:"center", transition:"box-shadow .2s" }}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.12)"}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
+                <div style={{ fontSize:32, marginBottom:8 }}>📞</div>
+                <div style={{ fontWeight:700, fontSize:13, color:BK, marginBottom:4 }}>Call Us</div>
+                <div style={{ color:M, fontWeight:600, fontSize:14 }}>{stPhone}</div>
+              </div>
+            </a>
+          )}
+          {stEmail && (
+            <a href={"mailto:"+stEmail} style={{ textDecoration:"none" }}>
+              <div style={{ background:WH, borderRadius:12, padding:"24px 16px", border:"1px solid "+G2, textAlign:"center" }}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.12)"}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
+                <div style={{ fontSize:32, marginBottom:8 }}>✉️</div>
+                <div style={{ fontWeight:700, fontSize:13, color:BK, marginBottom:4 }}>Email Us</div>
+                <div style={{ color:M, fontWeight:600, fontSize:14 }}>{stEmail}</div>
+              </div>
+            </a>
+          )}
+          {stWeb && (
+            <a href={stWeb.startsWith("http")?stWeb:"https://"+stWeb} target="_blank" rel="noreferrer" style={{ textDecoration:"none" }}>
+              <div style={{ background:WH, borderRadius:12, padding:"24px 16px", border:"1px solid "+G2, textAlign:"center" }}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.12)"}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
+                <div style={{ fontSize:32, marginBottom:8 }}>🌐</div>
+                <div style={{ fontWeight:700, fontSize:13, color:BK, marginBottom:4 }}>Website</div>
+                <div style={{ color:M, fontWeight:600, fontSize:13 }}>{stWeb.replace(/https?:\/\//,"")}</div>
+              </div>
+            </a>
+          )}
+          {stCity && (
+            <div style={{ background:WH, borderRadius:12, padding:"24px 16px", border:"1px solid "+G2, textAlign:"center" }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>📍</div>
+              <div style={{ fontWeight:700, fontSize:13, color:BK, marginBottom:4 }}>Location</div>
+              <div style={{ color:M, fontWeight:600, fontSize:14 }}>{stCity}</div>
+            </div>
+          )}
+        </div>
+
+        <button onClick={()=>onBook(null)}
+          style={{ background:M, color:WH, border:"none", borderRadius:12, padding:"16px 48px", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 24px rgba(107,27,42,.35)" }}>
+          🛏 Book Your Stay
+        </button>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={{ background:M, color:WH+"99", textAlign:"center", padding:"24px", fontSize:12 }}>
+        <div style={{ marginBottom:4, fontWeight:600, color:WH }}>{stName}</div>
+        {stCity && <div style={{ marginBottom:8 }}>📍 {stCity}</div>}
+        <div>Powered by <a href="https://bnbmis.com" style={{ color:GOLD, textDecoration:"none", fontWeight:700 }}>BNBMIS</a> · Property Management Platform</div>
+      </footer>
+    </div>
+  );
+}
+
 function SuperFeaturedRooms({ api, pop }) {
   const [rooms, setRooms]   = useState([]);
   const [loading, setLoading] = useState(true);
